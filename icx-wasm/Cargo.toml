@@ -1,7 +1,10 @@
 [package]
 name = "icx-wasm"
 version = "0.1.0"
-edition = "2018"
+authors = ["DFINITY Stiftung"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.34"

@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "ic-wasm",
+    "icx-wasm"
+]
+

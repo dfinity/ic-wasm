@@ -14,8 +14,6 @@ $ cargo install ic-wasm
 
 Usage: `ic-wasm <input.wasm> [-o output.wasm] metadata [name] [-d <text content> | -f <file content>] [-v <public|private>]`
 
-Example:
-
 * List current metadata sections
 ``` 
 $ ic-wasm input.wasm metadata

@@ -14,6 +14,14 @@ pub fn add_metadata(m: &mut walrus::Module, visibility: Kind, name: &str, data: 
     m.customs.add(custom_section);
 }
 
+/// Remove a metadata section
+pub fn remove_metadata(m: &mut walrus::Module, name: &str) {
+    let public = "icp:public ".to_owned() + name;
+    let private = "icp:private ".to_owned() + name;
+    m.customs.remove_raw(&public);
+    m.customs.remove_raw(&private);
+}
+
 /// List current metadata sections
 pub fn list_metadata(m: &walrus::Module) -> Vec<&str> {
     m.customs

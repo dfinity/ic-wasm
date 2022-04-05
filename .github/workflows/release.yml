@@ -15,16 +15,16 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux64
-            artifact_name: target/release/didc
-            asset_name: didc-linux64
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-linux64
           - os: macos-latest
             name: macos
-            artifact_name: target/release/didc
-            asset_name: didc-macos
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-macos
           - os: ubuntu-latest
             name: arm
-            artifact_name: target/arm-unknown-linux-gnueabihf/release/didc
-            asset_name: didc-arm32
+            artifact_name: target/arm-unknown-linux-gnueabihf/release/icx-wasm
+            asset_name: ic-wasm-arm32
 
     steps:
     - uses: actions/checkout@v2

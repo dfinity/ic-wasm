@@ -1,0 +1,37 @@
+name: Rust
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+    - name: Cache cargo build
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    - name: Build
+      run: cargo build
+    - name: Run tests
+      run: cargo test
+    - name: fmt
+      run: cargo fmt -v -- --check
+    - name: lint
+      run: cargo clippy --tests -- -D clippy::all
+    - name: doc
+      run: cargo doc

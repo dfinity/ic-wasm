@@ -67,7 +67,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     (_, _) => unreachable!(),
                 };
-                add_metadata(&mut m, visibility, name, data.to_vec());
+                add_metadata(&mut m, visibility, name, data);
             } else {
                 let names = list_metadata(&m);
                 for name in names.iter() {

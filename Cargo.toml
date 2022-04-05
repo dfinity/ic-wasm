@@ -1,6 +1,26 @@
-[workspace]
-members = [
-    "ic-wasm",
-    "icx-wasm"
-]
+[package]
+name = "ic-wasm"
+categories = ["wasm"]
+version = "0.1.0"
+authors = ["DFINITY Stiftung"]
+edition = "2021"
+license = "Apache-2.0"
+readme = "README.md"
 
+[[bin]]
+name = "ic-wasm"
+path = "src/bin/main.rs"
+required-features = ["exe"]
+
+[dependencies]
+walrus = "0.19.0"
+
+anyhow = { version = "1.0.34", optional = true }
+clap = { version = "3.0.14", features = ["derive", "cargo"], optional = true }
+
+[features]
+default = ["exe"]
+exe = ["anyhow", "clap"]
+
+[dev-dependencies]
+assert_cmd = "1.0.0"

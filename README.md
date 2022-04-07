@@ -42,3 +42,7 @@ To use `ic-wasm` as a library, add this to your `Cargo.toml`:
 [dependencies.ic-wasm]
 default-features = false
 ```
+
+## Contribution
+
+See our [CONTRIBUTING](.github/CONTRIBUTING.md) to get started.

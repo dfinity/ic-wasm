@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+use std::fs;
 use std::path::Path;
 
 fn wasm_input(wasm: &str, output: bool) -> Command {
@@ -9,6 +10,30 @@ fn wasm_input(wasm: &str, output: bool) -> Command {
         cmd.arg("-o").arg(path.join("out.wasm"));
     }
     cmd
+}
+
+fn assert_wasm(expected: &str) {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let expected = path.join("ok").join(expected);
+    let out = path.join("out.wasm");
+    let ok = fs::read(&expected).unwrap();
+    let actual = fs::read(&out).unwrap();
+    if ok != actual {
+        panic!(
+            "ic_wasm did not result in expected wasm file: {} != {}",
+            expected.display(),
+            out.display()
+        );
+    }
+}
+
+#[test]
+fn instrumentation() {
+    wasm_input("greet.wasm", true)
+        .arg("instrument")
+        .assert()
+        .success();
+    assert_wasm("greet_instrument.wasm");
 }
 
 #[test]

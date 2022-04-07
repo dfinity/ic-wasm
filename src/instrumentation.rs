@@ -52,8 +52,7 @@ pub fn instrument(m: &mut Module) {
     make_stable_getter(m, &vars, leb);
     make_getter(m, &vars);
     let name = make_name_section(m);
-    //m.customs.add(name);
-    make_name_getter(m, name.data, leb);
+    m.customs.add(name);
 }
 
 fn inject_metering(func: &mut LocalFunction, start: InstrSeqId, vars: &Variables) {
@@ -283,6 +282,9 @@ fn inject_printer(m: &mut Module, vars: &Variables) -> FunctionId {
     );
     builder.finish(vec![func_id], &mut m.funcs)
 }
+/*
+// We can use this function once we have a system memroy for logs.
+// Otherwise, we cannot call stable_write in canister_init
 fn inject_start(m: &mut Module, is_init: GlobalId) {
     if let Some(id) = m.start {
         let mut builder = get_builder(m, id);
@@ -292,7 +294,7 @@ fn inject_start(m: &mut Module, is_init: GlobalId) {
             .instr(GlobalSet { global: is_init });
     }
 }
-
+*/
 fn inject_canister_methods(m: &mut Module, vars: &Variables) {
     let methods: Vec<_> = m
         .exports
@@ -439,48 +441,7 @@ fn make_name_section(m: &Module) -> RawCustomSection {
         data,
     }
 }
-fn make_name_getter(m: &mut Module, data: Vec<u8>, leb: FunctionId) {
-    let len = data.len() as i32;
-    if len == 0 || len >= 65526 {
-        return;
-    }
-    let memory = get_memory_id(m);
-    //let data_id = m.data.add(DataKind::Passive, data);
-    let data_start = 10;
-    m.data.add(
-        DataKind::Active(ActiveData {
-            memory,
-            location: ActiveDataLocation::Absolute(data_start),
-        }),
-        data,
-    );
-    let reply_data = get_ic_func_id(m, "msg_reply_data_append");
-    let reply = get_ic_func_id(m, "msg_reply");
-    let mut getter = FunctionBuilder::new(&mut m.types, &[], &[]);
-    getter.name("__get_names".to_string());
-    #[rustfmt::skip]
-    getter.func_body()
-        .i32_const(0)
-        .i64_const(0x017b6d014c444944) // "DIDL016d7b01"
-        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
-        .i32_const(8)
-        .i32_const(0)
-        .store(memory, StoreKind::I32_8 { atomic: false }, MemArg { offset: 0, align: 1 })
-        .i32_const(0)
-        .i32_const(9)
-        .call(reply_data)
-        .i32_const(len)
-        .call(leb)
-        .i32_const(0)
-        .i32_const(5)
-        .call(reply_data)
-        .i32_const(data_start as i32)
-        .i32_const(len)
-        .call(reply_data)
-        .call(reply);
-    let getter = getter.finish(vec![], &mut m.funcs);
-    m.exports.add("canister_query __get_names", getter);
-}
+
 fn make_getter(m: &mut Module, vars: &Variables) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");

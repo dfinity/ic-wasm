@@ -34,12 +34,17 @@ enum SubCommand {
         #[clap(short, long, possible_values = &["public", "private"], default_value = "private")]
         visibility: String,
     },
+    // Instrument cycles count
+    Instrument,
 }
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let mut m = walrus::Module::from_file(opts.input)?;
     match &opts.subcommand {
+        SubCommand::Instrument => {
+            ic_wasm::instrumentation::instrument(&mut m);
+        }
         SubCommand::Metadata {
             name,
             data,

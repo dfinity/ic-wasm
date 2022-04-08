@@ -14,8 +14,6 @@ $ cargo install ic-wasm
 
 Usage: `ic-wasm <input.wasm> [-o output.wasm] metadata [name] [-d <text content> | -f <file content>] [-v <public|private>]`
 
-Example:
-
 * List current metadata sections
 ``` 
 $ ic-wasm input.wasm metadata
@@ -44,3 +42,7 @@ To use `ic-wasm` as a library, add this to your `Cargo.toml`:
 [dependencies.ic-wasm]
 default-features = false
 ```
+
+## Contribution
+
+See our [CONTRIBUTING](.github/CONTRIBUTING.md) to get started.

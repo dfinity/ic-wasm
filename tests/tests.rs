@@ -29,17 +29,51 @@ fn assert_wasm(expected: &str) {
 
 #[test]
 fn instrumentation() {
-    wasm_input("greet.wasm", true)
+    wasm_input("motoko.wasm", true)
         .arg("instrument")
         .assert()
         .success();
-    assert_wasm("greet_instrument.wasm");
+    assert_wasm("motoko-instrument.wasm");
+    wasm_input("wat.wasm", true)
+        .arg("instrument")
+        .assert()
+        .success();
+    assert_wasm("wat-instrument.wasm");
+    wasm_input("rust.wasm", true)
+        .arg("instrument")
+        .assert()
+        .success();
+    assert_wasm("rust-instrument.wasm");
+}
+
+#[test]
+fn info() {
+    let expected = r#"Number of types: 6
+Number of globals: 1
+
+Number of data sections: 3
+Size of data sections: 35
+
+Number of functions: 9
+Number of callbacks: 0
+Start function: None
+Exported methods: ["canister_query get", "canister_update inc", "canister_update set"]
+
+Imported IC0 System API: ["msg_reply", "msg_reply_data_append", "msg_arg_data_size", "msg_arg_data_copy", "trap"]
+
+Custom sections with size: []
+"#;
+    wasm_input("wat.wasm", false)
+        .arg("info")
+        .assert()
+        .stdout(expected)
+        .success();
 }
 
 #[test]
 fn metadata() {
     // List metadata
-    wasm_input("greet.wasm", false)
+    wasm_input("motoko.wasm", false)
         .arg("metadata")
         .assert()
         .stdout(
@@ -51,21 +85,21 @@ icp:private motoko:compiler
         )
         .success();
     // Get motoko:compiler content
-    wasm_input("greet.wasm", false)
+    wasm_input("motoko.wasm", false)
         .arg("metadata")
         .arg("motoko:compiler")
         .assert()
         .stdout("0.6.25\n")
         .success();
     // Get a non-existed metadata
-    wasm_input("greet.wasm", false)
+    wasm_input("motoko.wasm", false)
         .arg("metadata")
         .arg("whatever")
         .assert()
         .stdout("Cannot find metadata whatever\n")
         .success();
     // Overwrite motoko:compiler
-    wasm_input("greet.wasm", true)
+    wasm_input("motoko.wasm", true)
         .arg("metadata")
         .arg("motoko:compiler")
         .arg("-d")
@@ -79,7 +113,7 @@ icp:private motoko:compiler
         .stdout("hello\n")
         .success();
     // Add a new metadata
-    wasm_input("greet.wasm", true)
+    wasm_input("motoko.wasm", true)
         .arg("metadata")
         .arg("whatever")
         .arg("-d")

@@ -1,4 +1,6 @@
 To regenerate the Wasm file:
 
-* `greet.wasm` is generated from the default Motoko app from dfx 0.9.3.
+* `wat.wasm` is generated from the [dfinity/examples/wasm/counter](https://github.com/dfinity/examples/tree/master/wasm/counter)
+* `motoko.wasm` is generated from [dfinity/examples/motoko/counter](https://github.com/dfinity/examples/tree/master/motoko/counter)
+* `rust.wasm` is generated from [dfinity/cdk-rs/examples.counter](https://github.com/dfinity/cdk-rs/tree/main/examples/counter/src/counter_rs)
 

@@ -68,3 +68,12 @@ pub fn inject_top(builder: &mut InstrSeqBuilder<'_>, instrs: Vec<ir::Instr>) {
         builder.instr_at(0, instr);
     }
 }
+
+pub fn get_func_name(m: &Module, id: FunctionId) -> String {
+    m.funcs
+        .get(id)
+        .name
+        .as_ref()
+        .unwrap_or(&format!("func_{:?}", id))
+        .to_string()
+}

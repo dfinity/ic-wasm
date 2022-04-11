@@ -16,7 +16,7 @@ pub fn info(m: &Module) {
     println!("Number of callbacks: {}", m.elements.iter().count());
     println!(
         "Start function: {:?}",
-        m.start.map(|f| m.funcs.get(f).name.as_ref())
+        m.start.map(|id| crate::utils::get_func_name(m, id))
     );
     let exports: Vec<&str> = m
         .exports

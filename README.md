@@ -12,7 +12,9 @@ $ cargo install ic-wasm
 
 ### Metadata
 
-Usage: `ic-wasm <input.wasm> [-o output.wasm] metadata [name] [-d <text content> | -f <file content>] [-v <public|private>]`
+Manage metadata in the Wasm module.
+
+Usage: `ic-wasm <input.wasm> [-o <output.wasm>] metadata [name] [-d <text content> | -f <file content>] [-v <public|private>]`
 
 * List current metadata sections
 ``` 
@@ -33,6 +35,12 @@ $ ic-wasm input.wasm -o output.wasm metadata new_section -d "hello, world"
 ```
 $ ic-wasm input.wasm -o output.wasm metadata candid:service -f service.did -v public
 ```
+
+### Instrument (experimental)
+
+Instrument canister method to emit execution trace to stable memory.
+
+Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument`
 
 ## Library
 

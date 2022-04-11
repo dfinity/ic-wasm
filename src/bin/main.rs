@@ -20,7 +20,7 @@ struct Opts {
 
 #[derive(Parser)]
 enum SubCommand {
-    /// Canister metadata
+    /// Manage metadata in the Wasm module
     Metadata {
         /// Name of metadata. If not provided, list the current metadata sections.
         name: Option<String>,
@@ -34,7 +34,7 @@ enum SubCommand {
         #[clap(short, long, possible_values = &["public", "private"], default_value = "private")]
         visibility: String,
     },
-    // Instrument cycles count
+    /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument,
 }
 

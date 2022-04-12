@@ -36,6 +36,12 @@ $ ic-wasm input.wasm -o output.wasm metadata new_section -d "hello, world"
 $ ic-wasm input.wasm -o output.wasm metadata candid:service -f service.did -v public
 ```
 
+### Info
+
+Print information about the Wasm canister
+
+Usage: `ic-wasm <input.wasm> info`
+
 ### Instrument (experimental)
 
 Instrument canister method to emit execution trace to stable memory.

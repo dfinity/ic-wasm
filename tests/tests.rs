@@ -47,6 +47,25 @@ fn instrumentation() {
 }
 
 #[test]
+fn shrink() {
+    wasm_input("motoko.wasm", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("motoko-shrink.wasm");
+    wasm_input("wat.wasm", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("wat-shrink.wasm");
+    wasm_input("rust.wasm", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("rust-shrink.wasm");
+}
+
+#[test]
 fn info() {
     let expected = r#"Number of types: 6
 Number of globals: 1

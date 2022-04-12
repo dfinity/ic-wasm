@@ -1,4 +1,4 @@
-name: Wasm
+name: Deploy Wasm
 on:
   push:
     branches:

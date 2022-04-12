@@ -42,6 +42,12 @@ Print information about the Wasm canister
 
 Usage: `ic-wasm <input.wasm> info`
 
+### Shrink
+
+Remove unused functions and debug info
+
+Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
+
 ### Instrument (experimental)
 
 Instrument canister method to emit execution trace to stable memory.

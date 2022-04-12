@@ -34,6 +34,8 @@ enum SubCommand {
         #[clap(short, long, possible_values = &["public", "private"], default_value = "private")]
         visibility: String,
     },
+    /// List information about the Wasm canister
+    Info,
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument,
 }
@@ -42,6 +44,9 @@ fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let mut m = walrus::Module::from_file(opts.input)?;
     match &opts.subcommand {
+        SubCommand::Info => {
+            ic_wasm::info::info(&m);
+        }
         SubCommand::Instrument => {
             ic_wasm::instrumentation::instrument(&mut m);
         }

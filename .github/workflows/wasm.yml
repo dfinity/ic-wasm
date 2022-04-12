@@ -1,4 +1,4 @@
-name: wasm
+name: Wasm
 on:
   push:
     branches:
@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  deploy:
     runs-on: ubuntu-latest
     env:
       DFX_VERSION: 0.9.3

@@ -36,16 +36,31 @@ enum SubCommand {
     },
     /// List information about the Wasm canister
     Info,
+    /// Remove unused functions and debug info
+    Shrink,
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument,
 }
 
+fn walrus_config_from_options(opts: &Opts) -> walrus::ModuleConfig {
+    let mut config = walrus::ModuleConfig::new();
+    if let SubCommand::Shrink = opts.subcommand {
+        config.generate_name_section(false);
+        config.generate_producers_section(false);
+    }
+    config
+}
+
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let mut m = walrus::Module::from_file(opts.input)?;
+    let config = walrus_config_from_options(&opts);
+    let mut m = config.parse_file(opts.input)?;
     match &opts.subcommand {
         SubCommand::Info => {
             ic_wasm::info::info(&m);
+        }
+        SubCommand::Shrink => {
+            ic_wasm::shrink::shrink(&mut m);
         }
         SubCommand::Instrument => {
             ic_wasm::instrumentation::instrument(&mut m);

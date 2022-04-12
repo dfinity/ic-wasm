@@ -15,21 +15,34 @@ function install(wasm) {
   S
 };
 
-let S = install(file "ok/motoko-instrument.wasm");
-call S.set(42);
-call S.inc();
-call S.get();
-assert _ == (43 : nat);
+function motoko(wasm) {
+  let S = install(wasm);
+  call S.set(42);
+  call S.inc();
+  call S.get();
+  assert _ == (43 : nat);  
+}
+function rust(wasm) {
+  let S = install(wasm);
+  call S.write((42 : nat));
+  call S.inc();
+  call S.read();
+  assert _ == (43 : nat);  
+}
+function wat(wasm) {
+  let S = install(wasm);
+  call S.set((42 : int64));
+  call S.inc();
+  call S.get();
+  assert _ == (43 : int64);  
+}
 
-let S = install(file "ok/rust-instrument.wasm");
-call S.write((42 : nat));
-call S.inc();
-call S.read();
-assert _ == (43 : nat);
+motoko(file "ok/motoko-instrument.wasm");
+motoko(file "ok/motoko-shrink.wasm");
+rust(file "ok/rust-instrument.wasm");
+rust(file "ok/rust-shrink.wasm");
+wat(file "ok/wat-instrument.wasm");
+wat(file "ok/wat-shrink.wasm");
 
-let S = install(file "ok/wat-instrument.wasm");
-call S.set((42 : int64));
-call S.inc();
-call S.get();
-assert _ == (43 : int64);
+
 

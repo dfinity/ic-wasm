@@ -21,21 +21,21 @@ function motoko(wasm) {
   call S.inc();
   call S.get();
   assert _ == (43 : nat);  
-}
+};
 function rust(wasm) {
   let S = install(wasm);
   call S.write((42 : nat));
   call S.inc();
   call S.read();
   assert _ == (43 : nat);  
-}
+};
 function wat(wasm) {
   let S = install(wasm);
   call S.set((42 : int64));
   call S.inc();
   call S.get();
   assert _ == (43 : int64);  
-}
+};
 
 motoko(file "ok/motoko-instrument.wasm");
 motoko(file "ok/motoko-shrink.wasm");

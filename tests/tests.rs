@@ -52,14 +52,24 @@ fn info() {
 Number of globals: 1
 
 Number of data sections: 3
-Size of data sections: 35
+Size of data sections: 35 bytes
 
 Number of functions: 9
 Number of callbacks: 0
 Start function: None
-Exported methods: ["canister_query get", "canister_update inc", "canister_update set"]
+Exported methods: [
+    "canister_query get (func_5)",
+    "canister_update inc (func_6)",
+    "canister_update set (func_7)",
+]
 
-Imported IC0 System API: ["msg_reply", "msg_reply_data_append", "msg_arg_data_size", "msg_arg_data_copy", "trap"]
+Imported IC0 System API: [
+    "msg_reply",
+    "msg_reply_data_append",
+    "msg_arg_data_size",
+    "msg_arg_data_copy",
+    "trap",
+]
 
 Custom sections with size: []
 "#;

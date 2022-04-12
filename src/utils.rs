@@ -74,6 +74,6 @@ pub fn get_func_name(m: &Module, id: FunctionId) -> String {
         .get(id)
         .name
         .as_ref()
-        .unwrap_or(&format!("func_{:?}", id))
+        .unwrap_or(&format!("func_{}", id.index()))
         .to_string()
 }

@@ -1,6 +1,6 @@
 # `ic-wasm`
 
-A library for transforming Wasm canisters running on the Internet Computer
+A library to transform Wasm canisters which run on the Internet Computer
 
 ## Executable
 

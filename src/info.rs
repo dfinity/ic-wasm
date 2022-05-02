@@ -1,8 +1,22 @@
-use crate::utils::get_func_name;
+use crate::utils::{get_func_name, is_motoko_canister, is_motoko_wasm_data_section};
 use walrus::*;
 
 /// Print general summary of the Wasm module
 pub fn info(m: &Module) {
+    if is_motoko_canister(m) {
+        println!("This is a Motoko canister");
+        m.data
+            .iter()
+            .filter_map(|d| is_motoko_wasm_data_section(&d.value))
+            .for_each(|blob| {
+                if let Ok(module) = Module::from_buffer(blob) {
+                    println!("--- Start decoding an embedded Wasm ---");
+                    info(&module);
+                    println!("--- End of decoding ---");
+                }
+            });
+        println!();
+    }
     println!("Number of types: {}", m.types.iter().count());
     println!("Number of globals: {}", m.globals.iter().count());
     println!();

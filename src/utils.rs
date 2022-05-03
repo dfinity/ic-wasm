@@ -79,12 +79,12 @@ pub fn get_func_name(m: &Module, id: FunctionId) -> String {
 }
 
 pub fn is_motoko_canister(m: &Module) -> bool {
-    m.customs
+    m.customs.iter().any(|(_, s)| {
+        s.name() == "icp:private motoko:compiler" || s.name() == "icp:public motoko:compiler"
+    }) || m
+        .exports
         .iter()
-        .any(|(_, s)| s.name() == "icp:private motoko:compiler")
-        || m.exports
-            .iter()
-            .any(|e| e.name == "canister_update __motoko_async_helper")
+        .any(|e| e.name == "canister_update __motoko_async_helper")
 }
 
 pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {

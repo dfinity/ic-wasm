@@ -91,7 +91,8 @@ pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
     let len = blob.len() as u32;
     if len > 100
         && blob[0..4] == [0x11, 0x00, 0x00, 0x00]  // tag for blob
-        && blob[8..12] == [0x00, 0x61, 0x73, 0x6d] // Wasm magic number
+        && blob[8..12] == [0x00, 0x61, 0x73, 0x6d]
+    // Wasm magic number
     {
         let decoded_len = u32::from_le_bytes(blob[4..8].try_into().unwrap());
         if decoded_len + 8 == len {
@@ -99,4 +100,18 @@ pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
         }
     }
     None
+}
+
+pub fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
+    m.data
+        .iter()
+        .filter_map(|d| {
+            let blob = is_motoko_wasm_data_section(&d.value)?;
+            let mut config = ModuleConfig::new();
+            config.generate_name_section(false);
+            config.generate_producers_section(false);
+            let m = config.parse(blob).ok()?;
+            Some((d.id(), m))
+        })
+        .collect()
 }

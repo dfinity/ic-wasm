@@ -63,6 +63,11 @@ fn shrink() {
         .assert()
         .success();
     assert_wasm("rust-shrink.wasm");
+    wasm_input("classes.wasm", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("classes-shrink.wasm")
 }
 
 #[test]

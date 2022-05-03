@@ -36,6 +36,14 @@ function wat(wasm) {
   call S.get();
   assert _ == (43 : int64);  
 };
+function classes(wasm) {
+  let S = install(wasm);
+  call S.get(42);
+  assert _ == (null : opt empty);
+  call S.put(42, "text");
+  call S.get(42);
+  assert _ == opt "text";
+};
 
 motoko(file "ok/motoko-instrument.wasm");
 motoko(file "ok/motoko-shrink.wasm");
@@ -43,6 +51,6 @@ rust(file "ok/rust-instrument.wasm");
 rust(file "ok/rust-shrink.wasm");
 wat(file "ok/wat-instrument.wasm");
 wat(file "ok/wat-shrink.wasm");
-
+classes(file "ok/classes-shrink.wasm");
 
 

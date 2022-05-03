@@ -77,3 +77,41 @@ pub fn get_func_name(m: &Module, id: FunctionId) -> String {
         .unwrap_or(&format!("func_{}", id.index()))
         .to_string()
 }
+
+pub fn is_motoko_canister(m: &Module) -> bool {
+    m.customs.iter().any(|(_, s)| {
+        s.name() == "icp:private motoko:compiler" || s.name() == "icp:public motoko:compiler"
+    }) || m
+        .exports
+        .iter()
+        .any(|e| e.name == "canister_update __motoko_async_helper")
+}
+
+pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
+    let len = blob.len() as u32;
+    if len > 100
+        && blob[0..4] == [0x11, 0x00, 0x00, 0x00]  // tag for blob
+        && blob[8..12] == [0x00, 0x61, 0x73, 0x6d]
+    // Wasm magic number
+    {
+        let decoded_len = u32::from_le_bytes(blob[4..8].try_into().unwrap());
+        if decoded_len + 8 == len {
+            return Some(&blob[8..]);
+        }
+    }
+    None
+}
+
+pub fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
+    m.data
+        .iter()
+        .filter_map(|d| {
+            let blob = is_motoko_wasm_data_section(&d.value)?;
+            let mut config = ModuleConfig::new();
+            config.generate_name_section(false);
+            config.generate_producers_section(false);
+            let m = config.parse(blob).ok()?;
+            Some((d.id(), m))
+        })
+        .collect()
+}

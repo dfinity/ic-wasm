@@ -1,8 +1,17 @@
-use crate::utils::get_func_name;
+use crate::utils::{get_func_name, get_motoko_wasm_data_sections, is_motoko_canister};
 use walrus::*;
 
 /// Print general summary of the Wasm module
 pub fn info(m: &Module) {
+    if is_motoko_canister(m) {
+        println!("This is a Motoko canister");
+        for (_, module) in get_motoko_wasm_data_sections(m) {
+            println!("--- Start decoding an embedded Wasm ---");
+            info(&module);
+            println!("--- End of decoding ---");
+        }
+        println!();
+    }
     println!("Number of types: {}", m.types.iter().count());
     println!("Number of globals: {}", m.globals.iter().count());
     println!();

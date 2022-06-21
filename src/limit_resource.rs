@@ -2,6 +2,7 @@ use crate::utils::*;
 use walrus::ir::*;
 use walrus::*;
 
+// TODO: handle actor class
 pub fn replace_cycles_add_with_drop(m: &mut Module) {
     match (
         m.imports.find("ic0", "call_cycles_add"),

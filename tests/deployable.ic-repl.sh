@@ -47,10 +47,13 @@ function classes(wasm) {
 
 motoko(file "ok/motoko-instrument.wasm");
 motoko(file "ok/motoko-shrink.wasm");
+motoko(file "ok/motoko-limit.wasm");
 rust(file "ok/rust-instrument.wasm");
 rust(file "ok/rust-shrink.wasm");
+rust(file "ok/rust-limit.wasm");
 wat(file "ok/wat-instrument.wasm");
 wat(file "ok/wat-shrink.wasm");
+wat(file "ok/wat-limit.wasm");
 classes(file "ok/classes-shrink.wasm");
 
 

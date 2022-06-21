@@ -71,6 +71,45 @@ fn shrink() {
 }
 
 #[test]
+fn resource() {
+    wasm_input("motoko.wasm", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("motoko-limit.wasm");
+    wasm_input("wat.wasm", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("wat-limit.wasm");
+    wasm_input("rust.wasm", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("rust-limit.wasm");
+    // TODO handle classes.wasm
+    /*
+    wasm_input("classes.wasm", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("classes-limit.wasm");
+    */
+}
+
+#[test]
 fn info() {
     let expected = r#"Number of types: 6
 Number of globals: 1

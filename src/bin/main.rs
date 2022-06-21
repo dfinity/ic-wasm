@@ -34,6 +34,15 @@ enum SubCommand {
         #[clap(short, long, possible_values = &["public", "private"], default_value = "private")]
         visibility: String,
     },
+    /// Limit resource usage
+    Resource {
+        /// Remove call ic0.cycles_add with drop
+        #[clap(short, long)]
+        remove_cycles_transfer: bool,
+        /// Allocate at most specified amount of memory pages for stable memory
+        #[clap(short, long)]
+        limit_stable_memory_page: Option<u32>,
+    },
     /// List information about the Wasm canister
     Info,
     /// Remove unused functions and debug info
@@ -64,6 +73,17 @@ fn main() -> anyhow::Result<()> {
         }
         SubCommand::Instrument => {
             ic_wasm::instrumentation::instrument(&mut m);
+        }
+        SubCommand::Resource {
+            remove_cycles_transfer,
+            limit_stable_memory_page,
+        } => {
+            if *remove_cycles_transfer {
+                ic_wasm::limit_resource::replace_cycles_add_with_drop(&mut m);
+            }
+            if let Some(page) = limit_stable_memory_page {
+                ic_wasm::limit_resource::limit_stable_memory_page(&mut m, *page);
+            }
         }
         SubCommand::Metadata {
             name,

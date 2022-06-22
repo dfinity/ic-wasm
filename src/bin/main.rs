@@ -36,7 +36,7 @@ enum SubCommand {
     },
     /// Limit resource usage
     Resource {
-        /// Remove call ic0.cycles_add with drop
+        /// Remove cycles_add system API call
         #[clap(short, long)]
         remove_cycles_transfer: bool,
         /// Allocate at most specified amount of memory pages for stable memory

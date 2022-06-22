@@ -9,7 +9,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      DFX_VERSION: 0.9.3
+      DFX_VERSION: 0.10.1
       IC_REPL_VERSION: 0.1.3
     steps:
       - uses: actions/checkout@v2

@@ -48,6 +48,12 @@ Remove unused functions and debug info
 
 Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
 
+### Resource
+
+Limit resource usage, mainly used by Motoko Playground
+
+Usage: `ic-wasm <input.wasm> -o <output.wasm> resource --remove_cycles_transfer --limit_stable_memory_page 1024`
+
 ### Instrument (experimental)
 
 Instrument canister method to emit execution trace to stable memory. 

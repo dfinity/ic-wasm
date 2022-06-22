@@ -96,8 +96,6 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("rust-limit.wasm");
-    // TODO handle classes.wasm
-    /*
     wasm_input("classes.wasm", true)
         .arg("resource")
         .arg("--remove-cycles-transfer")
@@ -106,7 +104,6 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("classes-limit.wasm");
-    */
 }
 
 #[test]

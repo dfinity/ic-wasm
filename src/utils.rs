@@ -115,3 +115,14 @@ pub fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
         })
         .collect()
 }
+
+pub fn encode_module_as_data_section(mut m: Module) -> Vec<u8> {
+    let blob = m.emit_wasm();
+    let blob_len = blob.len();
+    let mut res = Vec::with_capacity(blob_len + 8);
+    res.extend_from_slice(&[0x11, 0x00, 0x00, 0x00]);
+    let encoded_len = (blob_len as u32).to_le_bytes();
+    res.extend_from_slice(&encoded_len);
+    res.extend_from_slice(&blob);
+    res
+}

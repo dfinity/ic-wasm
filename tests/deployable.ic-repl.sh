@@ -44,6 +44,13 @@ function classes(wasm) {
   call S.get(42);
   assert _ == opt "text";
 };
+function classes_limit(wasm) {
+  let S = install(wasm);
+  call S.get(42);
+  assert _ == (null : opt empty);
+  fail call S.put(42, "text");
+  assert _ ~= "0 cycles were received";
+};
 
 motoko(file "ok/motoko-instrument.wasm");
 motoko(file "ok/motoko-shrink.wasm");
@@ -55,5 +62,6 @@ wat(file "ok/wat-instrument.wasm");
 wat(file "ok/wat-shrink.wasm");
 wat(file "ok/wat-limit.wasm");
 classes(file "ok/classes-shrink.wasm");
+classes_limit(file "ok/classes-limit.wasm");
 
 

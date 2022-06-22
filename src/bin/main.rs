@@ -78,12 +78,12 @@ fn main() -> anyhow::Result<()> {
             remove_cycles_transfer,
             limit_stable_memory_page,
         } => {
-            if *remove_cycles_transfer {
-                ic_wasm::limit_resource::replace_cycles_add_with_drop(&mut m);
-            }
-            if let Some(page) = limit_stable_memory_page {
-                ic_wasm::limit_resource::limit_stable_memory_page(&mut m, *page);
-            }
+            use ic_wasm::limit_resource::{limit_resource, Config};
+            let config = Config {
+                remove_cycles_add: *remove_cycles_transfer,
+                limit_stable_memory_page: *limit_stable_memory_page,
+            };
+            limit_resource(&mut m, &config);
         }
         SubCommand::Metadata {
             name,

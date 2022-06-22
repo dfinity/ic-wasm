@@ -2,99 +2,118 @@ use crate::utils::*;
 use walrus::ir::*;
 use walrus::*;
 
-// TODO: handle actor class
-pub fn replace_cycles_add_with_drop(m: &mut Module) {
-    match (
-        m.imports.find("ic0", "call_cycles_add"),
-        m.imports.find("ic0", "call_cycles_add128"),
-    ) {
-        (None, None) => (),
-        (_, _) => {
-            struct Replacer {
-                cycles_add: FunctionId,
-                old_cycles_add128: FunctionId,
-                new_cycles_add128: FunctionId,
-            }
-            impl VisitorMut for Replacer {
-                fn visit_instr_mut(&mut self, instr: &mut Instr, _instr_loc: &mut InstrLocId) {
-                    if let Instr::Call(walrus::ir::Call { func }) = instr {
-                        if *func == self.cycles_add {
-                            *instr = Drop {}.into();
-                        } else if *func == self.old_cycles_add128 {
-                            *instr = Call {
-                                func: self.new_cycles_add128,
-                            }
-                            .into();
-                        }
+pub struct Config {
+    pub remove_cycles_add: bool,
+    pub limit_stable_memory_page: Option<u32>,
+}
+
+#[derive(Copy, Clone)]
+struct CyclesAdd {
+    cycles_add: FunctionId,
+    old_cycles_add128: FunctionId,
+    new_cycles_add128: FunctionId,
+}
+#[derive(Copy, Clone)]
+struct StableGrow {
+    old_grow: FunctionId,
+    new_grow: FunctionId,
+    old_grow64: FunctionId,
+    new_grow64: FunctionId,
+}
+
+struct Replacer {
+    cycles_add: Option<CyclesAdd>,
+    stable_grow: Option<StableGrow>,
+}
+impl VisitorMut for Replacer {
+    fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
+        if let Instr::Call(walrus::ir::Call { func }) = instr {
+            if let Some(ids) = &self.cycles_add {
+                if *func == ids.cycles_add {
+                    *instr = Drop {}.into();
+                    return;
+                } else if *func == ids.old_cycles_add128 {
+                    *instr = Call {
+                        func: ids.new_cycles_add128,
                     }
+                    .into();
+                    return;
                 }
             }
-            let cycles_add = get_ic_func_id(m, "call_cycles_add");
-            let old_cycles_add128 = get_ic_func_id(m, "call_cycles_add128");
-            let new_cycles_add128 = make_cycles_add128(m);
-            m.funcs.iter_local_mut().for_each(|(id, func)| {
-                if id != new_cycles_add128 {
-                    dfs_pre_order_mut(
-                        &mut Replacer {
-                            cycles_add,
-                            old_cycles_add128,
-                            new_cycles_add128,
-                        },
-                        func,
-                        func.entry_block(),
-                    );
+            if let Some(ids) = &self.stable_grow {
+                if *func == ids.old_grow {
+                    *instr = Call { func: ids.new_grow }.into();
+                } else if *func == ids.old_grow64 {
+                    *instr = Call {
+                        func: ids.new_grow64,
+                    }
+                    .into();
                 }
-            });
+            }
         }
     }
 }
-pub fn limit_stable_memory_page(m: &mut Module, limit: u32) {
-    match (
-        m.imports.find("ic0", "stable_grow"),
-        m.imports.find("ic0", "stable64_grow"),
-    ) {
-        (None, None) => (),
-        (_, _) => {
-            struct Replacer {
-                old_grow: FunctionId,
-                new_grow: FunctionId,
-                old_grow64: FunctionId,
-                new_grow64: FunctionId,
-            }
-            impl VisitorMut for Replacer {
-                fn visit_call_mut(&mut self, call: &mut Call) {
-                    if call.func == self.old_grow {
-                        *call = Call {
-                            func: self.new_grow,
-                        };
-                    } else if call.func == self.old_grow64 {
-                        *call = Call {
-                            func: self.new_grow64,
-                        };
-                    }
-                }
-            }
 
+// TODO handle actor class
+pub fn limit_resource(m: &mut Module, config: &Config) {
+    let has_cycles_add = m
+        .imports
+        .find("ic0", "call_cycles_add")
+        .or_else(|| m.imports.find("ic0", "call_cycles_add128"))
+        .is_some();
+    let cycles_add = if has_cycles_add && config.remove_cycles_add {
+        let cycles_add = get_ic_func_id(m, "call_cycles_add");
+        let old_cycles_add128 = get_ic_func_id(m, "call_cycles_add128");
+        let new_cycles_add128 = make_cycles_add128(m);
+        Some(CyclesAdd {
+            cycles_add,
+            old_cycles_add128,
+            new_cycles_add128,
+        })
+    } else {
+        None
+    };
+    let has_grow = m
+        .imports
+        .find("ic0", "stable_grow")
+        .or_else(|| m.imports.find("ic0", "stable64_grow"))
+        .is_some();
+    let stable_grow = match (has_grow, config.limit_stable_memory_page) {
+        (true, Some(limit)) => {
             let old_grow = get_ic_func_id(m, "stable_grow");
             let new_grow = make_grow_func(m, limit as i32);
             let old_grow64 = get_ic_func_id(m, "stable64_grow");
             let new_grow64 = make_grow64_func(m, limit as i64);
-            m.funcs.iter_local_mut().for_each(|(id, func)| {
-                if id != new_grow && id != new_grow64 {
-                    dfs_pre_order_mut(
-                        &mut Replacer {
-                            old_grow,
-                            new_grow,
-                            old_grow64,
-                            new_grow64,
-                        },
-                        func,
-                        func.entry_block(),
-                    );
-                }
-            });
+            Some(StableGrow {
+                old_grow,
+                new_grow,
+                old_grow64,
+                new_grow64,
+            })
         }
-    }
+        (_, _) => None,
+    };
+
+    m.funcs.iter_local_mut().for_each(|(id, func)| {
+        if let Some(ids) = &cycles_add {
+            if id == ids.new_cycles_add128 {
+                return;
+            }
+        }
+        if let Some(ids) = &stable_grow {
+            if id == ids.new_grow || id == ids.new_grow64 {
+                return;
+            }
+        }
+        dfs_pre_order_mut(
+            &mut Replacer {
+                cycles_add,
+                stable_grow,
+            },
+            func,
+            func.entry_block(),
+        );
+    });
 }
 
 fn make_cycles_add128(m: &mut Module) -> FunctionId {

@@ -22,6 +22,7 @@ struct Variables {
 }
 
 pub fn instrument(m: &mut Module) {
+    let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
         .add_local(ValType::I64, true, InitExpr::Value(Value::I64(0)));
@@ -37,7 +38,7 @@ pub fn instrument(m: &mut Module) {
         is_init,
     };
     for (_, func) in m.funcs.iter_local_mut() {
-        inject_metering(func, func.entry_block(), &vars);
+        inject_metering(func, func.entry_block(), &vars, &func_cost);
     }
     let printer = inject_printer(m, &vars);
     for (id, func) in m.funcs.iter_local_mut() {
@@ -55,7 +56,12 @@ pub fn instrument(m: &mut Module) {
     m.customs.add(name);
 }
 
-fn inject_metering(func: &mut LocalFunction, start: InstrSeqId, vars: &Variables) {
+fn inject_metering(
+    func: &mut LocalFunction,
+    start: InstrSeqId,
+    vars: &Variables,
+    func_cost: &FunctionCost,
+) {
     let mut stack = vec![start];
     while let Some(seq_id) = stack.pop() {
         let seq = func.block(seq_id);
@@ -95,6 +101,9 @@ fn inject_metering(func: &mut LocalFunction, start: InstrSeqId, vars: &Variables
                     curr.cost += 1;
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
+                }
+                Instr::Call(Call { func }) => {
+                    curr.cost += func_cost.get_cost(*func);
                 }
                 _ => {
                     curr.cost += 1;

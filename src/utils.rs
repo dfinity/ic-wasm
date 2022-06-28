@@ -1,4 +1,48 @@
+use std::collections::HashMap;
 use walrus::*;
+
+pub struct FunctionCost(HashMap<FunctionId, i64>);
+impl FunctionCost {
+    pub fn new(m: &Module) -> Self {
+        let mut res = HashMap::new();
+        for (method, func) in m.imports.iter().filter_map(|i| {
+            if let ImportKind::Function(func) = i.kind {
+                if i.module == "ic0" {
+                    Some((i.name.as_str(), func))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }) {
+            // System API cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasmtime_embedder/system_api_complexity.rs
+            let cost = match method {
+                "msg_arg_data_copy" => 20,
+                "msg_method_name_copy" => 20,
+                "msg_reply_data_append" => 20,
+                "msg_reject" => 20,
+                "msg_reject_msg_copy" => 20,
+                "debug_print" => 100,
+                "trap" => 20,
+                "call_new" => 0,
+                "call_data_append" => 20,
+                "call_perform" => 0,
+                "stable_read" => 20,
+                "stable_write" => 20,
+                "stable64_read" => 20,
+                "stable64_write" => 20,
+                "performance_counter" => 200,
+                _ => 1,
+            };
+            res.insert(func, cost);
+        }
+        Self(res)
+    }
+    pub fn get_cost(&self, id: FunctionId) -> i64 {
+        *self.0.get(&id).unwrap_or(&1)
+    }
+}
 
 pub fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
     match m.imports.find("ic0", method) {

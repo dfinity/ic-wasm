@@ -1,7 +1,14 @@
 use std::collections::HashMap;
 use walrus::*;
 
-pub struct FunctionCost(HashMap<FunctionId, i64>);
+#[derive(Clone, Copy, PartialEq)]
+pub enum InjectionKind {
+    Static,
+    Dynamic,
+    Dynamic64,
+}
+
+pub struct FunctionCost(HashMap<FunctionId, (i64, InjectionKind)>);
 impl FunctionCost {
     pub fn new(m: &Module) -> Self {
         let mut res = HashMap::new();
@@ -16,31 +23,32 @@ impl FunctionCost {
                 None
             }
         }) {
+            use InjectionKind::*;
             // System API cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasmtime_embedder/system_api_complexity.rs
             let cost = match method {
-                "msg_arg_data_copy" => 20,
-                "msg_method_name_copy" => 20,
-                "msg_reply_data_append" => 20,
-                "msg_reject" => 20,
-                "msg_reject_msg_copy" => 20,
-                "debug_print" => 100,
-                "trap" => 20,
-                "call_new" => 0,
-                "call_data_append" => 20,
-                "call_perform" => 0,
-                "stable_read" => 20,
-                "stable_write" => 20,
-                "stable64_read" => 20,
-                "stable64_write" => 20,
-                "performance_counter" => 200,
-                _ => 1,
+                "msg_arg_data_copy" => (20, Dynamic),
+                "msg_method_name_copy" => (20, Dynamic),
+                "msg_reply_data_append" => (20, Dynamic),
+                "msg_reject" => (20, Dynamic),
+                "msg_reject_msg_copy" => (20, Dynamic),
+                "debug_print" => (100, Dynamic),
+                "trap" => (20, Dynamic),
+                "call_new" => (0, Static),
+                "call_data_append" => (20, Dynamic),
+                "call_perform" => (0, Static),
+                "stable_read" => (20, Dynamic),
+                "stable_write" => (20, Dynamic),
+                "stable64_read" => (20, Dynamic64),
+                "stable64_write" => (20, Dynamic64),
+                "performance_counter" => (200, Static),
+                _ => (1, Static),
             };
             res.insert(func, cost);
         }
         Self(res)
     }
-    pub fn get_cost(&self, id: FunctionId) -> i64 {
-        *self.0.get(&id).unwrap_or(&1)
+    pub fn get_cost(&self, id: FunctionId) -> (i64, InjectionKind) {
+        *self.0.get(&id).unwrap_or(&(1, InjectionKind::Static))
     }
 }
 

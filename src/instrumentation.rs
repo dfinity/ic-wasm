@@ -5,12 +5,14 @@ use walrus::*;
 struct InjectionPoint {
     position: usize,
     cost: i64,
+    kind: InjectionKind,
 }
 impl InjectionPoint {
     fn new() -> Self {
         InjectionPoint {
             position: 0,
             cost: 0,
+            kind: InjectionKind::Static,
         }
     }
 }
@@ -19,6 +21,8 @@ struct Variables {
     total_counter: GlobalId,
     log_size: GlobalId,
     is_init: GlobalId,
+    dynamic_counter_func: FunctionId,
+    dynamic_counter64_func: FunctionId,
 }
 
 pub fn instrument(m: &mut Module) {
@@ -32,17 +36,23 @@ pub fn instrument(m: &mut Module) {
     let is_init = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
+    let dynamic_counter_func = make_dynamic_counter(m, total_counter);
+    let dynamic_counter64_func = make_dynamic_counter64(m, total_counter);
     let vars = Variables {
         total_counter,
         log_size,
         is_init,
+        dynamic_counter_func,
+        dynamic_counter64_func,
     };
-    for (_, func) in m.funcs.iter_local_mut() {
-        inject_metering(func, func.entry_block(), &vars, &func_cost);
+    for (id, func) in m.funcs.iter_local_mut() {
+        if id != dynamic_counter_func && id != dynamic_counter64_func {
+            inject_metering(func, func.entry_block(), &vars, &func_cost);
+        }
     }
     let printer = inject_printer(m, &vars);
     for (id, func) in m.funcs.iter_local_mut() {
-        if id != printer {
+        if id != printer && id != dynamic_counter_func && id != dynamic_counter64_func {
             inject_profiling_prints(&m.types, printer, id, func);
         }
     }
@@ -62,6 +72,7 @@ fn inject_metering(
     vars: &Variables,
     func_cost: &FunctionCost,
 ) {
+    use InjectionKind::*;
     let mut stack = vec![start];
     while let Some(seq_id) = stack.pop() {
         let seq = func.block(seq_id);
@@ -102,9 +113,19 @@ fn inject_metering(
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
-                Instr::Call(Call { func }) => {
-                    curr.cost += func_cost.get_cost(*func);
-                }
+                Instr::Call(Call { func }) => match func_cost.get_cost(*func) {
+                    (cost, InjectionKind::Static) => curr.cost += cost,
+                    (cost, kind @ InjectionKind::Dynamic)
+                    | (cost, kind @ InjectionKind::Dynamic64) => {
+                        curr.cost += cost;
+                        let dynamic = InjectionPoint {
+                            position: pos,
+                            cost: 0,
+                            kind,
+                        };
+                        injection_points.push(dynamic);
+                    }
+                },
                 _ => {
                     curr.cost += 1;
                 }
@@ -112,7 +133,9 @@ fn inject_metering(
         }
         injection_points.push(curr);
         // Reconstruct instructions
-        let injection_points = injection_points.iter().filter(|point| point.cost > 0);
+        let injection_points = injection_points
+            .iter()
+            .filter(|point| point.cost > 0 || point.kind == Dynamic);
         let mut builder = func.builder_mut().instr_seq(seq_id);
         let original = builder.instrs_mut();
         let mut instrs = vec![];
@@ -121,13 +144,36 @@ fn inject_metering(
             instrs.extend_from_slice(&original[last_injection_position..point.position]);
             // injection happens one instruction before the injection_points, so the cost contains
             // the control flow instruction.
-            #[rustfmt::skip]
-            instrs.extend_from_slice(&[
-                (GlobalGet { global: vars.total_counter }.into(), Default::default()),
-                (Const { value: Value::I64(point.cost) }.into(), Default::default()),
-                (Binop { op: BinaryOp::I64Add }.into(), Default::default()),
-                (GlobalSet { global: vars.total_counter }.into(), Default::default()),
-            ]);
+            match point.kind {
+                Static => {
+                    #[rustfmt::skip]
+                    instrs.extend_from_slice(&[
+                        (GlobalGet { global: vars.total_counter }.into(), Default::default()),
+                        (Const { value: Value::I64(point.cost) }.into(), Default::default()),
+                        (Binop { op: BinaryOp::I64Add }.into(), Default::default()),
+                        (GlobalSet { global: vars.total_counter }.into(), Default::default()),
+                    ]);
+                }
+                Dynamic => {
+                    // Assume top of the stack is the i32 size parameter
+                    instrs.extend_from_slice(&[(
+                        Call {
+                            func: vars.dynamic_counter_func,
+                        }
+                        .into(),
+                        Default::default(),
+                    )]);
+                }
+                Dynamic64 => {
+                    instrs.extend_from_slice(&[(
+                        Call {
+                            func: vars.dynamic_counter64_func,
+                        }
+                        .into(),
+                        Default::default(),
+                    )]);
+                }
+            };
             last_injection_position = point.position;
         }
         instrs.extend_from_slice(&original[last_injection_position..]);
@@ -238,6 +284,32 @@ fn inject_profiling_prints(
         }
         *original = instrs;
     }
+}
+
+fn make_dynamic_counter(m: &mut Module, total_counter: GlobalId) -> FunctionId {
+    let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32], &[ValType::I32]);
+    let size = m.locals.add(ValType::I32);
+    builder
+        .func_body()
+        .local_get(size)
+        .unop(UnaryOp::I64ExtendSI32)
+        .global_get(total_counter)
+        .binop(BinaryOp::I64Add)
+        .global_set(total_counter)
+        .local_get(size);
+    builder.finish(vec![size], &mut m.funcs)
+}
+fn make_dynamic_counter64(m: &mut Module, total_counter: GlobalId) -> FunctionId {
+    let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64], &[ValType::I64]);
+    let size = m.locals.add(ValType::I64);
+    builder
+        .func_body()
+        .local_get(size)
+        .global_get(total_counter)
+        .binop(BinaryOp::I64Add)
+        .global_set(total_counter)
+        .local_get(size);
+    builder.finish(vec![size], &mut m.funcs)
 }
 
 fn inject_printer(m: &mut Module, vars: &Variables) -> FunctionId {

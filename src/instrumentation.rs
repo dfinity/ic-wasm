@@ -131,6 +131,7 @@ fn inject_metering(
                 | Instr::MemoryInit(_)
                 | Instr::TableCopy(_)
                 | Instr::TableInit(_) => {
+                    curr.cost += 1;
                     let dynamic = InjectionPoint {
                         position: pos,
                         cost: 0,
@@ -294,7 +295,7 @@ fn make_dynamic_counter(m: &mut Module, total_counter: GlobalId) -> FunctionId {
     builder
         .func_body()
         .local_get(size)
-        .unop(UnaryOp::I64ExtendSI32)
+        .unop(UnaryOp::I64ExtendUI32)
         .global_get(total_counter)
         .binop(BinaryOp::I64Add)
         .global_set(total_counter)

@@ -126,6 +126,18 @@ fn inject_metering(
                         injection_points.push(dynamic);
                     }
                 },
+                Instr::MemoryFill(_)
+                | Instr::MemoryCopy(_)
+                | Instr::MemoryInit(_)
+                | Instr::TableCopy(_)
+                | Instr::TableInit(_) => {
+                    let dynamic = InjectionPoint {
+                        position: pos,
+                        cost: 0,
+                        kind: InjectionKind::Dynamic,
+                    };
+                    injection_points.push(dynamic);
+                }
                 _ => {
                     curr.cost += 1;
                 }
@@ -156,21 +168,15 @@ fn inject_metering(
                 }
                 Dynamic => {
                     // Assume top of the stack is the i32 size parameter
+                    #[rustfmt::skip]
                     instrs.extend_from_slice(&[(
-                        Call {
-                            func: vars.dynamic_counter_func,
-                        }
-                        .into(),
-                        Default::default(),
+                        Call { func: vars.dynamic_counter_func }.into(), Default::default(),
                     )]);
                 }
                 Dynamic64 => {
+                    #[rustfmt::skip]
                     instrs.extend_from_slice(&[(
-                        Call {
-                            func: vars.dynamic_counter64_func,
-                        }
-                        .into(),
-                        Default::default(),
+                        Call { func: vars.dynamic_counter64_func }.into(), Default::default(),
                     )]);
                 }
             };

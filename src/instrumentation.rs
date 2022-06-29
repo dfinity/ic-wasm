@@ -147,7 +147,7 @@ fn inject_metering(
         // Reconstruct instructions
         let injection_points = injection_points
             .iter()
-            .filter(|point| point.cost > 0 || point.kind == Dynamic);
+            .filter(|point| point.cost > 0 || point.kind != Static);
         let mut builder = func.builder_mut().instr_seq(seq_id);
         let original = builder.instrs_mut();
         let mut instrs = vec![];
@@ -169,15 +169,11 @@ fn inject_metering(
                 Dynamic => {
                     // Assume top of the stack is the i32 size parameter
                     #[rustfmt::skip]
-                    instrs.extend_from_slice(&[(
-                        Call { func: vars.dynamic_counter_func }.into(), Default::default(),
-                    )]);
+                    instrs.push((Call { func: vars.dynamic_counter_func }.into(), Default::default()));
                 }
                 Dynamic64 => {
                     #[rustfmt::skip]
-                    instrs.extend_from_slice(&[(
-                        Call { func: vars.dynamic_counter64_func }.into(), Default::default(),
-                    )]);
+                    instrs.push((Call { func: vars.dynamic_counter64_func }.into(), Default::default()));
                 }
             };
             last_injection_position = point.position;

@@ -59,19 +59,19 @@ function classes_limit(wasm) {
 
 let S = motoko(file "ok/motoko-instrument.wasm");
 call S.__get_cycles();
-assert _ == (7194 : int64);
+assert _ == (7199 : int64);
 motoko(file "ok/motoko-shrink.wasm");
 motoko(file "ok/motoko-limit.wasm");
 
 let S = rust(file "ok/rust-instrument.wasm");
 call S.__get_cycles();
-assert _ == (66009 : int64);
+assert _ == (66016 : int64);
 rust(file "ok/rust-shrink.wasm");
 rust(file "ok/rust-limit.wasm");
 
 let S = wat(file "ok/wat-instrument.wasm");
 call S.__get_cycles();
-assert _ == (118 : int64);
+assert _ == (121 : int64);
 wat(file "ok/wat-shrink.wasm");
 wat(file "ok/wat-limit.wasm");
 

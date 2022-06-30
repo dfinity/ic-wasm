@@ -210,7 +210,6 @@ fn inject_profiling_prints(
     let mut inner_start = func.builder_mut().dangling_instr_seq(start_ty);
     *(inner_start.instrs_mut()) = start_instrs;
     let inner_start_id = inner_start.id();
-    drop(inner_start);
     let mut start_builder = func.builder_mut().func_body();
     start_builder
         .i32_const(id.index() as i32)

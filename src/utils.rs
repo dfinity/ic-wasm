@@ -1,4 +1,56 @@
+use std::collections::HashMap;
 use walrus::*;
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum InjectionKind {
+    Static,
+    Dynamic,
+    Dynamic64,
+}
+
+pub struct FunctionCost(HashMap<FunctionId, (i64, InjectionKind)>);
+impl FunctionCost {
+    pub fn new(m: &Module) -> Self {
+        let mut res = HashMap::new();
+        for (method, func) in m.imports.iter().filter_map(|i| {
+            if let ImportKind::Function(func) = i.kind {
+                if i.module == "ic0" {
+                    Some((i.name.as_str(), func))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }) {
+            use InjectionKind::*;
+            // System API cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasmtime_embedder/system_api_complexity.rs
+            let cost = match method {
+                "msg_arg_data_copy" => (21, Dynamic),
+                "msg_method_name_copy" => (21, Dynamic),
+                "msg_reply_data_append" => (21, Dynamic),
+                "msg_reject" => (21, Dynamic),
+                "msg_reject_msg_copy" => (21, Dynamic),
+                "debug_print" => (101, Dynamic),
+                "trap" => (21, Dynamic),
+                "call_new" => (1, Static),
+                "call_data_append" => (21, Dynamic),
+                "call_perform" => (1, Static),
+                "stable_read" => (21, Dynamic),
+                "stable_write" => (21, Dynamic),
+                "stable64_read" => (21, Dynamic64),
+                "stable64_write" => (21, Dynamic64),
+                "performance_counter" => (201, Static),
+                _ => (1, Static),
+            };
+            res.insert(func, cost);
+        }
+        Self(res)
+    }
+    pub fn get_cost(&self, id: FunctionId) -> (i64, InjectionKind) {
+        *self.0.get(&id).unwrap_or(&(1, InjectionKind::Static))
+    }
+}
 
 pub fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
     match m.imports.find("ic0", method) {

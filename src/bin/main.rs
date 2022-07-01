@@ -42,6 +42,9 @@ enum SubCommand {
         /// Allocate at most specified amount of memory pages for stable memory
         #[clap(short, long)]
         limit_stable_memory_page: Option<u32>,
+        /// Redirects create_canister system API calls to motoko playground backend to return managed canisters
+        #[clap(short('R'), long)]
+        redirect_create_canister: bool,
     },
     /// List information about the Wasm canister
     Info,
@@ -77,11 +80,13 @@ fn main() -> anyhow::Result<()> {
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,
+            redirect_create_canister,
         } => {
             use ic_wasm::limit_resource::{limit_resource, Config};
             let config = Config {
                 remove_cycles_add: *remove_cycles_transfer,
                 limit_stable_memory_page: *limit_stable_memory_page,
+                redirect_create_canister: *redirect_create_canister,
             };
             limit_resource(&mut m, &config);
         }

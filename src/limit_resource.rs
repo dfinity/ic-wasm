@@ -5,6 +5,7 @@ use walrus::*;
 pub struct Config {
     pub remove_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
+    pub redirect_create_canister: bool,
 }
 
 #[derive(Copy, Clone)]
@@ -21,9 +22,16 @@ struct StableGrow {
     new_grow64: FunctionId,
 }
 
+#[derive(Copy, Clone)]
+struct CallNew {
+    old_call_new: FunctionId,
+    new_call_new: FunctionId,
+}
+
 struct Replacer {
     cycles_add: Option<CyclesAdd>,
     stable_grow: Option<StableGrow>,
+    call_new: Option<CallNew>,
 }
 impl VisitorMut for Replacer {
     fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
@@ -43,11 +51,19 @@ impl VisitorMut for Replacer {
             if let Some(ids) = &self.stable_grow {
                 if *func == ids.old_grow {
                     *instr = Call { func: ids.new_grow }.into();
+                    return;
                 } else if *func == ids.old_grow64 {
                     *instr = Call {
                         func: ids.new_grow64,
                     }
                     .into();
+                    return;
+                }
+            }
+            if let Some(ids) = &self.call_new {
+                if *func == ids.old_call_new {
+                    *instr = Call { func: ids.new_call_new }.into();
+                    return;
                 }
             }
         }
@@ -100,6 +116,17 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         }
         (_, _) => None,
     };
+    let call_new = m
+        .imports
+        .find("ic0", "call_new")
+        .and_then(|_| {
+            let old_call_new = get_ic_func_id(m, "call_new");
+            let new_call_new = make_redirect_call_new(m);
+            Some(CallNew {
+                old_call_new,
+                new_call_new,
+            })
+        });
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
         if let Some(ids) = &cycles_add {
@@ -112,10 +139,16 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
                 return;
             }
         }
+        if let Some(ids) = &call_new {
+            if id == ids.new_call_new {
+                return;
+            }
+        }
         dfs_pre_order_mut(
             &mut Replacer {
                 cycles_add,
                 stable_grow,
+                call_new,
             },
             func,
             func.entry_block(),
@@ -181,4 +214,15 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
             },
         );
     builder.finish(vec![requested], &mut m.funcs)
+}
+fn make_redirect_call_new(m: &mut Module) -> FunctionId {
+    let mut builder = FunctionBuilder::new(&mut m.types,
+        &[ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64],
+        &[]);
+    // FIXME
+    builder
+        .func_body()
+        .drop()
+        .drop();
+    builder.finish(vec![], &mut m.funcs)
 }

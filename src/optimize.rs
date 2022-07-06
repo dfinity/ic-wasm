@@ -29,6 +29,7 @@ pub fn optimize(content: &[u8]) -> PassResult {
     wasm_back = compare_wasm(wasm_back, &wasm_new);
 
     // binaryen
+    eprintln!("Executing a binaryen optimization...");
     let mut module = Module::read(wasm_back)
         .map_err(|_| String::from("Could not load module for binaryen..."))?;
     module.optimize(&CodegenConfig {

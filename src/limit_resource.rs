@@ -119,7 +119,8 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
     let call_new = m
         .imports
         .find("ic0", "call_new")
-        .and_then(|_| {
+        .filter(|_| config.redirect_create_canister)
+        .and({
             let old_call_new = get_ic_func_id(m, "call_new");
             let new_call_new = make_redirect_call_new(m);
             Some(CallNew {
@@ -216,13 +217,75 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
     builder.finish(vec![requested], &mut m.funcs)
 }
 fn make_redirect_call_new(m: &mut Module) -> FunctionId {
+    // Specify the same args as `call_new` so that WASM will correctly check mismatching args 
+    let callee_src = m.locals.add(ValType::I32);
+    let callee_size = m.locals.add(ValType::I32);
+    let name_src = m.locals.add(ValType::I32);
+    let name_size = m.locals.add(ValType::I32);
+    let arg5 = m.locals.add(ValType::I32);
+    let arg6 = m.locals.add(ValType::I32);
+    let arg7 = m.locals.add(ValType::I32);
+    let arg8 = m.locals.add(ValType::I32);
+    let call_new = get_ic_func_id(m, "call_new");
+
+    let memory = get_memory_id(m);
+
+    let no_redirect = m.locals.add(ValType::I32);
+
     let mut builder = FunctionBuilder::new(&mut m.types,
-        &[ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64, ValType::I64],
+        &[ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         &[]);
-    // FIXME
+
     builder
         .func_body()
-        .drop()
-        .drop();
-    builder.finish(vec![], &mut m.funcs)
+        .block(None, |block| {
+            let block_id = block.id();
+            block
+                // Check that callee address is empty
+                .local_get(callee_size)
+                .i32_const(0)
+                .binop(BinaryOp::I32Ne)
+                .local_tee(no_redirect)
+                .br_if(block_id)
+
+                // Check that name_size is of length 15
+                .local_get(name_size)
+                .i32_const(15)
+                .binop(BinaryOp::I32Ne)
+                .local_tee(no_redirect)
+                .br_if(block_id);
+
+            // load the string at name_src onto the stack and compare it to "create_canister"
+            for i in 0..15 {
+                block.load(memory, LoadKind::I32 { atomic: false}, MemArg { offset: i, align: 4});
+            }
+            for c in "create_canister".chars().rev() {
+                block
+                    .i32_const(c as i32)
+                    .binop(BinaryOp::I32Ne)
+                    .local_tee(no_redirect)
+                    .br_if(block_id);
+            }
+
+        })
+        .local_get(no_redirect)
+        .if_else(
+            None, 
+            |block| {
+                // Put all the args back on stack and call call_new without redirecting
+                block
+                    .local_get(callee_src)
+                    .local_get(callee_size)
+                    .local_get(name_src)
+                    .local_get(name_size)
+                    .local_get(arg5)
+                    .local_get(arg6)
+                    .local_get(arg7)
+                    .local_get(arg8)
+                    .call(call_new);
+            }, 
+            |block| {
+
+            });
+    builder.finish(vec![callee_src, callee_size, name_src, name_size, arg5, arg6, arg7, arg8], &mut m.funcs)
 }

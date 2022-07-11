@@ -62,7 +62,10 @@ impl VisitorMut for Replacer {
             }
             if let Some(ids) = &self.call_new {
                 if *func == ids.old_call_new {
-                    *instr = Call { func: ids.new_call_new }.into();
+                    *instr = Call {
+                        func: ids.new_call_new,
+                    }
+                    .into();
                     return;
                 }
             }
@@ -217,7 +220,7 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
     builder.finish(vec![requested], &mut m.funcs)
 }
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
-    // Specify the same args as `call_new` so that WASM will correctly check mismatching args 
+    // Specify the same args as `call_new` so that WASM will correctly check mismatching args
     let callee_src = m.locals.add(ValType::I32);
     let callee_size = m.locals.add(ValType::I32);
     let name_src = m.locals.add(ValType::I32);
@@ -239,9 +242,20 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
     let target_func_name = "create_canister";
 
-    let mut builder = FunctionBuilder::new(&mut m.types,
-        &[ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32],
-        &[]);
+    let mut builder = FunctionBuilder::new(
+        &mut m.types,
+        &[
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+            ValType::I32,
+        ],
+        &[],
+    );
 
     builder
         .func_body()
@@ -254,7 +268,6 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                 .binop(BinaryOp::I32Ne)
                 .local_tee(no_redirect)
                 .br_if(block_id)
-
                 // Check that name_size is of length 15
                 .local_get(name_size)
                 .i32_const(target_func_name.len() as i32)
@@ -264,9 +277,16 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
             // load the string at name_src onto the stack and compare it to "create_canister"
             for i in 0..target_func_name.len() {
-                block
-                    .local_get(name_src)
-                    .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: i as u32, align: 1});
+                block.local_get(name_src).load(
+                    memory,
+                    LoadKind::I32_8 {
+                        kind: ExtendedLoad::SignExtend,
+                    },
+                    MemArg {
+                        offset: i as u32,
+                        align: 1,
+                    },
+                );
             }
             for c in "create_canister".chars().rev() {
                 block
@@ -275,11 +295,10 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     .local_tee(no_redirect)
                     .br_if(block_id);
             }
-
         })
         .local_get(no_redirect)
         .if_else(
-            None, 
+            None,
             |block| {
                 // Put all the args back on stack and call call_new without redirecting
                 block
@@ -292,23 +311,36 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     .local_get(arg7)
                     .local_get(arg8)
                     .call(call_new);
-            }, 
+            },
             |block| {
                 // save current memory starting from address 0 into local variables
                 for i in 0..redirect_id.len() {
                     block
                         .i32_const(i as i32)
-                        .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: 0, align: 1})
+                        .load(
+                            memory,
+                            LoadKind::I32_8 {
+                                kind: ExtendedLoad::SignExtend,
+                            },
+                            MemArg {
+                                offset: 0,
+                                align: 1,
+                            },
+                        )
                         .local_set(memory_backup[i]);
                 }
 
                 // write the canister id into memory at address 0
                 for i in 0..redirect_id.len() {
                     let byte = redirect_id[i];
-                    block
-                        .i32_const(i as i32)
-                        .i32_const(byte as i32)
-                        .store(memory, StoreKind::I32_8 { atomic: false }, MemArg { offset: 0, align: 1});
+                    block.i32_const(i as i32).i32_const(byte as i32).store(
+                        memory,
+                        StoreKind::I32_8 { atomic: false },
+                        MemArg {
+                            offset: 0,
+                            align: 1,
+                        },
+                    );
                 }
 
                 block
@@ -325,11 +357,28 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                 // restore old memory
                 for i in 0..memory_backup.len() {
                     let byte = memory_backup[i];
-                    block
-                        .i32_const(i as i32)
-                        .local_get(byte)
-                        .store(memory, StoreKind::I32_8 { atomic: false }, MemArg { offset: 0, align: 1});
+                    block.i32_const(i as i32).local_get(byte).store(
+                        memory,
+                        StoreKind::I32_8 { atomic: false },
+                        MemArg {
+                            offset: 0,
+                            align: 1,
+                        },
+                    );
                 }
-            });
-    builder.finish(vec![callee_src, callee_size, name_src, name_size, arg5, arg6, arg7, arg8], &mut m.funcs)
+            },
+        );
+    builder.finish(
+        vec![
+            callee_src,
+            callee_size,
+            name_src,
+            name_size,
+            arg5,
+            arg6,
+            arg7,
+            arg8,
+        ],
+        &mut m.funcs,
+    )
 }

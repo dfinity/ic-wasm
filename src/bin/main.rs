@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
             let config = Config {
                 remove_cycles_add: *remove_cycles_transfer,
                 limit_stable_memory_page: *limit_stable_memory_page,
-                playground_canister_id: (*playground_backend_redirect).as_ref().map(|s| s.clone()),
+                playground_canister_id: (*playground_backend_redirect).as_ref().map(String::clone),
             };
             limit_resource(&mut m, &config);
         }

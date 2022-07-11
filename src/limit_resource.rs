@@ -237,6 +237,8 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         memory_backup.push(m.locals.add(ValType::I32));
     }
 
+    let target_func_name = "create_canister";
+
     let mut builder = FunctionBuilder::new(&mut m.types,
         &[ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32],
         &[]);
@@ -255,16 +257,16 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
                 // Check that name_size is of length 15
                 .local_get(name_size)
-                .i32_const(15)
+                .i32_const(target_func_name.len() as i32)
                 .binop(BinaryOp::I32Ne)
                 .local_tee(no_redirect)
                 .br_if(block_id);
 
             // load the string at name_src onto the stack and compare it to "create_canister"
-            for i in 0..15 {
+            for i in 0..target_func_name.len() {
                 block
                     .local_get(name_src)
-                    .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: i, align: 1});
+                    .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: i as u32, align: 1});
             }
             for c in "create_canister".chars().rev() {
                 block

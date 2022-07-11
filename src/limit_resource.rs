@@ -5,7 +5,7 @@ use walrus::*;
 pub struct Config {
     pub remove_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
-    pub playground_canister_id: Option<String>,
+    pub playground_canister_id: Option<ic_types::Principal>,
 }
 
 #[derive(Copy, Clone)]
@@ -125,7 +125,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         .and(config.playground_canister_id.as_ref())
         .and_then(|redirect_id| {
             let old_call_new = get_ic_func_id(m, "call_new");
-            let new_call_new = make_redirect_call_new(m, redirect_id.as_bytes());
+            let new_call_new = make_redirect_call_new(m, redirect_id.as_slice());
             Some(CallNew {
                 old_call_new,
                 new_call_new,

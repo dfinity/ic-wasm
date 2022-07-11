@@ -44,7 +44,7 @@ enum SubCommand {
         limit_stable_memory_page: Option<u32>,
         /// Redirects create_canister system API calls to specified motoko backend canister ID
         #[clap(short('R'), long)]
-        playground_backend_redirect: Option<String>,
+        playground_backend_redirect: Option<ic_types::Principal>,
     },
     /// List information about the Wasm canister
     Info,
@@ -86,7 +86,7 @@ fn main() -> anyhow::Result<()> {
             let config = Config {
                 remove_cycles_add: *remove_cycles_transfer,
                 limit_stable_memory_page: *limit_stable_memory_page,
-                playground_canister_id: (*playground_backend_redirect).as_ref().map(String::clone),
+                playground_canister_id: *playground_backend_redirect,
             };
             limit_resource(&mut m, &config);
         }

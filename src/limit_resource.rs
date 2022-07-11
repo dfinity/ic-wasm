@@ -5,7 +5,7 @@ use walrus::*;
 pub struct Config {
     pub remove_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
-    pub redirect_create_canister: bool,
+    pub playground_canister_id: Option<String>,
 }
 
 #[derive(Copy, Clone)]
@@ -119,10 +119,10 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
     let call_new = m
         .imports
         .find("ic0", "call_new")
-        .filter(|_| config.redirect_create_canister)
-        .and({
+        .and(config.playground_canister_id.as_ref())
+        .and_then(|redirect_id| {
             let old_call_new = get_ic_func_id(m, "call_new");
-            let new_call_new = make_redirect_call_new(m);
+            let new_call_new = make_redirect_call_new(m, redirect_id.as_bytes());
             Some(CallNew {
                 old_call_new,
                 new_call_new,
@@ -216,7 +216,7 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
         );
     builder.finish(vec![requested], &mut m.funcs)
 }
-fn make_redirect_call_new(m: &mut Module) -> FunctionId {
+fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     // Specify the same args as `call_new` so that WASM will correctly check mismatching args 
     let callee_src = m.locals.add(ValType::I32);
     let callee_size = m.locals.add(ValType::I32);
@@ -230,7 +230,12 @@ fn make_redirect_call_new(m: &mut Module) -> FunctionId {
 
     let memory = get_memory_id(m);
 
+    // Scratch variables
     let no_redirect = m.locals.add(ValType::I32);
+    let mut memory_backup = Vec::new();
+    for _ in 0..redirect_id.len() {
+        memory_backup.push(m.locals.add(ValType::I32));
+    }
 
     let mut builder = FunctionBuilder::new(&mut m.types,
         &[ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32, ValType::I32],
@@ -257,7 +262,9 @@ fn make_redirect_call_new(m: &mut Module) -> FunctionId {
 
             // load the string at name_src onto the stack and compare it to "create_canister"
             for i in 0..15 {
-                block.load(memory, LoadKind::I32 { atomic: false}, MemArg { offset: i, align: 4});
+                block
+                    .local_get(name_src)
+                    .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: i, align: 1});
             }
             for c in "create_canister".chars().rev() {
                 block
@@ -285,7 +292,42 @@ fn make_redirect_call_new(m: &mut Module) -> FunctionId {
                     .call(call_new);
             }, 
             |block| {
+                // save current memory starting from address 0 into local variables
+                for i in 0..redirect_id.len() {
+                    block
+                        .i32_const(i as i32)
+                        .load(memory, LoadKind::I32_8 { kind: ExtendedLoad::SignExtend}, MemArg { offset: 0, align: 1})
+                        .local_set(memory_backup[i]);
+                }
 
+                // write the canister id into memory at address 0
+                for i in 0..redirect_id.len() {
+                    let byte = redirect_id[i];
+                    block
+                        .i32_const(i as i32)
+                        .i32_const(byte as i32)
+                        .store(memory, StoreKind::I32_8 { atomic: false }, MemArg { offset: 0, align: 1});
+                }
+
+                block
+                    .i32_const(0)
+                    .i32_const(redirect_id.len() as i32)
+                    .local_get(name_src)
+                    .local_get(name_size)
+                    .local_get(arg5)
+                    .local_get(arg6)
+                    .local_get(arg7)
+                    .local_get(arg8)
+                    .call(call_new);
+
+                // restore old memory
+                for i in 0..memory_backup.len() {
+                    let byte = memory_backup[i];
+                    block
+                        .i32_const(i as i32)
+                        .local_get(byte)
+                        .store(memory, StoreKind::I32_8 { atomic: false }, MemArg { offset: 0, align: 1});
+                }
             });
     builder.finish(vec![callee_src, callee_size, name_src, name_size, arg5, arg6, arg7, arg8], &mut m.funcs)
 }

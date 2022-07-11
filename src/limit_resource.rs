@@ -66,7 +66,6 @@ impl VisitorMut for Replacer {
                         func: ids.new_call_new,
                     }
                     .into();
-                    return;
                 }
             }
         }
@@ -123,13 +122,13 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         .imports
         .find("ic0", "call_new")
         .and(config.playground_canister_id.as_ref())
-        .and_then(|redirect_id| {
+        .map(|redirect_id| {
             let old_call_new = get_ic_func_id(m, "call_new");
             let new_call_new = make_redirect_call_new(m, redirect_id.as_slice());
-            Some(CallNew {
+            CallNew {
                 old_call_new,
                 new_call_new,
-            })
+            }
         });
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
@@ -314,9 +313,9 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
             },
             |block| {
                 // save current memory starting from address 0 into local variables
-                for i in 0..redirect_id.len() {
+                for (address, backup_var) in memory_backup.iter().enumerate() {
                     block
-                        .i32_const(i as i32)
+                        .i32_const(address as i32)
                         .load(
                             memory,
                             LoadKind::I32_8 {
@@ -327,20 +326,22 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                                 align: 1,
                             },
                         )
-                        .local_set(memory_backup[i]);
+                        .local_set(*backup_var);
                 }
 
                 // write the canister id into memory at address 0
-                for i in 0..redirect_id.len() {
-                    let byte = redirect_id[i];
-                    block.i32_const(i as i32).i32_const(byte as i32).store(
-                        memory,
-                        StoreKind::I32_8 { atomic: false },
-                        MemArg {
-                            offset: 0,
-                            align: 1,
-                        },
-                    );
+                for (address, byte) in redirect_id.iter().enumerate() {
+                    block
+                        .i32_const(address as i32)
+                        .i32_const(*byte as i32)
+                        .store(
+                            memory,
+                            StoreKind::I32_8 { atomic: false },
+                            MemArg {
+                                offset: 0,
+                                align: 1,
+                            },
+                        );
                 }
 
                 block
@@ -355,9 +356,8 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     .call(call_new);
 
                 // restore old memory
-                for i in 0..memory_backup.len() {
-                    let byte = memory_backup[i];
-                    block.i32_const(i as i32).local_get(byte).store(
+                for (address, byte) in memory_backup.iter().enumerate() {
+                    block.i32_const(address as i32).local_get(*byte).store(
                         memory,
                         StoreKind::I32_8 { atomic: false },
                         MemArg {

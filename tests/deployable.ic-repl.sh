@@ -56,6 +56,23 @@ function classes_limit(wasm) {
   assert _ ~= "0 cycles were received";
   S
 };
+function classes_redirect(wasm) {
+  let S = install(wasm);
+  call S.get(42);
+  assert _ == (null : opt empty);
+  fail call S.put(42, "text");
+  assert _ ~= "No route to canister";
+  S
+};
+function classes_nop_redirect(wasm) {
+  let S = install(wasm);
+  call S.get(42);
+  assert _ == (null : opt empty);
+  call S.put(42, "text");
+  call S.get(42);
+  assert _ == opt "text";
+  S
+};
 
 let S = motoko(file "ok/motoko-instrument.wasm");
 call S.__get_cycles();
@@ -77,5 +94,5 @@ wat(file "ok/wat-limit.wasm");
 
 classes(file "ok/classes-shrink.wasm");
 classes_limit(file "ok/classes-limit.wasm");
-
-
+classes_redirect(file "ok/classes-redirect.wasm");
+classes_nop_redirect(file "ok/classes-nop-redirect.wasm");

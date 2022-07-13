@@ -43,7 +43,7 @@ enum SubCommand {
         #[clap(short, long)]
         limit_stable_memory_page: Option<u32>,
         /// Redirects create_canister system API calls to specified motoko backend canister ID
-        #[clap(short('R'), long)]
+        #[clap(short, long)]
         playground_backend_redirect: Option<ic_types::Principal>,
     },
     /// List information about the Wasm canister

@@ -239,7 +239,18 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         memory_backup.push(m.locals.add(ValType::I32));
     }
 
-    let target_func_name = "create_canister";
+    // All management canister functions that require controller permissions
+    let controller_function_names =
+        [
+            "create_canister",
+            "update_settings",
+            "install_code",
+            "uninstall_code",
+            "canister_status",
+            "stop_canister",
+            "start_canister",
+            "delete_canister",
+        ];
 
     let mut builder = FunctionBuilder::new(
         &mut m.types,
@@ -258,42 +269,60 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
     builder
         .func_body()
-        .block(None, |block| {
-            let block_id = block.id();
-            block
-                // Check that callee address is empty
+        .block(None, |checks| {
+            let checks_id = checks.id();
+
+            // Check that callee address is empty
+            checks
                 .local_get(callee_size)
                 .i32_const(0)
                 .binop(BinaryOp::I32Ne)
                 .local_tee(no_redirect)
-                .br_if(block_id)
-                // Check that name_size is of length 15
-                .local_get(name_size)
-                .i32_const(target_func_name.len() as i32)
-                .binop(BinaryOp::I32Ne)
-                .local_tee(no_redirect)
-                .br_if(block_id);
+                .br_if(checks_id);
 
-            // load the string at name_src onto the stack and compare it to "create_canister"
-            for i in 0..target_func_name.len() {
-                block.local_get(name_src).load(
-                    memory,
-                    LoadKind::I32_8 {
-                        kind: ExtendedLoad::SignExtend,
-                    },
-                    MemArg {
-                        offset: i as u32,
-                        align: 1,
-                    },
-                );
+            // Check if the function name is any of the ones to be redirected
+            for func_name in controller_function_names {
+                checks
+                    .block(None, |name_check| {
+                        let name_check_id = name_check.id();
+                        name_check
+                            // check that name_size is the same length as the function name
+                            .local_get(name_size)
+                            .i32_const(func_name.len() as i32)
+                            .binop(BinaryOp::I32Ne)
+                            .br_if(name_check_id);
+
+                            // load the string at name_src onto the stack and compare it to the function name
+                            for i in 0..func_name.len() {
+                                name_check.local_get(name_src).load(
+                                    memory,
+                                    LoadKind::I32_8 {
+                                        kind: ExtendedLoad::SignExtend,
+                                    },
+                                    MemArg {
+                                        offset: i as u32,
+                                        align: 1,
+                                    },
+                                );
+                            }
+                            for c in func_name.chars().rev() {
+                                name_check
+                                    .i32_const(c as i32)
+                                    .binop(BinaryOp::I32Ne)
+                                    .br_if(name_check_id);
+                            }
+                            // function names were equal, so skip all remaining checks and redirect
+                            name_check
+                                .i32_const(0)
+                                .local_set(no_redirect)
+                                .br(checks_id);
+                    });
             }
-            for c in "create_canister".chars().rev() {
-                block
-                    .i32_const(c as i32)
-                    .binop(BinaryOp::I32Ne)
-                    .local_tee(no_redirect)
-                    .br_if(block_id);
-            }
+            
+            // None of the function names matched
+            checks
+                .i32_const(1)
+                .local_set(no_redirect);
         })
         .local_get(no_redirect)
         .if_else(

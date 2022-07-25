@@ -240,6 +240,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     }
 
     // All management canister functions that require controller permissions
+    // The following wasm code assumes that this list is non-empty
     let controller_function_names = [
         "create_canister",
         "update_settings",

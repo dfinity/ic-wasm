@@ -73,14 +73,6 @@ impl VisitorMut for Replacer {
 }
 
 pub fn limit_resource(m: &mut Module, config: &Config) {
-    if is_motoko_canister(m) {
-        let ids = get_motoko_wasm_data_sections(m);
-        for (id, mut module) in ids.into_iter() {
-            limit_resource(&mut module, config);
-            let blob = encode_module_as_data_section(module);
-            m.data.get_mut(id).value = blob;
-        }
-    }
     let has_cycles_add = m
         .imports
         .find("ic0", "call_cycles_add")

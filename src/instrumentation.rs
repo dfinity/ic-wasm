@@ -327,7 +327,6 @@ fn make_dynamic_counter64(m: &mut Module, total_counter: GlobalId) -> FunctionId
 fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let writer = get_ic_func_id(m, "stable_write");
     let grow = get_ic_func_id(m, "stable_grow");
-    let trap = get_ic_func_id(m, "trap");
     let mut builder = FunctionBuilder::new(
         &mut m.types,
         &[ValType::I32, ValType::I32, ValType::I32],
@@ -343,10 +342,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
         .if_else(
             None,
             |then| {
-                then
-                    .i32_const(0)
-                    .i32_const(0)
-                    .call(trap);
+                then.return_();
             },
             |_| {})
         .local_get(offset)

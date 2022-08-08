@@ -335,7 +335,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let offset = m.locals.add(ValType::I32);
     let src = m.locals.add(ValType::I32);
     let size = m.locals.add(ValType::I32);
-    builder.func_body()
+    builder
+        .func_body()
         .global_get(vars.page_size)
         .i32_const(32)
         .binop(BinaryOp::I32GtS) // trace >= 2M
@@ -344,7 +345,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
             |then| {
                 then.return_();
             },
-            |_| {})
+            |_| {},
+        )
         .local_get(offset)
         .local_get(size)
         .binop(BinaryOp::I32Add)
@@ -441,7 +443,8 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
         .filter_map(|e| match e.item {
             ExportItem::Function(id)
                 if e.name.starts_with("canister_update")
-                    || e.name.starts_with("canister_query") =>
+                    || e.name.starts_with("canister_query")
+                    || e.name.starts_with("canister_heartbeat") =>
             {
                 Some(id)
             }
@@ -461,37 +464,16 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
     }
 }
 fn inject_init(m: &mut Module, is_init: GlobalId) {
-    //let grow = get_ic_func_id(m, "stable_grow");
     match get_export_func_id(m, "canister_init") {
         Some(id) => {
             let mut builder = get_builder(m, id);
             // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
-            // If we call stable.grow at the beginning, it breaks this check.
-            /*#[rustfmt::skip]
-            inject_top(
-                &mut builder,
-                vec![
-                    Const { value: Value::I32(1) }.into(),
-                    Call { func: grow }.into(),
-                    Drop {}.into(),
-                ],
-            );*/
-            builder
-                //.i32_const(1)
-                //.call(grow)
-                //.drop()
-                .i32_const(0)
-                .global_set(is_init);
+            // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
+            builder.i32_const(0).global_set(is_init);
         }
         None => {
             let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
-            builder
-                .func_body()
-                //.i32_const(1)
-                //.call(grow)
-                //.drop()
-                .i32_const(0)
-                .global_set(is_init);
+            builder.func_body().i32_const(0).global_set(is_init);
             let id = builder.finish(vec![], &mut m.funcs);
             m.exports.add("canister_init", id);
         }

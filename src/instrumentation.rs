@@ -325,7 +325,6 @@ fn make_dynamic_counter64(m: &mut Module, total_counter: GlobalId) -> FunctionId
     builder.finish(vec![size], &mut m.funcs)
 }
 fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
-    let memory = get_memory_id(m);
     let writer = get_ic_func_id(m, "stable_write");
     let grow = get_ic_func_id(m, "stable_grow");
     let trap = get_ic_func_id(m, "trap");
@@ -338,6 +337,18 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let src = m.locals.add(ValType::I32);
     let size = m.locals.add(ValType::I32);
     builder.func_body()
+        .global_get(vars.page_size)
+        .i32_const(2)
+        .binop(BinaryOp::I32GtS)
+        .if_else(
+            None,
+            |then| {
+                then
+                    .i32_const(0)
+                    .i32_const(0)
+                    .call(trap);
+            },
+            |_| {})
         .local_get(offset)
         .local_get(size)
         .binop(BinaryOp::I32Add)
@@ -350,21 +361,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
             |then| {
                 then.i32_const(1)
                     .call(grow)
-                    .i32_const(2)
-                    .binop(BinaryOp::I32GeS)
-                    .if_else(
-                        None,
-                        |then| {
-                            then
-                                .i32_const(0)
-                                .i64_const(0x676f6c20746e6163)  // "cant log"
-                                .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
-                                .i32_const(0)
-                                .i32_const(8)
-                                .call(trap);
-                        },
-                        |_| {}
-                    )
+                    .drop()
                     .global_get(vars.page_size)
                     .i32_const(1)
                     .binop(BinaryOp::I32Add)

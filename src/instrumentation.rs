@@ -337,8 +337,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let size = m.locals.add(ValType::I32);
     builder.func_body()
         .global_get(vars.page_size)
-        .i32_const(2)
-        .binop(BinaryOp::I32GtS)
+        .i32_const(32)
+        .binop(BinaryOp::I32GtS) // trace >= 2M
         .if_else(
             None,
             |then| {

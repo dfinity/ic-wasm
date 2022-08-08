@@ -20,6 +20,7 @@ impl InjectionPoint {
 struct Variables {
     total_counter: GlobalId,
     log_size: GlobalId,
+    page_size: GlobalId,
     is_init: GlobalId,
     dynamic_counter_func: FunctionId,
     dynamic_counter64_func: FunctionId,
@@ -33,6 +34,9 @@ pub fn instrument(m: &mut Module) {
     let log_size = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+    let page_size = m
+        .globals
+        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
     let is_init = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
@@ -44,15 +48,22 @@ pub fn instrument(m: &mut Module) {
         is_init,
         dynamic_counter_func,
         dynamic_counter64_func,
+        page_size,
     };
+
     for (id, func) in m.funcs.iter_local_mut() {
         if id != dynamic_counter_func && id != dynamic_counter64_func {
             inject_metering(func, func.entry_block(), &vars, &func_cost);
         }
     }
-    let printer = inject_printer(m, &vars);
+    let writer = make_stable_writer(m, &vars);
+    let printer = make_printer(m, &vars, writer);
     for (id, func) in m.funcs.iter_local_mut() {
-        if id != printer && id != dynamic_counter_func && id != dynamic_counter64_func {
+        if id != printer
+            && id != writer
+            && id != dynamic_counter_func
+            && id != dynamic_counter64_func
+        {
             inject_profiling_prints(&m.types, printer, id, func);
         }
     }
@@ -64,11 +75,6 @@ pub fn instrument(m: &mut Module) {
     make_getter(m, &vars);
     let name = make_name_section(m);
     m.customs.add(name);
-    let flag = RawCustomSection {
-        name: "icp:public profiling".to_string(),
-        data: vec![1u8],
-    };
-    m.customs.add(flag);
 }
 
 fn inject_metering(
@@ -318,9 +324,50 @@ fn make_dynamic_counter64(m: &mut Module, total_counter: GlobalId) -> FunctionId
         .local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
-
-fn inject_printer(m: &mut Module, vars: &Variables) -> FunctionId {
+fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let writer = get_ic_func_id(m, "stable_write");
+    let grow = get_ic_func_id(m, "stable_grow");
+    let mut builder = FunctionBuilder::new(
+        &mut m.types,
+        &[ValType::I32, ValType::I32, ValType::I32],
+        &[],
+    );
+    let offset = m.locals.add(ValType::I32);
+    let src = m.locals.add(ValType::I32);
+    let size = m.locals.add(ValType::I32);
+    builder
+        .func_body()
+        .local_get(offset)
+        .local_get(size)
+        .binop(BinaryOp::I32Add)
+        .global_get(vars.page_size)
+        .i32_const(65536)
+        .binop(BinaryOp::I32Mul)
+        .binop(BinaryOp::I32GtS)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(1)
+                    .call(grow)
+                    .global_get(vars.page_size)
+                    .i32_const(1)
+                    .binop(BinaryOp::I32Add)
+                    .global_set(vars.page_size);
+            },
+            |_| {},
+        )
+        .local_get(offset)
+        .local_get(src)
+        .local_get(size)
+        .call(writer)
+        .global_get(vars.log_size)
+        .i32_const(1)
+        .binop(BinaryOp::I32Add)
+        .global_set(vars.log_size);
+    builder.finish(vec![offset, src, size], &mut m.funcs)
+}
+
+fn make_printer(m: &mut Module, vars: &Variables, writer: FunctionId) -> FunctionId {
     let memory = get_memory_id(m);
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32], &[]);
     let func_id = m.locals.add(ValType::I32);
@@ -354,11 +401,6 @@ fn inject_printer(m: &mut Module, vars: &Variables) -> FunctionId {
                 .i32_const(0)
                 .i32_const(12)
                 .call(writer)
-                // update counter
-                .global_get(vars.log_size)
-                .i32_const(1)
-                .binop(BinaryOp::I32Add)
-                .global_set(vars.log_size)
                 // restore memory
                 .i32_const(0)
                 .local_get(a)
@@ -410,7 +452,7 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
     }
 }
 fn inject_init(m: &mut Module, is_init: GlobalId) {
-    let grow = get_ic_func_id(m, "stable_grow");
+    //let grow = get_ic_func_id(m, "stable_grow");
     match get_export_func_id(m, "canister_init") {
         Some(id) => {
             let mut builder = get_builder(m, id);
@@ -426,9 +468,9 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
                 ],
             );*/
             builder
-                .i32_const(1)
-                .call(grow)
-                .drop()
+                //.i32_const(1)
+                //.call(grow)
+                //.drop()
                 .i32_const(0)
                 .global_set(is_init);
         }
@@ -436,9 +478,9 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
             let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
             builder
                 .func_body()
-                .i32_const(1)
-                .call(grow)
-                .drop()
+                //.i32_const(1)
+                //.call(grow)
+                //.drop()
                 .i32_const(0)
                 .global_set(is_init);
             let id = builder.finish(vec![], &mut m.funcs);

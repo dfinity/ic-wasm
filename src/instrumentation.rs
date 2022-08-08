@@ -349,6 +349,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
             |then| {
                 then.i32_const(1)
                     .call(grow)
+                    .drop()
                     .global_get(vars.page_size)
                     .i32_const(1)
                     .binop(BinaryOp::I32Add)

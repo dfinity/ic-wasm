@@ -75,6 +75,11 @@ pub fn instrument(m: &mut Module) {
     make_getter(m, &vars);
     let name = make_name_section(m);
     m.customs.add(name);
+    let flag = RawCustomSection {
+        name: "icp:public profiling".to_string(),
+        data: vec![1],
+    };
+    m.customs.add(flag);
 }
 
 fn inject_metering(
@@ -357,6 +362,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
         .if_else(
             None,
             |then| {
+                // TODO: This assumes user code doesn't use stable memory
                 then.i32_const(1)
                     .call(grow)
                     .drop()

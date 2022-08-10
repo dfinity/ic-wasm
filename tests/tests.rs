@@ -104,6 +104,22 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("classes-limit.wasm");
+    let test_canister_id = "zz73r-nyaaa-aabbb-aaaca-cai";
+    let management_canister_id = "aaaaa-aa";
+    wasm_input("classes.wasm", true)
+        .arg("resource")
+        .arg("--playground-backend-redirect")
+        .arg(test_canister_id)
+        .assert()
+        .success();
+    assert_wasm("classes-redirect.wasm");
+    wasm_input("classes.wasm", true)
+        .arg("resource")
+        .arg("--playground-backend-redirect")
+        .arg(management_canister_id)
+        .assert()
+        .success();
+    assert_wasm("classes-nop-redirect.wasm");
 }
 
 #[test]

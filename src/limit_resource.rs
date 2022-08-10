@@ -277,13 +277,13 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                 checks.block(None, |name_check| {
                     let name_check_id = name_check.id();
                     name_check
-                        // check that name_size is the same length as the function name
+                        // Check that name_size is the same length as the function name
                         .local_get(name_size)
                         .i32_const(func_name.len() as i32)
                         .binop(BinaryOp::I32Ne)
                         .br_if(name_check_id);
 
-                    // load the string at name_src onto the stack and compare it to the function name
+                    // Load the string at name_src onto the stack and compare it to the function name
                     for i in 0..func_name.len() {
                         name_check.local_get(name_src).load(
                             memory,
@@ -302,7 +302,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                             .binop(BinaryOp::I32Ne)
                             .br_if(name_check_id);
                     }
-                    // function names were equal, so skip all remaining checks and redirect
+                    // Function names were equal, so skip all remaining checks and redirect
                     name_check.i32_const(0).local_set(no_redirect).br(checks_id);
                 });
             }
@@ -327,7 +327,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     .call(call_new);
             },
             |block| {
-                // save current memory starting from address 0 into local variables
+                // Save current memory starting from address 0 into local variables
                 for (address, backup_var) in memory_backup.iter().enumerate() {
                     block
                         .i32_const(address as i32)
@@ -344,7 +344,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                         .local_set(*backup_var);
                 }
 
-                // write the canister id into memory at address 0
+                // Write the canister id into memory at address 0
                 for (address, byte) in redirect_id.iter().enumerate() {
                     block
                         .i32_const(address as i32)
@@ -370,7 +370,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     .local_get(arg8)
                     .call(call_new);
 
-                // restore old memory
+                // Restore old memory
                 for (address, byte) in memory_backup.iter().enumerate() {
                     block.i32_const(address as i32).local_get(*byte).store(
                         memory,

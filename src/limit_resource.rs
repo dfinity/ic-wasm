@@ -28,10 +28,17 @@ struct CallNew {
     new_call_new: FunctionId,
 }
 
+#[derive(Copy, Clone)]
+struct DebugPrint {
+    old_debug_print: FunctionId,
+    new_debug_print: FunctionId,
+}
+
 struct Replacer {
     cycles_add: Option<CyclesAdd>,
     stable_grow: Option<StableGrow>,
     call_new: Option<CallNew>,
+    debug_print: Option<DebugPrint>,
 }
 impl VisitorMut for Replacer {
     fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
@@ -66,6 +73,14 @@ impl VisitorMut for Replacer {
                         func: ids.new_call_new,
                     }
                     .into();
+                }
+            }
+            if let Some(ids) = &self.debug_print {
+                if *func == ids.old_debug_print {
+                    *instr = Call {
+                        func: ids.new_debug_print,
+                    }.into();
+                        
                 }
             }
         }
@@ -122,6 +137,16 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
                 new_call_new,
             }
         });
+    let debug_print = m.imports.find("ic0", "debug_print")
+        .and(config.playground_canister_id.as_ref())
+        .map(|redirect_id| {
+            let old_debug_print = get_ic_func_id(m, "debug_print");
+            let new_debug_print = make_debug_print(m, redirect_id.as_slice());
+            DebugPrint {
+                old_debug_print,
+                new_debug_print,
+            }
+        });
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
         if let Some(ids) = &cycles_add {
@@ -139,11 +164,17 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
                 return;
             }
         }
+        if let Some(ids) = &debug_print {
+            if id == ids.new_debug_print {
+                return;
+            }
+        }
         dfs_pre_order_mut(
             &mut Replacer {
                 cycles_add,
                 stable_grow,
                 call_new,
+                debug_print,
             },
             func,
             func.entry_block(),
@@ -210,6 +241,24 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
         );
     builder.finish(vec![requested], &mut m.funcs)
 }
+fn make_debug_print(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
+    // We can store the message in stable memory but make sure it doesn't collide with profiling data
+    let src = m.locals.add(ValType::I32);
+    let size = m.locals.add(ValType::I32);
+    let writer = get_ic_func_id(m, "stable_write");
+    let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32, ValType::I32], &[]);
+    builder.func_body()
+        .i32_const(0)
+        .i32_const(redirect_id.len() as i32)
+        .local_get(name_src)
+        .local_get(name_size)
+        
+        .local_get(src)
+        .local_get(size)
+        
+    builder.finish(vec![src, size], &mut m.funcs)
+}
+
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     // Specify the same args as `call_new` so that WASM will correctly check mismatching args
     let callee_src = m.locals.add(ValType::I32);

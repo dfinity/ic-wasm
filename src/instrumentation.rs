@@ -337,16 +337,6 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     let size = m.locals.add(ValType::I32);
     builder
         .func_body()
-        .global_get(vars.page_size)
-        .i32_const(32)
-        .binop(BinaryOp::I32GtS) // trace >= 2M
-        .if_else(
-            None,
-            |then| {
-                then.return_();
-            },
-            |_| {},
-        )
         .local_get(offset)
         .local_get(size)
         .binop(BinaryOp::I32Add)
@@ -358,13 +348,25 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
             None,
             |then| {
                 // TODO: This assumes user code doesn't use stable memory
-                then.i32_const(1)
-                    .call(grow)
-                    .drop()
-                    .global_get(vars.page_size)
-                    .i32_const(1)
-                    .binop(BinaryOp::I32Add)
-                    .global_set(vars.page_size);
+                then.global_get(vars.page_size)
+                    .i32_const(32)
+                    .binop(BinaryOp::I32GtS) // trace >= 2M
+                    .if_else(
+                        None,
+                        |then| {
+                            then.return_();
+                        },
+                        |else_| {
+                            else_
+                                .i32_const(1)
+                                .call(grow)
+                                .drop()
+                                .global_get(vars.page_size)
+                                .i32_const(1)
+                                .binop(BinaryOp::I32Add)
+                                .global_set(vars.page_size);
+                        },
+                    );
             },
             |_| {},
         )

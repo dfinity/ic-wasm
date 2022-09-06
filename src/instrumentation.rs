@@ -73,6 +73,7 @@ pub fn instrument(m: &mut Module) {
     let leb = make_leb128_encoder(m);
     make_stable_getter(m, &vars, leb);
     make_getter(m, &vars);
+    make_toggle_tracing(m, &vars);
     let name = make_name_section(m);
     m.customs.add(name);
 }
@@ -588,4 +589,34 @@ fn make_getter(m: &mut Module, vars: &Variables) {
         .call(reply);
     let getter = getter.finish(vec![], &mut m.funcs);
     m.exports.add("canister_query __get_cycles", getter);
+}
+fn make_toggle_tracing(m: &mut Module, vars: &Variables) {
+    let memory = get_memory_id(m);
+    let reply_data = get_ic_func_id(m, "msg_reply_data_append");
+    let reply = get_ic_func_id(m, "msg_reply");
+    let tmp = m.locals.add(ValType::I64);
+    let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
+    builder.name("__toggle_tracing".to_string());
+    #[rustfmt::skip]
+    builder
+        .func_body()
+        .global_get(vars.is_init)
+        .i32_const(1)
+        .binop(BinaryOp::I32Xor)
+        .global_set(vars.is_init)
+        .i32_const(0)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .local_set(tmp)
+        .i32_const(0)
+        .i64_const(0x4c444944) // "DIDL0000xxxx"
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(0)
+        .i32_const(6)
+        .call(reply_data)
+        .i32_const(0)
+        .local_get(tmp)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .call(reply);
+    let id = builder.finish(vec![], &mut m.funcs);
+    m.exports.add("canister_update __toggle_tracing", id);
 }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use walrus::*;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum InjectionKind {
     Static,
     Dynamic,

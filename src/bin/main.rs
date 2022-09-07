@@ -57,7 +57,7 @@ enum SubCommand {
 fn walrus_config_from_options(opts: &Opts) -> walrus::ModuleConfig {
     let mut config = walrus::ModuleConfig::new();
     if let SubCommand::Shrink = opts.subcommand {
-        config.generate_name_section(false);
+        config.generate_name_section(true);
         config.generate_producers_section(false);
     }
     config

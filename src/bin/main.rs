@@ -74,13 +74,8 @@ fn main() -> anyhow::Result<()> {
             ic_wasm::info::info(&wasm, &mut stdout)?;
             vec![]
         }
-        SubCommand::Shrink => {
-            ic_wasm::shrink::shrink(&mut m);
-            vec![]
-        }
-        SubCommand::Instrument => {
-            ic_wasm::instrumentation::instrument(&wasm)?
-        }
+        SubCommand::Shrink => ic_wasm::shrink::shrink(&wasm)?,
+        SubCommand::Instrument => ic_wasm::instrumentation::instrument(&wasm)?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,

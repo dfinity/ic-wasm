@@ -13,5 +13,8 @@ pub enum Error {
     IO(#[from] std::io::Error),
 
     #[error("{0}")]
-    WASM(String)
+    WASM(String),
+
+    #[error("{0}")]
+    MetadataNotFound(String)
 }

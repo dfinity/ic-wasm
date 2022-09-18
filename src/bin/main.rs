@@ -66,10 +66,12 @@ fn walrus_config_from_options(opts: &Opts) -> walrus::ModuleConfig {
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let config = walrus_config_from_options(&opts);
-    let mut m = config.parse_file(opts.input)?;
+    let mut m = config.parse_file(&opts.input)?;
+    let wasm = std::fs::read(&opts.input)?;
     match &opts.subcommand {
         SubCommand::Info => {
-            ic_wasm::info::info(&m);
+            let mut stdout = std::io::stdout();
+            ic_wasm::info::info(&wasm, &mut stdout)?;
         }
         SubCommand::Shrink => {
             ic_wasm::shrink::shrink(&mut m);

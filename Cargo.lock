@@ -430,6 +430,7 @@ dependencies = [
  "candid",
  "clap",
  "ic-types",
+ "thiserror",
  "walrus",
 ]
 

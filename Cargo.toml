@@ -26,6 +26,7 @@ ic-types = "0.4.2"
 
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "3.0.14", features = ["derive", "cargo"], optional = true }
+thiserror = "1.0.35"
 
 [features]
 default = ["exe"]

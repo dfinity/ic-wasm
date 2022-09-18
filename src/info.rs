@@ -1,33 +1,45 @@
+use std::io::Write;
+
 use crate::utils::{get_func_name, get_motoko_wasm_data_sections, is_motoko_canister};
+use crate::Error;
 use walrus::*;
 
+pub fn info(wasm: &[u8], output: &mut dyn Write) -> Result<(), Error> {
+    let m = walrus::ModuleConfig::new()
+        .parse(wasm)
+        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))?;
+    info_(&m, output)?;
+    Ok(())
+}
+
 /// Print general summary of the Wasm module
-pub fn info(m: &Module) {
-    if is_motoko_canister(m) {
-        println!("This is a Motoko canister");
+fn info_(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
+    if is_motoko_canister(&m) {
+        writeln!(output, "This is a Motoko canister")?;
         for (_, module) in get_motoko_wasm_data_sections(m) {
-            println!("--- Start decoding an embedded Wasm ---");
-            info(&module);
-            println!("--- End of decoding ---");
+            writeln!(output, "--- Start decoding an embedded Wasm ---")?;
+            info_(&module, output)?;
+            writeln!(output, "--- End of decoding ---")?;
         }
-        println!();
+        writeln!(output, "")?;
     }
-    println!("Number of types: {}", m.types.iter().count());
-    println!("Number of globals: {}", m.globals.iter().count());
-    println!();
+    writeln!(output, "Number of types: {}", m.types.iter().count())?;
+    writeln!(output, "Number of globals: {}", m.globals.iter().count())?;
+    writeln!(output, "")?;
     let (data, data_size) = m
         .data
         .iter()
         .fold((0, 0), |(count, size), d| (count + 1, size + d.value.len()));
-    println!("Number of data sections: {}", data);
-    println!("Size of data sections: {} bytes", data_size);
-    println!();
-    println!("Number of functions: {}", m.funcs.iter().count());
-    println!("Number of callbacks: {}", m.elements.iter().count());
-    println!(
+    writeln!(output, "Number of data sections: {}", data)?;
+    writeln!(output, "Size of data sections: {} bytes", data_size)?;
+    writeln!(output, "")?;
+    writeln!(output, "Number of functions: {}", m.funcs.iter().count())?;
+    writeln!(output, "Number of callbacks: {}", m.elements.iter().count())?;
+    writeln!(
+        output,
         "Start function: {:?}",
         m.start.map(|id| get_func_name(m, id))
-    );
+    )?;
     let exports: Vec<_> = m
         .exports
         .iter()
@@ -43,20 +55,21 @@ pub fn info(m: &Module) {
             _ => None,
         })
         .collect();
-    println!("Exported methods: {:#?}", exports);
-    println!();
+    writeln!(output, "Exported methods: {:#?}", exports)?;
+    writeln!(output, "")?;
     let imports: Vec<&str> = m
         .imports
         .iter()
         .filter(|i| i.module == "ic0")
         .map(|i| i.name.as_ref())
         .collect();
-    println!("Imported IC0 System API: {:#?}", imports);
-    println!();
+    writeln!(output, "Imported IC0 System API: {:#?}", imports)?;
+    writeln!(output, "")?;
     let customs: Vec<_> = m
         .customs
         .iter()
         .map(|(_, s)| format!("{} ({} bytes)", s.name(), s.data(&Default::default()).len()))
         .collect();
-    println!("Custom sections with size: {:#?}", customs);
+    writeln!(output, "Custom sections with size: {:#?}", customs)?;
+    Ok(())
 }

@@ -1,4 +1,4 @@
-use walrus::{Module, RawCustomSection, IdsToIndices};
+use walrus::{IdsToIndices, Module, RawCustomSection};
 
 use crate::Error;
 
@@ -52,7 +52,7 @@ pub fn list_metadata(wasm: &[u8]) -> Result<Vec<String>, Error> {
 }
 
 /// Get the content of metadata
-pub fn get_metadata<'a>(wasm: &[u8], name: &'a str) -> Result<String, Error> {
+pub fn get_metadata(wasm: &[u8], name: &str) -> Result<String, Error> {
     let m = wasm_to_module(wasm)?;
     let public = "icp:public ".to_owned() + name;
     let private = "icp:private ".to_owned() + name;
@@ -60,7 +60,7 @@ pub fn get_metadata<'a>(wasm: &[u8], name: &'a str) -> Result<String, Error> {
         .customs
         .iter()
         .find(|(_, section)| section.name() == public || section.name() == private)
-        .map(|(_, section)| section.data(&IdsToIndices::default()).clone());
+        .map(|(_, section)| section.data(&IdsToIndices::default()));
     match r {
         Some(data) => {
             let s = String::from_utf8_lossy(&data).into_owned();

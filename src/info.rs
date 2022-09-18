@@ -13,25 +13,25 @@ pub fn info(wasm: &[u8], output: &mut dyn Write) -> Result<(), Error> {
 
 /// Print general summary of the Wasm module
 fn info_(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
-    if is_motoko_canister(&m) {
+    if is_motoko_canister(m) {
         writeln!(output, "This is a Motoko canister")?;
         for (_, module) in get_motoko_wasm_data_sections(m) {
             writeln!(output, "--- Start decoding an embedded Wasm ---")?;
             info_(&module, output)?;
             writeln!(output, "--- End of decoding ---")?;
         }
-        writeln!(output, "")?;
+        writeln!(output)?;
     }
     writeln!(output, "Number of types: {}", m.types.iter().count())?;
     writeln!(output, "Number of globals: {}", m.globals.iter().count())?;
-    writeln!(output, "")?;
+    writeln!(output)?;
     let (data, data_size) = m
         .data
         .iter()
         .fold((0, 0), |(count, size), d| (count + 1, size + d.value.len()));
     writeln!(output, "Number of data sections: {}", data)?;
     writeln!(output, "Size of data sections: {} bytes", data_size)?;
-    writeln!(output, "")?;
+    writeln!(output)?;
     writeln!(output, "Number of functions: {}", m.funcs.iter().count())?;
     writeln!(output, "Number of callbacks: {}", m.elements.iter().count())?;
     writeln!(
@@ -55,7 +55,7 @@ fn info_(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
         })
         .collect();
     writeln!(output, "Exported methods: {:#?}", exports)?;
-    writeln!(output, "")?;
+    writeln!(output)?;
     let imports: Vec<&str> = m
         .imports
         .iter()
@@ -63,7 +63,7 @@ fn info_(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
         .map(|i| i.name.as_ref())
         .collect();
     writeln!(output, "Imported IC0 System API: {:#?}", imports)?;
-    writeln!(output, "")?;
+    writeln!(output)?;
     let customs: Vec<_> = m
         .customs
         .iter()

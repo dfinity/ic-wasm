@@ -5,8 +5,6 @@ pub mod metadata;
 pub mod shrink;
 pub mod utils;
 
-use thiserror;
-
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("Failed on IO.")]
@@ -16,5 +14,5 @@ pub enum Error {
     WasmParse(String),
 
     #[error("{0}")]
-    MetadataNotFound(String)
+    MetadataNotFound(String),
 }

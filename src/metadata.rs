@@ -1,4 +1,4 @@
-use walrus::*;
+use walrus::{Module, RawCustomSection, IdsToIndices};
 
 use crate::Error;
 
@@ -10,7 +10,7 @@ pub enum Kind {
 fn wasm_to_module(wasm: &[u8]) -> Result<Module, Error> {
     walrus::ModuleConfig::new()
         .parse(wasm)
-        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))
+        .map_err(|e| Error::WasmParse(e.to_string()))
 }
 
 /// Add or overwrite a metadata section

@@ -1,13 +1,12 @@
 use std::io::Write;
+use walrus::{ExportItem, Module};
 
-use crate::utils::{get_func_name, get_motoko_wasm_data_sections, is_motoko_canister};
-use crate::Error;
-use walrus::*;
+use crate::{utils::*, Error};
 
 pub fn info(wasm: &[u8], output: &mut dyn Write) -> Result<(), Error> {
     let m = walrus::ModuleConfig::new()
         .parse(wasm)
-        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))?;
+        .map_err(|e| Error::WasmParse(e.to_string()))?;
     info_(&m, output)?;
     Ok(())
 }

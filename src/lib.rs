@@ -9,11 +9,11 @@ use thiserror;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("")]
+    #[error("Failed on IO.")]
     IO(#[from] std::io::Error),
 
-    #[error("{0}")]
-    WASM(String),
+    #[error("Could not parse the data as WASM module. {0}")]
+    WasmParse(String),
 
     #[error("{0}")]
     MetadataNotFound(String)

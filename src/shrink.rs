@@ -1,5 +1,6 @@
-use crate::{utils::*, Error};
 use walrus::*;
+
+use crate::{utils::*, Error};
 
 pub fn shrink(wasm: &[u8]) -> Result<Vec<u8>, Error> {
     let mut config = walrus::ModuleConfig::new();
@@ -7,7 +8,7 @@ pub fn shrink(wasm: &[u8]) -> Result<Vec<u8>, Error> {
     config.generate_producers_section(false);
     let mut m = config
         .parse(wasm)
-        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))?;
+        .map_err(|e| Error::WasmParse(e.to_string()))?;
     shrink_(&mut m);
     Ok(m.emit_wasm())
 }

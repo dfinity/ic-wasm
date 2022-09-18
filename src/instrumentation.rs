@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::{utils::*, Error};
 use walrus::ir::*;
 use walrus::*;
 
@@ -26,7 +26,15 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
-pub fn instrument(m: &mut Module) {
+pub fn instrument(wasm: &[u8]) -> Result<Vec<u8>, Error> {
+    let mut m = walrus::ModuleConfig::new()
+        .parse(wasm)
+        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))?;
+    instrument_(&mut m);
+    Ok(m.emit_wasm())
+}
+
+fn instrument_(m: &mut Module) {
     let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
@@ -560,6 +568,7 @@ fn make_name_section(m: &Module) -> RawCustomSection {
             }
         })
         .collect();
+        // TODO: handle the result instead of unwrap
     let data = Encode!(&name).unwrap();
     RawCustomSection {
         name: "icp:public name".to_string(),

@@ -77,7 +77,7 @@ fn main() -> anyhow::Result<()> {
             ic_wasm::shrink::shrink(&mut m);
         }
         SubCommand::Instrument => {
-            ic_wasm::instrumentation::instrument(&mut m);
+            ic_wasm::instrumentation::instrument(&wasm)?;
         }
         SubCommand::Resource {
             remove_cycles_transfer,

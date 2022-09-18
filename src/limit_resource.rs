@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::{utils::*, Error};
 use walrus::ir::*;
 use walrus::*;
 
@@ -72,7 +72,15 @@ impl VisitorMut for Replacer {
     }
 }
 
-pub fn limit_resource(m: &mut Module, config: &Config) {
+pub fn limit_resource(wasm: &[u8], config: &Config) -> Result<Vec<u8>, Error> {
+    let mut m = walrus::ModuleConfig::new()
+        .parse(wasm)
+        .map_err(|e| Error::WASM(format!("Could not parse the data as WASM module. {}", e)))?;
+    limit_resource_(&mut m, config);
+    Ok(m.emit_wasm())
+}
+
+pub fn limit_resource_(m: &mut Module, config: &Config) {
     let has_cycles_add = m
         .imports
         .find("ic0", "call_cycles_add")

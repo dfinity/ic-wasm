@@ -68,16 +68,18 @@ fn main() -> anyhow::Result<()> {
     let config = walrus_config_from_options(&opts);
     let mut m = config.parse_file(&opts.input)?;
     let wasm = std::fs::read(&opts.input)?;
-    match &opts.subcommand {
+    let output_wasm = match &opts.subcommand {
         SubCommand::Info => {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&wasm, &mut stdout)?;
+            vec![]
         }
         SubCommand::Shrink => {
             ic_wasm::shrink::shrink(&mut m);
+            vec![]
         }
         SubCommand::Instrument => {
-            ic_wasm::instrumentation::instrument(&wasm)?;
+            ic_wasm::instrumentation::instrument(&wasm)?
         }
         SubCommand::Resource {
             remove_cycles_transfer,
@@ -90,7 +92,7 @@ fn main() -> anyhow::Result<()> {
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,
             };
-            limit_resource(&mut m, &config);
+            limit_resource(&wasm, &config)?
         }
         SubCommand::Metadata {
             name,
@@ -127,10 +129,11 @@ fn main() -> anyhow::Result<()> {
                 }
                 return Ok(());
             }
+            vec![]
         }
-    }
+    };
     if let Some(output) = opts.output {
-        m.emit_wasm_file(output)?;
+        std::fs::write(output, output_wasm)?;
     }
     Ok(())
 }

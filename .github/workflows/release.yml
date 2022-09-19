@@ -23,7 +23,7 @@ jobs:
             asset_name: ic-wasm-macos
           - os: ubuntu-latest
             name: arm
-            artifact_name: target/arm-unknown-linux-gnueabihf/release/icx-wasm
+            artifact_name: target/arm-unknown-linux-gnueabihf/release/ic-wasm
             asset_name: ic-wasm-arm32
 
     steps:

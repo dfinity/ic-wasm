@@ -54,29 +54,17 @@ enum SubCommand {
     Instrument,
 }
 
-fn walrus_config_from_options(opts: &Opts) -> walrus::ModuleConfig {
-    let mut config = walrus::ModuleConfig::new();
-    if let SubCommand::Shrink = opts.subcommand {
-        config.generate_name_section(true);
-        config.generate_producers_section(false);
-    }
-    config
-}
-
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let config = walrus_config_from_options(&opts);
-    let mut m = config.parse_file(opts.input)?;
-    match &opts.subcommand {
+    let wasm = std::fs::read(&opts.input)?;
+    let output_wasm = match &opts.subcommand {
         SubCommand::Info => {
-            ic_wasm::info::info(&m);
+            let mut stdout = std::io::stdout();
+            ic_wasm::info::info(&wasm, &mut stdout)?;
+            vec![]
         }
-        SubCommand::Shrink => {
-            ic_wasm::shrink::shrink(&mut m);
-        }
-        SubCommand::Instrument => {
-            ic_wasm::instrumentation::instrument(&mut m);
-        }
+        SubCommand::Shrink => ic_wasm::shrink::shrink(&wasm)?,
+        SubCommand::Instrument => ic_wasm::instrumentation::instrument(&wasm)?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,
@@ -88,7 +76,7 @@ fn main() -> anyhow::Result<()> {
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,
             };
-            limit_resource(&mut m, &config);
+            limit_resource(&wasm, &config)?
         }
         SubCommand::Metadata {
             name,
@@ -107,28 +95,27 @@ fn main() -> anyhow::Result<()> {
                     (Some(data), None) => data.as_bytes().to_vec(),
                     (None, Some(path)) => std::fs::read(&path)?,
                     (None, None) => {
-                        let data = get_metadata(&m, name);
-                        if let Some(data) = data {
-                            println!("{}", String::from_utf8_lossy(&data));
-                        } else {
-                            println!("Cannot find metadata {}", name);
+                        let res = get_metadata(&wasm, name);
+                        match res {
+                            Ok(data) => println!("{}", data),
+                            Err(_) => println!("Cannot find metadata {}", name),
                         }
                         return Ok(());
                     }
                     (_, _) => unreachable!(),
                 };
-                add_metadata(&mut m, visibility, name, data);
+                add_metadata(&wasm, visibility, name, data)?
             } else {
-                let names = list_metadata(&m);
+                let names = list_metadata(&wasm)?;
                 for name in names.iter() {
                     println!("{}", name);
                 }
                 return Ok(());
             }
         }
-    }
+    };
     if let Some(output) = opts.output {
-        m.emit_wasm_file(output)?;
+        std::fs::write(output, output_wasm)?;
     }
     Ok(())
 }

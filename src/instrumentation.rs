@@ -1,6 +1,7 @@
-use crate::utils::*;
 use walrus::ir::*;
 use walrus::*;
+
+use crate::{utils::*, Error};
 
 struct InjectionPoint {
     position: usize,
@@ -26,7 +27,15 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
-pub fn instrument(m: &mut Module) {
+pub fn instrument(wasm: &[u8]) -> Result<Vec<u8>, Error> {
+    let mut m = walrus::ModuleConfig::new()
+        .parse(wasm)
+        .map_err(|e| Error::WasmParse(e.to_string()))?;
+    instrument_(&mut m);
+    Ok(m.emit_wasm())
+}
+
+fn instrument_(m: &mut Module) {
     let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
@@ -560,6 +569,7 @@ fn make_name_section(m: &Module) -> RawCustomSection {
             }
         })
         .collect();
+    // TODO: handle the result instead of unwrap
     let data = Encode!(&name).unwrap();
     RawCustomSection {
         name: "icp:public name".to_string(),

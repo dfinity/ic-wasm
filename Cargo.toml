@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.2.0-beta.0"
+version = "0.2.0"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -8,7 +8,6 @@ license = "Apache-2.0"
 readme = "README.md"
 documentation = "https://docs.rs/ic-wasm"
 repository = "https://github.com/dfinity/ic-wasm"
-
 categories = ["wasm"]
 keywords = ["internet-computer", "canister", "dfinity"]
 include = ["src", "Cargo.toml", "LICENSE", "README.md"]
@@ -21,12 +20,11 @@ required-features = ["exe"]
 [dependencies]
 walrus = "0.19.0"
 candid = "0.7"
-
 ic-types = "0.4.2"
+thiserror = "1.0.35"
 
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "3.0.14", features = ["derive", "cargo"], optional = true }
-thiserror = "1.0.35"
 
 [features]
 default = ["exe"]

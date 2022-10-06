@@ -2,22 +2,22 @@ use crate::Error;
 use std::collections::HashMap;
 use walrus::*;
 
-fn wasm_parser_config() -> ModuleConfig {
+fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();
-    config.generate_name_section(true);
+    config.generate_name_section(keep_name_section);
     config.generate_producers_section(false);
     config
 }
 
-pub fn parse_wasm(wasm: &[u8]) -> Result<Module, Error> {
-    let config = wasm_parser_config();
+pub fn parse_wasm(wasm: &[u8], keep_name_section: bool) -> Result<Module, Error> {
+    let config = wasm_parser_config(keep_name_section);
     config
         .parse(wasm)
         .map_err(|e| Error::WasmParse(e.to_string()))
 }
 
-pub fn parse_wasm_file(file: std::path::PathBuf) -> Result<Module, Error> {
-    let config = wasm_parser_config();
+pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
+    let config = wasm_parser_config(keep_name_section);
     config
         .parse_file(file)
         .map_err(|e| Error::WasmParse(e.to_string()))

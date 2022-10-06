@@ -56,7 +56,11 @@ enum SubCommand {
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let mut m = ic_wasm::utils::parse_wasm_file(opts.input)?;
+    let keep_name_section = match opts.subcommand {
+        SubCommand::Shrink => true,
+        _ => false,
+    };
+    let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
         SubCommand::Info => {
             let mut stdout = std::io::stdout();

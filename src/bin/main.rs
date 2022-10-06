@@ -44,7 +44,7 @@ enum SubCommand {
         limit_stable_memory_page: Option<u32>,
         /// Redirects controller system API calls to specified motoko backend canister ID
         #[clap(short, long)]
-        playground_backend_redirect: Option<ic_types::Principal>,
+        playground_backend_redirect: Option<candid::Principal>,
     },
     /// List information about the Wasm canister
     Info,

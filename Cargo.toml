@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -19,8 +19,7 @@ required-features = ["exe"]
 
 [dependencies]
 walrus = "0.19.0"
-candid = "0.7"
-ic-types = "0.4.2"
+candid = "0.8"
 thiserror = "1.0.35"
 
 anyhow = { version = "1.0.34", optional = true }

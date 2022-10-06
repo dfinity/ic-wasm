@@ -6,7 +6,7 @@ use crate::{utils::*, Error};
 pub struct Config {
     pub remove_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
-    pub playground_canister_id: Option<ic_types::Principal>,
+    pub playground_canister_id: Option<candid::Principal>,
 }
 
 #[derive(Copy, Clone)]

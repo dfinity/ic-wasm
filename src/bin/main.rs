@@ -56,10 +56,7 @@ enum SubCommand {
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let keep_name_section = match opts.subcommand {
-        SubCommand::Shrink => true,
-        _ => false,
-    };
+    let keep_name_section = matches!(opts.subcommand, SubCommand::Shrink);
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
         SubCommand::Info => {

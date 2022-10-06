@@ -56,15 +56,14 @@ enum SubCommand {
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let wasm = std::fs::read(&opts.input)?;
-    let output_wasm = match &opts.subcommand {
+    let mut m = ic_wasm::utils::parse_wasm_file(opts.input)?;
+    match &opts.subcommand {
         SubCommand::Info => {
             let mut stdout = std::io::stdout();
-            ic_wasm::info::info(&wasm, &mut stdout)?;
-            vec![]
+            ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink => ic_wasm::shrink::shrink(&wasm)?,
-        SubCommand::Instrument => ic_wasm::instrumentation::instrument(&wasm)?,
+        SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
+        SubCommand::Instrument => ic_wasm::instrumentation::instrument(&mut m),
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,
@@ -76,7 +75,7 @@ fn main() -> anyhow::Result<()> {
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,
             };
-            limit_resource(&wasm, &config)?
+            limit_resource(&mut m, &config)
         }
         SubCommand::Metadata {
             name,
@@ -95,18 +94,19 @@ fn main() -> anyhow::Result<()> {
                     (Some(data), None) => data.as_bytes().to_vec(),
                     (None, Some(path)) => std::fs::read(&path)?,
                     (None, None) => {
-                        let res = get_metadata(&wasm, name);
-                        match res {
-                            Ok(data) => println!("{}", data),
-                            Err(_) => println!("Cannot find metadata {}", name),
+                        let data = get_metadata(&m, name);
+                        if let Some(data) = data {
+                            println!("{}", String::from_utf8_lossy(&data));
+                        } else {
+                            println!("Cannot find metadata {}", name);
                         }
                         return Ok(());
                     }
                     (_, _) => unreachable!(),
                 };
-                add_metadata(&wasm, visibility, name, data)?
+                add_metadata(&mut m, visibility, name, data)
             } else {
-                let names = list_metadata(&wasm)?;
+                let names = list_metadata(&m);
                 for name in names.iter() {
                     println!("{}", name);
                 }
@@ -115,7 +115,7 @@ fn main() -> anyhow::Result<()> {
         }
     };
     if let Some(output) = opts.output {
-        std::fs::write(output, output_wasm)?;
+        m.emit_wasm_file(output)?;
     }
     Ok(())
 }

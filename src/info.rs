@@ -3,21 +3,13 @@ use walrus::{ExportItem, Module};
 
 use crate::{utils::*, Error};
 
-pub fn info(wasm: &[u8], output: &mut dyn Write) -> Result<(), Error> {
-    let m = walrus::ModuleConfig::new()
-        .parse(wasm)
-        .map_err(|e| Error::WasmParse(e.to_string()))?;
-    info_(&m, output)?;
-    Ok(())
-}
-
 /// Print general summary of the Wasm module
-fn info_(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
+pub fn info(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
     if is_motoko_canister(m) {
         writeln!(output, "This is a Motoko canister")?;
         for (_, module) in get_motoko_wasm_data_sections(m) {
             writeln!(output, "--- Start decoding an embedded Wasm ---")?;
-            info_(&module, output)?;
+            info(&module, output)?;
             writeln!(output, "--- End of decoding ---")?;
         }
         writeln!(output)?;

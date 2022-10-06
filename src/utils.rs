@@ -1,14 +1,36 @@
+use crate::Error;
 use std::collections::HashMap;
 use walrus::*;
 
+fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
+    let mut config = walrus::ModuleConfig::new();
+    config.generate_name_section(keep_name_section);
+    config.generate_producers_section(false);
+    config
+}
+
+pub fn parse_wasm(wasm: &[u8], keep_name_section: bool) -> Result<Module, Error> {
+    let config = wasm_parser_config(keep_name_section);
+    config
+        .parse(wasm)
+        .map_err(|e| Error::WasmParse(e.to_string()))
+}
+
+pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
+    let config = wasm_parser_config(keep_name_section);
+    config
+        .parse_file(file)
+        .map_err(|e| Error::WasmParse(e.to_string()))
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub enum InjectionKind {
+pub(crate) enum InjectionKind {
     Static,
     Dynamic,
     Dynamic64,
 }
 
-pub struct FunctionCost(HashMap<FunctionId, (i64, InjectionKind)>);
+pub(crate) struct FunctionCost(HashMap<FunctionId, (i64, InjectionKind)>);
 impl FunctionCost {
     pub fn new(m: &Module) -> Self {
         let mut res = HashMap::new();
@@ -52,7 +74,7 @@ impl FunctionCost {
     }
 }
 
-pub fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
+pub(crate) fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
     match m.imports.find("ic0", method) {
         Some(id) => match m.imports.get(id).kind {
             ImportKind::Function(func_id) => func_id,
@@ -102,7 +124,7 @@ pub fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
     }
 }
 
-pub fn get_memory_id(m: &Module) -> MemoryId {
+pub(crate) fn get_memory_id(m: &Module) -> MemoryId {
     m.memories
         .iter()
         .next()
@@ -110,7 +132,7 @@ pub fn get_memory_id(m: &Module) -> MemoryId {
         .id()
 }
 
-pub fn get_export_func_id(m: &Module, method: &str) -> Option<FunctionId> {
+pub(crate) fn get_export_func_id(m: &Module, method: &str) -> Option<FunctionId> {
     let e = m.exports.iter().find(|e| e.name == method)?;
     if let ExportItem::Function(id) = e.item {
         Some(id)
@@ -119,7 +141,7 @@ pub fn get_export_func_id(m: &Module, method: &str) -> Option<FunctionId> {
     }
 }
 
-pub fn get_builder(m: &mut Module, id: FunctionId) -> InstrSeqBuilder<'_> {
+pub(crate) fn get_builder(m: &mut Module, id: FunctionId) -> InstrSeqBuilder<'_> {
     if let FunctionKind::Local(func) = &mut m.funcs.get_mut(id).kind {
         let id = func.entry_block();
         func.builder_mut().instr_seq(id)
@@ -128,13 +150,13 @@ pub fn get_builder(m: &mut Module, id: FunctionId) -> InstrSeqBuilder<'_> {
     }
 }
 
-pub fn inject_top(builder: &mut InstrSeqBuilder<'_>, instrs: Vec<ir::Instr>) {
+pub(crate) fn inject_top(builder: &mut InstrSeqBuilder<'_>, instrs: Vec<ir::Instr>) {
     for instr in instrs.into_iter().rev() {
         builder.instr_at(0, instr);
     }
 }
 
-pub fn get_func_name(m: &Module, id: FunctionId) -> String {
+pub(crate) fn get_func_name(m: &Module, id: FunctionId) -> String {
     m.funcs
         .get(id)
         .name
@@ -143,7 +165,7 @@ pub fn get_func_name(m: &Module, id: FunctionId) -> String {
         .to_string()
 }
 
-pub fn is_motoko_canister(m: &Module) -> bool {
+pub(crate) fn is_motoko_canister(m: &Module) -> bool {
     m.customs.iter().any(|(_, s)| {
         s.name() == "icp:private motoko:compiler" || s.name() == "icp:public motoko:compiler"
     }) || m
@@ -152,7 +174,7 @@ pub fn is_motoko_canister(m: &Module) -> bool {
         .any(|e| e.name == "canister_update __motoko_async_helper")
 }
 
-pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
+pub(crate) fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
     let len = blob.len() as u32;
     if len > 100
         && blob[0..4] == [0x11, 0x00, 0x00, 0x00]  // tag for blob
@@ -167,7 +189,7 @@ pub fn is_motoko_wasm_data_section(blob: &[u8]) -> Option<&[u8]> {
     None
 }
 
-pub fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
+pub(crate) fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
     m.data
         .iter()
         .filter_map(|d| {
@@ -181,7 +203,7 @@ pub fn get_motoko_wasm_data_sections(m: &Module) -> Vec<(DataId, Module)> {
         .collect()
 }
 
-pub fn encode_module_as_data_section(mut m: Module) -> Vec<u8> {
+pub(crate) fn encode_module_as_data_section(mut m: Module) -> Vec<u8> {
     let blob = m.emit_wasm();
     let blob_len = blob.len();
     let mut res = Vec::with_capacity(blob_len + 8);

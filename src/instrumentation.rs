@@ -447,9 +447,10 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
         .iter()
         .filter_map(|e| match e.item {
             ExportItem::Function(id)
-                if e.name.starts_with("canister_update")
-                    || e.name.starts_with("canister_query")
-                    || e.name.starts_with("canister_heartbeat") =>
+                if e.name != "canister_update __motoko_async_helper"
+                    && (e.name.starts_with("canister_update")
+                        || e.name.starts_with("canister_query")
+                        || e.name.starts_with("canister_heartbeat")) =>
             {
                 Some(id)
             }

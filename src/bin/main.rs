@@ -93,7 +93,7 @@ fn main() -> anyhow::Result<()> {
                 };
                 let data = match (data, file) {
                     (Some(data), None) => data.as_bytes().to_vec(),
-                    (None, Some(path)) => std::fs::read(&path)?,
+                    (None, Some(path)) => std::fs::read(path)?,
                     (None, None) => {
                         let data = get_metadata(&m, name);
                         if let Some(data) = data {

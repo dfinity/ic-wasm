@@ -23,6 +23,7 @@ struct Variables {
     log_size: GlobalId,
     page_size: GlobalId,
     is_init: GlobalId,
+    is_entry: GlobalId,
     dynamic_counter_func: FunctionId,
     dynamic_counter64_func: FunctionId,
 }
@@ -41,12 +42,16 @@ pub fn instrument(m: &mut Module) {
     let is_init = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
+    let is_entry = m
+        .globals
+        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
     let dynamic_counter_func = make_dynamic_counter(m, total_counter);
     let dynamic_counter64_func = make_dynamic_counter64(m, total_counter);
     let vars = Variables {
         total_counter,
         log_size,
         is_init,
+        is_entry,
         dynamic_counter_func,
         dynamic_counter64_func,
         page_size,
@@ -74,7 +79,8 @@ pub fn instrument(m: &mut Module) {
     let leb = make_leb128_encoder(m);
     make_stable_getter(m, &vars, leb);
     make_getter(m, &vars);
-    make_toggle_tracing(m, &vars);
+    make_toggle_func(m, "__toggle_tracing", vars.is_init);
+    make_toggle_func(m, "__toggle_entry", vars.is_entry);
     let name = make_name_section(m);
     m.customs.add(name);
 }
@@ -463,7 +469,10 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
         inject_top(
             &mut builder,
             vec![
-                Const { value: Value::I32(0) }.into(),
+                // log_size = is_entry ? log_size : 0
+                GlobalGet { global: vars.is_entry }.into(),
+                GlobalGet { global: vars.log_size }.into(),
+                Binop { op: BinaryOp::I32Mul }.into(),
                 GlobalSet { global: vars.log_size }.into(),
             ],
         );
@@ -592,20 +601,20 @@ fn make_getter(m: &mut Module, vars: &Variables) {
     let getter = getter.finish(vec![], &mut m.funcs);
     m.exports.add("canister_query __get_cycles", getter);
 }
-fn make_toggle_tracing(m: &mut Module, vars: &Variables) {
+fn make_toggle_func(m: &mut Module, name: &str, var: GlobalId) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
     let tmp = m.locals.add(ValType::I64);
     let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
-    builder.name("__toggle_tracing".to_string());
+    builder.name(name.to_string());
     #[rustfmt::skip]
     builder
         .func_body()
-        .global_get(vars.is_init)
+        .global_get(var)
         .i32_const(1)
         .binop(BinaryOp::I32Xor)
-        .global_set(vars.is_init)
+        .global_set(var)
         .i32_const(0)
         .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .local_set(tmp)
@@ -620,5 +629,5 @@ fn make_toggle_tracing(m: &mut Module, vars: &Variables) {
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .call(reply);
     let id = builder.finish(vec![], &mut m.funcs);
-    m.exports.add("canister_update __toggle_tracing", id);
+    m.exports.add(&format!("canister_update {}", name), id);
 }

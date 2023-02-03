@@ -99,7 +99,7 @@ fn main() -> anyhow::Result<()> {
                         if let Some(data) = data {
                             println!("{}", String::from_utf8_lossy(&data));
                         } else {
-                            println!("Cannot find metadata {}", name);
+                            println!("Cannot find metadata {name}");
                         }
                         return Ok(());
                     }
@@ -109,7 +109,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 let names = list_metadata(&m);
                 for name in names.iter() {
-                    println!("{}", name);
+                    println!("{name}");
                 }
                 return Ok(());
             }

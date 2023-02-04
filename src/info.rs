@@ -21,8 +21,8 @@ pub fn info(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
         .data
         .iter()
         .fold((0, 0), |(count, size), d| (count + 1, size + d.value.len()));
-    writeln!(output, "Number of data sections: {}", data)?;
-    writeln!(output, "Size of data sections: {} bytes", data_size)?;
+    writeln!(output, "Number of data sections: {data}")?;
+    writeln!(output, "Size of data sections: {data_size} bytes")?;
     writeln!(output)?;
     writeln!(output, "Number of functions: {}", m.funcs.iter().count())?;
     writeln!(output, "Number of callbacks: {}", m.elements.iter().count())?;
@@ -46,7 +46,7 @@ pub fn info(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
             _ => None,
         })
         .collect();
-    writeln!(output, "Exported methods: {:#?}", exports)?;
+    writeln!(output, "Exported methods: {exports:#?}")?;
     writeln!(output)?;
     let imports: Vec<&str> = m
         .imports
@@ -54,13 +54,13 @@ pub fn info(m: &Module, output: &mut dyn Write) -> Result<(), Error> {
         .filter(|i| i.module == "ic0")
         .map(|i| i.name.as_ref())
         .collect();
-    writeln!(output, "Imported IC0 System API: {:#?}", imports)?;
+    writeln!(output, "Imported IC0 System API: {imports:#?}")?;
     writeln!(output)?;
     let customs: Vec<_> = m
         .customs
         .iter()
         .map(|(_, s)| format!("{} ({} bytes)", s.name(), s.data(&Default::default()).len()))
         .collect();
-    writeln!(output, "Custom sections with size: {:#?}", customs)?;
+    writeln!(output, "Custom sections with size: {customs:#?}")?;
     Ok(())
 }

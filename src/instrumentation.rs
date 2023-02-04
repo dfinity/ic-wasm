@@ -629,5 +629,5 @@ fn make_toggle_func(m: &mut Module, name: &str, var: GlobalId) {
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .call(reply);
     let id = builder.finish(vec![], &mut m.funcs);
-    m.exports.add(&format!("canister_update {}", name), id);
+    m.exports.add(&format!("canister_update {name}"), id);
 }

@@ -565,7 +565,10 @@ fn make_name_section(m: &Module) -> RawCustomSection {
         .iter()
         .filter_map(|f| {
             if matches!(f.kind, FunctionKind::Local(_)) {
-                Some((f.id().index() as u16, f.name.as_ref()?))
+                use rustc_demangle::demangle;
+                let name = f.name.as_ref()?;
+                let demangled = format!("{:#}", demangle(name));
+                Some((f.id().index() as u16, demangled))
             } else {
                 None
             }

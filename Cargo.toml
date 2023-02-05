@@ -24,7 +24,7 @@ rustc-demangle = "0.1"
 thiserror = "1.0.35"
 
 anyhow = { version = "1.0.34", optional = true }
-clap = { version = "3.0.14", features = ["derive", "cargo"], optional = true }
+clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
 
 [features]
 default = ["exe"]

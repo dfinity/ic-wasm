@@ -31,7 +31,7 @@ enum SubCommand {
         #[clap(short, long, requires("name"), conflicts_with("data"))]
         file: Option<PathBuf>,
         /// Visibility of metadata
-        #[clap(short, long, possible_values = &["public", "private"], default_value = "private")]
+        #[clap(short, long, value_parser = ["public", "private"], default_value = "private")]
         visibility: String,
     },
     /// Limit resource usage

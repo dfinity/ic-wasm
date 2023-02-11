@@ -2,6 +2,7 @@ use walrus::ir::*;
 use walrus::*;
 
 use crate::utils::*;
+use std::collections::HashSet;
 
 struct InjectionPoint {
     position: usize,
@@ -28,7 +29,21 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
-pub fn instrument(m: &mut Module) {
+/// When trace_only_funcs is not empty, tracing is only enabled for those listed functions.
+/// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
+pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), String> {
+    let mut trace_only_ids = HashSet::new();
+    for name in trace_only_funcs.iter() {
+        let id = match m.funcs.by_name(name) {
+            Some(id) => id,
+            None => return Err(format!("func \"{name}\" not found")),
+        };
+        trace_only_ids.insert(id);
+    }
+    let trace_only_funcs: HashSet<FunctionId> = trace_only_funcs
+        .iter()
+        .filter_map(|name| m.funcs.by_name(name))
+        .collect();
     let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
@@ -39,9 +54,12 @@ pub fn instrument(m: &mut Module) {
     let page_size = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
-    let is_init = m
-        .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
+    let is_init_value = if trace_only_funcs.is_empty() { 1 } else { 0 };
+    let is_init = m.globals.add_local(
+        ValType::I32,
+        true,
+        InitExpr::Value(Value::I32(is_init_value)),
+    );
     let is_entry = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
@@ -70,7 +88,8 @@ pub fn instrument(m: &mut Module) {
             && id != dynamic_counter_func
             && id != dynamic_counter64_func
         {
-            inject_profiling_prints(&m.types, printer, id, func);
+            let is_trace_only = trace_only_ids.get(&id).is_some();
+            inject_profiling_prints(&m.types, printer, id, func, is_trace_only, &vars);
         }
     }
     //inject_start(m, vars.is_init);
@@ -83,6 +102,7 @@ pub fn instrument(m: &mut Module) {
     make_toggle_func(m, "__toggle_entry", vars.is_entry);
     let name = make_name_section(m);
     m.customs.add(name);
+    Ok(())
 }
 
 fn inject_metering(
@@ -208,6 +228,8 @@ fn inject_profiling_prints(
     printer: FunctionId,
     id: FunctionId,
     func: &mut LocalFunction,
+    is_trace_only: bool,
+    vars: &Variables,
 ) {
     // Put the original function body inside a block, so that if the code
     // use br_if/br_table to exit the function, we can still output the exit signal.
@@ -230,6 +252,9 @@ fn inject_profiling_prints(
     *(inner_start.instrs_mut()) = start_instrs;
     let inner_start_id = inner_start.id();
     let mut start_builder = func.builder_mut().func_body();
+    if is_trace_only {
+        start_builder.i32_const(1).global_set(vars.is_init);
+    }
     start_builder
         .i32_const(id.index() as i32)
         .call(printer)
@@ -239,7 +264,10 @@ fn inject_profiling_prints(
         // TOOD fix when id == 0
         .i32_const(-(id.index() as i32))
         .call(printer);
-
+    // TODO this only works for non-recursive entry function
+    if is_trace_only {
+        start_builder.i32_const(0).global_set(vars.is_init);
+    }
     let mut stack = vec![inner_start_id];
     while let Some(seq_id) = stack.pop() {
         let mut builder = func.builder_mut().instr_seq(seq_id);

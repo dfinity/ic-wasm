@@ -40,10 +40,6 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
         };
         trace_only_ids.insert(id);
     }
-    let trace_only_funcs: HashSet<FunctionId> = trace_only_funcs
-        .iter()
-        .filter_map(|name| m.funcs.by_name(name))
-        .collect();
     let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
@@ -54,12 +50,9 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
     let page_size = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
-    let is_init_value = if trace_only_funcs.is_empty() { 1 } else { 0 };
-    let is_init = m.globals.add_local(
-        ValType::I32,
-        true,
-        InitExpr::Value(Value::I32(is_init_value)),
-    );
+    let is_init = m
+        .globals
+        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
     let is_entry = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
@@ -92,8 +85,10 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
             inject_profiling_prints(&m.types, printer, id, func, is_trace_only, &vars);
         }
     }
-    //inject_start(m, vars.is_init);
-    inject_init(m, vars.is_init);
+    if !trace_only_ids.is_empty() {
+        //inject_start(m, vars.is_init);
+        inject_init(m, vars.is_init);
+    }
     inject_canister_methods(m, &vars);
     let leb = make_leb128_encoder(m);
     make_stable_getter(m, &vars, leb);
@@ -253,7 +248,7 @@ fn inject_profiling_prints(
     let inner_start_id = inner_start.id();
     let mut start_builder = func.builder_mut().func_body();
     if is_trace_only {
-        start_builder.i32_const(1).global_set(vars.is_init);
+        start_builder.i32_const(0).global_set(vars.is_init);
     }
     start_builder
         .i32_const(id.index() as i32)
@@ -266,7 +261,7 @@ fn inject_profiling_prints(
         .call(printer);
     // TODO this only works for non-recursive entry function
     if is_trace_only {
-        start_builder.i32_const(0).global_set(vars.is_init);
+        start_builder.i32_const(1).global_set(vars.is_init);
     }
     let mut stack = vec![inner_start_id];
     while let Some(seq_id) = stack.pop() {

@@ -85,7 +85,7 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
             inject_profiling_prints(&m.types, printer, id, func, is_trace_only, &vars);
         }
     }
-    if !trace_only_ids.is_empty() {
+    if trace_only_ids.is_empty() {
         //inject_start(m, vars.is_init);
         inject_init(m, vars.is_init);
     }

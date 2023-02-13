@@ -380,7 +380,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
             |then| {
                 // TODO: This assumes user code doesn't use stable memory
                 then.global_get(vars.page_size)
-                    .i32_const(30)
+                    .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
                     .binop(BinaryOp::I32GtS) // trace >= 2M
                     .if_else(
                         None,

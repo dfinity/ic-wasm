@@ -210,7 +210,6 @@ fn inject_metering(
                     instrs.extend_from_slice(&[
                         (GlobalGet { global: vars.total_counter }.into(), Default::default()),
                         (Const { value: Value::I64(point.cost) }.into(), Default::default()),
-                        (Binop { op: BinaryOp::I64Add }.into(), Default::default()),
                     ]);
                     if is_partial_tracing {
                         #[rustfmt::skip]
@@ -218,16 +217,15 @@ fn inject_metering(
                             (GlobalGet { global: vars.is_init }.into(), Default::default()),
                             (Const { value: Value::I32(1) }.into(), Default::default()),
                             (Binop { op: BinaryOp::I32Xor }.into(), Default::default()),
-                            (Binop { op: BinaryOp::I32Mul }.into(), Default::default()),
+                            (Unop { op: UnaryOp::I64ExtendUI32 }.into(), Default::default()),
+                            (Binop { op: BinaryOp::I64Mul }.into(), Default::default()),
                         ]);
                     }
-                    instrs.push((
-                        GlobalSet {
-                            global: vars.total_counter,
-                        }
-                        .into(),
-                        Default::default(),
-                    ));
+                    #[rustfmt::skip]
+                    instrs.extend_from_slice(&[
+                        (Binop { op: BinaryOp::I64Add }.into(), Default::default()),
+                        (GlobalSet { global: vars.total_counter }.into(), Default::default()),
+                    ]);
                 }
                 Dynamic => {
                     // Assume top of the stack is the i32 size parameter
@@ -366,17 +364,18 @@ fn make_dynamic_counter(
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32], &[ValType::I32]);
     let size = m.locals.add(ValType::I32);
     let mut seq = builder.func_body();
-    seq.local_get(size)
-        .unop(UnaryOp::I64ExtendUI32)
-        .global_get(total_counter)
-        .binop(BinaryOp::I64Add);
+    seq.local_get(size);
     if let Some(is_init) = opt_init {
         seq.global_get(*is_init)
             .i32_const(1)
             .binop(BinaryOp::I32Xor)
             .binop(BinaryOp::I32Mul);
     }
-    seq.global_set(total_counter).local_get(size);
+    seq.unop(UnaryOp::I64ExtendUI32)
+        .global_get(total_counter)
+        .binop(BinaryOp::I64Add)
+        .global_set(total_counter)
+        .local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
 fn make_dynamic_counter64(
@@ -387,16 +386,18 @@ fn make_dynamic_counter64(
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64], &[ValType::I64]);
     let size = m.locals.add(ValType::I64);
     let mut seq = builder.func_body();
-    seq.local_get(size)
-        .global_get(total_counter)
-        .binop(BinaryOp::I64Add);
+    seq.local_get(size);
     if let Some(is_init) = opt_init {
         seq.global_get(*is_init)
             .i32_const(1)
             .binop(BinaryOp::I32Xor)
-            .binop(BinaryOp::I32Mul);
+            .unop(UnaryOp::I64ExtendUI32)
+            .binop(BinaryOp::I64Mul);
     }
-    seq.global_set(total_counter).local_get(size);
+    seq.global_get(total_counter)
+        .binop(BinaryOp::I64Add)
+        .global_set(total_counter)
+        .local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
 fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {

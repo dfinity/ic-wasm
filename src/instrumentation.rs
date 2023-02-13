@@ -29,7 +29,7 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
-/// When trace_only_funcs is not empty, tracing is only enabled for those listed functions.
+/// When trace_only_funcs is not empty, counting and tracing is only enabled for those listed functions per update call.
 /// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
 pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), String> {
     let mut trace_only_ids = HashSet::new();
@@ -40,6 +40,7 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
         };
         trace_only_ids.insert(id);
     }
+    let is_partial_tracing = !trace_only_ids.is_empty();
     let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
@@ -56,8 +57,13 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
     let is_entry = m
         .globals
         .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
-    let dynamic_counter_func = make_dynamic_counter(m, total_counter);
-    let dynamic_counter64_func = make_dynamic_counter64(m, total_counter);
+    let opt_init = if is_partial_tracing {
+        Some(is_init)
+    } else {
+        None
+    };
+    let dynamic_counter_func = make_dynamic_counter(m, total_counter, &opt_init);
+    let dynamic_counter64_func = make_dynamic_counter64(m, total_counter, &opt_init);
     let vars = Variables {
         total_counter,
         log_size,
@@ -70,7 +76,13 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
 
     for (id, func) in m.funcs.iter_local_mut() {
         if id != dynamic_counter_func && id != dynamic_counter64_func {
-            inject_metering(func, func.entry_block(), &vars, &func_cost);
+            inject_metering(
+                func,
+                func.entry_block(),
+                &vars,
+                &func_cost,
+                is_partial_tracing,
+            );
         }
     }
     let writer = make_stable_writer(m, &vars);
@@ -81,11 +93,11 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
             && id != dynamic_counter_func
             && id != dynamic_counter64_func
         {
-            let is_trace_only = trace_only_ids.get(&id).is_some();
-            inject_profiling_prints(&m.types, printer, id, func, is_trace_only, &vars);
+            let is_partial_tracing = trace_only_ids.get(&id).is_some();
+            inject_profiling_prints(&m.types, printer, id, func, is_partial_tracing, &vars);
         }
     }
-    if trace_only_ids.is_empty() {
+    if !is_partial_tracing {
         //inject_start(m, vars.is_init);
         inject_init(m, vars.is_init);
     }
@@ -105,6 +117,7 @@ fn inject_metering(
     start: InstrSeqId,
     vars: &Variables,
     func_cost: &FunctionCost,
+    is_partial_tracing: bool,
 ) {
     use InjectionKind::*;
     let mut stack = vec![start];
@@ -198,8 +211,23 @@ fn inject_metering(
                         (GlobalGet { global: vars.total_counter }.into(), Default::default()),
                         (Const { value: Value::I64(point.cost) }.into(), Default::default()),
                         (Binop { op: BinaryOp::I64Add }.into(), Default::default()),
-                        (GlobalSet { global: vars.total_counter }.into(), Default::default()),
                     ]);
+                    if is_partial_tracing {
+                        #[rustfmt::skip]
+                        instrs.extend_from_slice(&[
+                            (GlobalGet { global: vars.is_init }.into(), Default::default()),
+                            (Const { value: Value::I32(1) }.into(), Default::default()),
+                            (Binop { op: BinaryOp::I32Xor }.into(), Default::default()),
+                            (Binop { op: BinaryOp::I32Mul }.into(), Default::default()),
+                        ]);
+                    }
+                    instrs.push((
+                        GlobalSet {
+                            global: vars.total_counter,
+                        }
+                        .into(),
+                        Default::default(),
+                    ));
                 }
                 Dynamic => {
                     // Assume top of the stack is the i32 size parameter
@@ -223,7 +251,7 @@ fn inject_profiling_prints(
     printer: FunctionId,
     id: FunctionId,
     func: &mut LocalFunction,
-    is_trace_only: bool,
+    is_partial_tracing: bool,
     vars: &Variables,
 ) {
     // Put the original function body inside a block, so that if the code
@@ -247,7 +275,7 @@ fn inject_profiling_prints(
     *(inner_start.instrs_mut()) = start_instrs;
     let inner_start_id = inner_start.id();
     let mut start_builder = func.builder_mut().func_body();
-    if is_trace_only {
+    if is_partial_tracing {
         start_builder.i32_const(0).global_set(vars.is_init);
     }
     start_builder
@@ -260,7 +288,7 @@ fn inject_profiling_prints(
         .i32_const(-(id.index() as i32))
         .call(printer);
     // TODO this only works for non-recursive entry function
-    if is_trace_only {
+    if is_partial_tracing {
         start_builder.i32_const(1).global_set(vars.is_init);
     }
     let mut stack = vec![inner_start_id];
@@ -330,29 +358,45 @@ fn inject_profiling_prints(
     }
 }
 
-fn make_dynamic_counter(m: &mut Module, total_counter: GlobalId) -> FunctionId {
+fn make_dynamic_counter(
+    m: &mut Module,
+    total_counter: GlobalId,
+    opt_init: &Option<GlobalId>,
+) -> FunctionId {
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32], &[ValType::I32]);
     let size = m.locals.add(ValType::I32);
-    builder
-        .func_body()
-        .local_get(size)
+    let mut seq = builder.func_body();
+    seq.local_get(size)
         .unop(UnaryOp::I64ExtendUI32)
         .global_get(total_counter)
-        .binop(BinaryOp::I64Add)
-        .global_set(total_counter)
-        .local_get(size);
+        .binop(BinaryOp::I64Add);
+    if let Some(is_init) = opt_init {
+        seq.global_get(*is_init)
+            .i32_const(1)
+            .binop(BinaryOp::I32Xor)
+            .binop(BinaryOp::I32Mul);
+    }
+    seq.global_set(total_counter).local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
-fn make_dynamic_counter64(m: &mut Module, total_counter: GlobalId) -> FunctionId {
+fn make_dynamic_counter64(
+    m: &mut Module,
+    total_counter: GlobalId,
+    opt_init: &Option<GlobalId>,
+) -> FunctionId {
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64], &[ValType::I64]);
     let size = m.locals.add(ValType::I64);
-    builder
-        .func_body()
-        .local_get(size)
+    let mut seq = builder.func_body();
+    seq.local_get(size)
         .global_get(total_counter)
-        .binop(BinaryOp::I64Add)
-        .global_set(total_counter)
-        .local_get(size);
+        .binop(BinaryOp::I64Add);
+    if let Some(is_init) = opt_init {
+        seq.global_get(*is_init)
+            .i32_const(1)
+            .binop(BinaryOp::I32Xor)
+            .binop(BinaryOp::I32Mul);
+    }
+    seq.global_set(total_counter).local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
 fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {

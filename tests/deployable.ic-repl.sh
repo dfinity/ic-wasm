@@ -68,6 +68,9 @@ function classes_redirect(wasm) {
 let S = motoko(file "ok/motoko-instrument.wasm");
 call S.__get_cycles();
 assert _ == (7199 : int64);
+let S = motoko(file "ok/motoko-gc-instrument.wasm");
+call S.__get_cycles();
+assert _ == (59 : int64);
 motoko(file "ok/motoko-shrink.wasm");
 motoko(file "ok/motoko-limit.wasm");
 

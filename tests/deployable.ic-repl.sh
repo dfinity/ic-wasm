@@ -65,25 +65,28 @@ function classes_redirect(wasm) {
   S
 };
 
-let S = motoko(file "ok/motoko-instrument.wasm");
+let S = motoko(file("ok/motoko-instrument.wasm"));
 call S.__get_cycles();
 assert _ == (7199 : int64);
-motoko(file "ok/motoko-shrink.wasm");
-motoko(file "ok/motoko-limit.wasm");
+let S = motoko(file("ok/motoko-gc-instrument.wasm"));
+call S.__get_cycles();
+assert _ == (177 : int64);
+motoko(file("ok/motoko-shrink.wasm"));
+motoko(file("ok/motoko-limit.wasm"));
 
-let S = rust(file "ok/rust-instrument.wasm");
+let S = rust(file("ok/rust-instrument.wasm"));
 call S.__get_cycles();
 assert _ == (66016 : int64);
-rust(file "ok/rust-shrink.wasm");
-rust(file "ok/rust-limit.wasm");
+rust(file("ok/rust-shrink.wasm"));
+rust(file("ok/rust-limit.wasm"));
 
-let S = wat(file "ok/wat-instrument.wasm");
+let S = wat(file("ok/wat-instrument.wasm"));
 call S.__get_cycles();
 assert _ == (121 : int64);
-wat(file "ok/wat-shrink.wasm");
-wat(file "ok/wat-limit.wasm");
+wat(file("ok/wat-shrink.wasm"));
+wat(file("ok/wat-limit.wasm"));
 
-classes(file "ok/classes-shrink.wasm");
-classes_limit(file "ok/classes-limit.wasm");
-classes_redirect(file "ok/classes-redirect.wasm");
-classes(file "ok/classes-nop-redirect.wasm");
+classes(file("ok/classes-shrink.wasm"));
+classes_limit(file("ok/classes-limit.wasm"));
+classes_redirect(file("ok/classes-redirect.wasm"));
+classes(file("ok/classes-nop-redirect.wasm"));

@@ -51,7 +51,10 @@ enum SubCommand {
     /// Remove unused functions and debug info
     Shrink,
     /// Instrument canister method to emit execution trace to stable memory (experimental)
-    Instrument,
+    Instrument {
+        #[clap(short, long)]
+        trace_only: Option<Vec<String>>,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -64,7 +67,11 @@ fn main() -> anyhow::Result<()> {
             ic_wasm::info::info(&m, &mut stdout)?;
         }
         SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
-        SubCommand::Instrument => ic_wasm::instrumentation::instrument(&mut m),
+        SubCommand::Instrument { trace_only } => match trace_only {
+            None => ic_wasm::instrumentation::instrument(&mut m, &[]),
+            Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),
+        }
+        .map_err(|e| anyhow::anyhow!("{e}"))?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,

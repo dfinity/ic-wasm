@@ -34,6 +34,13 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("motoko-instrument.wasm");
+    wasm_input("motoko.wasm", true)
+        .arg("instrument")
+        .arg("-t")
+        .arg("schedule_copying_gc")
+        .assert()
+        .success();
+    assert_wasm("motoko-gc-instrument.wasm");
     wasm_input("wat.wasm", true)
         .arg("instrument")
         .assert()

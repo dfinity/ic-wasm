@@ -58,7 +58,17 @@ Usage: `ic-wasm <input.wasm> -o <output.wasm> resource --remove_cycles_transfer 
 
 Instrument canister method to emit execution trace to stable memory. 
 
-Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument`
+Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --trace-only func2`
+
+Instrumented canister has the following additional endpoints:
+
+* `__get_cycles: () -> (int64) query`. Get the current cycle counter.
+* `__get_profiling: () -> (vec { record { int32; int64 }}) query`. Get the execution trace log.
+* `__toggle_tracing: () -> ()`. Disable/enable logging the execution trace.
+* `__toggle_entry: () -> ()`. Disable/enable clearing exection trace for each update call.
+* `icp:public name` metadata. Used to map func_id from execution trace to function name.
+
+When `--trace-only` flag is provided, the counter and trace logging will only happen during the execution of that function, instead of tracing the whole update call. Note that the function itself has to be non-recursive.
 
 Current limitations:
 

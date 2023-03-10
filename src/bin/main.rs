@@ -55,6 +55,8 @@ enum SubCommand {
         #[clap(short, long)]
         trace_only: Option<Vec<String>>,
     },
+    /// Invoke wasm optimizations from wasm-opt
+    Optimize,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -120,6 +122,10 @@ fn main() -> anyhow::Result<()> {
                 }
                 return Ok(());
             }
+        }
+        SubCommand::Optimize => {
+            use ic_wasm::optimize::optimize;
+            optimize(&mut m)
         }
     };
     if let Some(output) = opts.output {

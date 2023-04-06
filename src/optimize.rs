@@ -1,3 +1,4 @@
+use crate::metadata::*;
 use crate::utils::*;
 use std::path::PathBuf;
 use walrus::*;
@@ -7,7 +8,19 @@ pub fn optimize(m: &mut Module, keep_name_section: bool) {
     let temp_file_name = "temp.opt.wasm";
     let temp_path = PathBuf::from(temp_file_name);
 
-    // FIXME extract out the custom section first
+    // pull out the custom sections to preserve
+    let mut metadata_sections = Vec::new();
+    list_metadata(m).iter().for_each(|full_name| {
+        match full_name.strip_prefix("icp:public ") {
+            Some(name) => metadata_sections.push(("public", name, get_metadata(m, name).unwrap())),
+            None => match full_name.strip_prefix("icp:private ") {
+                Some(name) => {
+                    metadata_sections.push(("private", name, get_metadata(m, name).unwrap()))
+                }
+                None => unreachable!(),
+            },
+        };
+    });
 
     // write to fs
     m.emit_wasm_file(temp_file_name).unwrap();

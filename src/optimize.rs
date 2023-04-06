@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use walrus::*;
 use wasm_opt::OptimizationOptions;
 
-pub fn optimize(m: &mut Module, keep_name_section: bool) {
+pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
     let temp_file_name = "temp.opt.wasm";
     let temp_path = PathBuf::from(temp_file_name);
 
@@ -29,9 +29,18 @@ pub fn optimize(m: &mut Module, keep_name_section: bool) {
     m.emit_wasm_file(temp_file_name).unwrap();
 
     // read in from fs and optimize
-    OptimizationOptions::new_opt_level_3()
-        .run(temp_file_name, temp_file_name)
-        .unwrap();
+    match level {
+        "O0" => OptimizationOptions::new_opt_level_0(),
+        "O1" => OptimizationOptions::new_opt_level_1(),
+        "O2" => OptimizationOptions::new_opt_level_2(),
+        "O3" => OptimizationOptions::new_opt_level_3(),
+        "O4" => OptimizationOptions::new_opt_level_4(),
+        "Os" => OptimizationOptions::new_optimize_for_size(),
+        "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
+        _ => unreachable!(),
+    }
+    .run(temp_file_name, temp_file_name)
+    .unwrap();
 
     // read optimized wasm back in from fs
     *m = parse_wasm_file(temp_path, keep_name_section).unwrap();

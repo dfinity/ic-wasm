@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
         }
         SubCommand::Optimize => {
             use ic_wasm::optimize::optimize;
-            optimize(&mut m)
+            optimize(&mut m, keep_name_section)
         }
     };
     if let Some(output) = opts.output {

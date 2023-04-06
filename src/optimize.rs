@@ -1,7 +1,8 @@
+use crate::utils::*;
+use std::path::PathBuf;
 use walrus::ir::*;
 use walrus::*;
-
-use crate::utils::*;
+use wasm_opt::OptimizationOptions;
 
 #[derive(Copy, Clone)]
 struct CallNew {
@@ -27,8 +28,20 @@ impl VisitorMut for Replacer {
     }
 }
 
-pub fn optimize(m: &mut Module) {
-    println!("FIXME");
+pub fn optimize(m: &mut Module, keep_name_section: bool) {
+    let temp_file_name = "temp.opt.wasm";
+    let temp_path = PathBuf::from(temp_file_name);
+
+    // write to fs
+    m.emit_wasm_file(temp_file_name).unwrap();
+
+    // read in from fs and optimize
+    OptimizationOptions::new_opt_level_3()
+        .run(temp_file_name, temp_file_name)
+        .unwrap();
+
+    // read back in from fs and assign back to m
+    *m = parse_wasm_file(temp_path, keep_name_section).unwrap();
 }
 
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {

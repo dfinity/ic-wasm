@@ -90,3 +90,9 @@ classes(file("ok/classes-shrink.wasm"));
 classes_limit(file("ok/classes-limit.wasm"));
 classes_redirect(file("ok/classes-redirect.wasm"));
 classes(file("ok/classes-nop-redirect.wasm"));
+
+motoko(file("ok/motoko-optimize.wasm"));
+rust(file("ok/rust-optimize.wasm"));
+wat(file("ok/wat-optimize.wasm"));
+classes(file("ok/classes-optimize.wasm"));
+// FIXME test different optimization levels

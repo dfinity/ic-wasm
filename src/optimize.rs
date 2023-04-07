@@ -5,6 +5,16 @@ use walrus::*;
 use wasm_opt::OptimizationOptions;
 
 pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
+    // recursively optimize embedded modules in Motoko actor classes
+    if is_motoko_canister(m) {
+        let data = get_motoko_wasm_data_sections(m);
+        for (id, mut module) in data.into_iter() {
+            optimize(&mut module, keep_name_section, level);
+            let blob = encode_module_as_data_section(module);
+            m.data.get_mut(id).value = blob;
+        }
+    }
+
     // pull out a copy of the custom sections to preserve
     let m_copy = parse_wasm(&m.emit_wasm(), keep_name_section).unwrap();
     let mut metadata_sections = Vec::new();

@@ -33,8 +33,14 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
     });
 
     // write to temp file
-    let temp_file = NamedTempFile::new().unwrap();
-    m.emit_wasm_file(temp_file.path()).unwrap();
+    let temp_file = NamedTempFile::new().unwrap_or_else(|e| {
+        eprintln!("unable to create temp file: {}", e);
+        std::process::exit(1);
+    });
+    m.emit_wasm_file(temp_file.path()).unwrap_or_else(|e| {
+        eprintln!("unable to write to temp file: {}", e);
+        std::process::exit(1);
+    });
 
     // read in from temp file and optimize
     match level {
@@ -48,10 +54,16 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
         _ => unreachable!(),
     }
     .run(temp_file.path(), temp_file.path())
-    .unwrap();
+    .unwrap_or_else(|e| {
+        eprintln!("unable to optimize wasm: {}", e);
+        std::process::exit(1);
+    });
 
     // read optimized wasm back in from temp file
-    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section).unwrap();
+    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section).unwrap_or_else(|e| {
+        eprintln!("unable to read optimized wasm: {}", e);
+        std::process::exit(1);
+    });
 
     // re-insert the custom sections
     metadata_sections

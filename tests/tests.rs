@@ -228,3 +228,27 @@ icp:public whatever
         )
         .success();
 }
+
+#[test]
+fn optimize() {
+    wasm_input("motoko.wasm", true)
+        .arg("optimize")
+        .assert()
+        .success();
+    assert_wasm("motoko-optimize.wasm");
+    wasm_input("rust.wasm", true)
+        .arg("optimize")
+        .assert()
+        .success();
+    assert_wasm("rust-optimize.wasm");
+    wasm_input("classes.wasm", true)
+        .arg("optimize")
+        .assert()
+        .success();
+    assert_wasm("classes-optimize.wasm");
+    wasm_input("wat.wasm", true)
+        .arg("optimize")
+        .assert()
+        .success();
+    assert_wasm("wat-optimize.wasm");
+}

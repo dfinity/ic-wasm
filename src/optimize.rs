@@ -1,13 +1,10 @@
 use crate::metadata::*;
 use crate::utils::*;
-use std::path::PathBuf;
+use tempfile::NamedTempFile;
 use walrus::*;
 use wasm_opt::OptimizationOptions;
 
 pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
-    let temp_file_name = "temp.opt.wasm";
-    let temp_path = PathBuf::from(temp_file_name);
-
     // pull out a copy of the custom sections to preserve
     let m_copy = parse_wasm(&m.emit_wasm(), keep_name_section).unwrap();
     let mut metadata_sections = Vec::new();
@@ -25,10 +22,11 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
         };
     });
 
-    // write to fs
-    m.emit_wasm_file(temp_file_name).unwrap();
+    // write to temp file
+    let temp_file = NamedTempFile::new().unwrap();
+    m.emit_wasm_file(temp_file.path()).unwrap();
 
-    // read in from fs and optimize
+    // read in from temp file and optimize
     match level {
         "O0" => OptimizationOptions::new_opt_level_0(),
         "O1" => OptimizationOptions::new_opt_level_1(),
@@ -39,11 +37,11 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
         "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
         _ => unreachable!(),
     }
-    .run(temp_file_name, temp_file_name)
+    .run(temp_file.path(), temp_file.path())
     .unwrap();
 
-    // read optimized wasm back in from fs
-    *m = parse_wasm_file(temp_path, keep_name_section).unwrap();
+    // read optimized wasm back in from temp file
+    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section).unwrap();
 
     // re-insert the custom sections
     metadata_sections

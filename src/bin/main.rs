@@ -48,30 +48,34 @@ enum SubCommand {
     },
     /// List information about the Wasm canister
     Info,
-    /// Remove unused functions and debug info
-    Shrink,
+    /// Remove unused functions and debug info. Optionally, optimize the Wasm code
+    Shrink {
+        #[clap(short, long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
+        optimize: Option<String>,
+    },
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument {
         #[clap(short, long)]
         trace_only: Option<Vec<String>>,
     },
-    /// Invoke wasm optimizations from wasm-opt
-    Optimize {
-        #[clap(short, long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"], default_value = "O3")]
-        level: String,
-    },
 }
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let keep_name_section = matches!(opts.subcommand, SubCommand::Shrink);
+    let keep_name_section = matches!(opts.subcommand, SubCommand::Shrink { .. });
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
         SubCommand::Info => {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
+        SubCommand::Shrink { optimize } => {
+            use ic_wasm::shrink;
+            match optimize {
+                Some(level) => shrink::optimize(&mut m, keep_name_section, level),
+                None => shrink::shrink(&mut m),
+            }
+        }
         SubCommand::Instrument { trace_only } => match trace_only {
             None => ic_wasm::instrumentation::instrument(&mut m, &[]),
             Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),
@@ -125,10 +129,6 @@ fn main() -> anyhow::Result<()> {
                 }
                 return Ok(());
             }
-        }
-        SubCommand::Optimize { level } => {
-            use ic_wasm::optimize::optimize;
-            optimize(&mut m, keep_name_section, level)
         }
     };
     if let Some(output) = opts.output {

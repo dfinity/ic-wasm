@@ -44,9 +44,31 @@ Usage: `ic-wasm <input.wasm> info`
 
 ### Shrink
 
-Remove unused functions and debug info
+Remove unused functions and debug info.
 
 Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
+
+Optionally invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
+
+The optimizer exposes different optimization levels to choose from.
+
+Performance levels (optimizes for runtime):
+- O4
+- O3 (default setting: best for minimizing cycle usage)
+- O2
+- O1
+- O0 (no optimizations)
+
+Code size levels (optimizes for binary size):
+- Oz (best for minimizing code size)
+- Os
+
+The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16%.
+
+Note: The `icp` metadata sections are preserved through the optimizations.
+
+
+Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink --optimize <level>`
 
 ### Resource
 
@@ -80,30 +102,6 @@ Current limitations:
 * We only store the first 2M of profiling data.
 * We cannot measure query calls.
 * No concurrent calls
-
-### Optimize
-
-Invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
-
-The optimizer exposes different optimization levels to choose from.
-
-Performance levels (optimizes for runtime):
-- O4
-- O3 (default setting: best for minimizing cycle usage)
-- O2
-- O1
-- O0 (no optimizations)
-
-Code size levels (optimizes for binary size):
-- Oz (best for minimizing code size)
-- Os
-
-The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16%.
-
-Note: The `icp` metadata sections are preserved through the optimizations.
-
-
-Usage: `ic-wasm <input.wasm> -o <output.wasm> optimize --level <optional level>`
 
 ## Library
 

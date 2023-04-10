@@ -236,19 +236,86 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("motoko-optimize.wasm");
+
+    wasm_input("motoko.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("O4")
+        .assert()
+        .success();
+    assert_wasm("motoko-optimize-level-4.wasm");
+
+    wasm_input("motoko.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("Oz")
+        .assert()
+        .success();
+    assert_wasm("motoko-optimize-level-z.wasm");
+
     wasm_input("rust.wasm", true)
         .arg("optimize")
         .assert()
         .success();
     assert_wasm("rust-optimize.wasm");
+
+    wasm_input("rust.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("O4")
+        .assert()
+        .success();
+    assert_wasm("rust-optimize-level-4.wasm");
+
+    wasm_input("rust.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("Oz")
+        .assert()
+        .success();
+    assert_wasm("rust-optimize-level-z.wasm");
+
     wasm_input("classes.wasm", true)
         .arg("optimize")
         .assert()
         .success();
     assert_wasm("classes-optimize.wasm");
+
+    wasm_input("classes.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("O4")
+        .assert()
+        .success();
+    assert_wasm("classes-optimize-level-4.wasm");
+
+    wasm_input("classes.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("Oz")
+        .assert()
+        .success();
+    assert_wasm("classes-optimize-level-z.wasm");
+
     wasm_input("wat.wasm", true)
         .arg("optimize")
         .assert()
         .success();
     assert_wasm("wat-optimize.wasm");
+
+    wasm_input("wat.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("O4")
+        .assert()
+        .success();
+    assert_wasm("wat-optimize-level-4.wasm");
+
+    wasm_input("wat.wasm", true)
+        .arg("optimize")
+        .arg("--level")
+        .arg("Oz")
+        .assert()
+        .success();
+    assert_wasm("wat-optimize-level-z.wasm");
 }

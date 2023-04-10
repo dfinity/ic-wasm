@@ -95,4 +95,11 @@ motoko(file("ok/motoko-optimize.wasm"));
 rust(file("ok/rust-optimize.wasm"));
 wat(file("ok/wat-optimize.wasm"));
 classes(file("ok/classes-optimize.wasm"));
-// FIXME test different optimization levels
+motoko(file("ok/motoko-optimize-level-4.wasm"));
+rust(file("ok/rust-optimize-level-4.wasm"));
+wat(file("ok/wat-optimize-level-4.wasm"));
+classes(file("ok/classes-optimize-level-4.wasm"));
+motoko(file("ok/motoko-optimize-level-z.wasm"));
+rust(file("ok/rust-optimize-level-z.wasm"));
+wat(file("ok/wat-optimize-level-z.wasm"));
+classes(file("ok/classes-optimize-level-z.wasm"));

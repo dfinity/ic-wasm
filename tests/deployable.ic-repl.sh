@@ -21,6 +21,12 @@ function motoko(wasm) {
   call S.inc();
   call S.get();
   assert _ == (43 : nat);
+
+  call S.inc();
+  call S.inc();
+  call S.get();
+  call S.get();
+  assert _ == (45 : nat);
   S
 };
 function rust(wasm) {
@@ -29,6 +35,12 @@ function rust(wasm) {
   call S.inc();
   call S.read();
   assert _ == (43 : nat);
+
+  call S.inc();
+  call S.inc();
+  call S.read();
+  call S.read();
+  assert _ == (45 : nat);
   S
 };
 function wat(wasm) {
@@ -37,6 +49,12 @@ function wat(wasm) {
   call S.inc();
   call S.get();
   assert _ == (43 : int64);
+
+  call S.inc();
+  call S.inc();
+  call S.get();
+  call S.get();
+  assert _ == (45 : int64);
   S
 };
 function classes(wasm) {
@@ -46,6 +64,12 @@ function classes(wasm) {
   call S.put(42, "text");
   call S.get(42);
   assert _ == opt "text";
+
+  call S.put(40, "text0");
+  call S.put(41, "text1");
+  call S.put(42, "text2");
+  call S.get(42);
+  assert _ == opt "text2";
   S
 };
 function classes_limit(wasm) {
@@ -67,22 +91,22 @@ function classes_redirect(wasm) {
 
 let S = motoko(file("ok/motoko-instrument.wasm"));
 call S.__get_cycles();
-assert _ == (7199 : int64);
+assert _ == (9003 : int64);
 let S = motoko(file("ok/motoko-gc-instrument.wasm"));
 call S.__get_cycles();
-assert _ == (177 : int64);
+assert _ == (295 : int64);
 motoko(file("ok/motoko-shrink.wasm"));
 motoko(file("ok/motoko-limit.wasm"));
 
 let S = rust(file("ok/rust-instrument.wasm"));
 call S.__get_cycles();
-assert _ == (66016 : int64);
+assert _ == (136378 : int64);
 rust(file("ok/rust-shrink.wasm"));
 rust(file("ok/rust-limit.wasm"));
 
 let S = wat(file("ok/wat-instrument.wasm"));
 call S.__get_cycles();
-assert _ == (121 : int64);
+assert _ == (189 : int64);
 wat(file("ok/wat-shrink.wasm"));
 wat(file("ok/wat-limit.wasm"));
 

@@ -98,7 +98,7 @@ Code size levels (optimizes for binary size):
 - Oz (best for minimizing code size)
 - Os
 
-The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16%.
+The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16% more than `shrink`.
 
 Note: The `icp` metadata sections are preserved through the optimizations.
 

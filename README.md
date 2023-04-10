@@ -17,7 +17,7 @@ Manage metadata in the Wasm module.
 Usage: `ic-wasm <input.wasm> [-o <output.wasm>] metadata [name] [-d <text content> | -f <file content>] [-v <public|private>]`
 
 * List current metadata sections
-``` 
+```
 $ ic-wasm input.wasm metadata
 ```
 
@@ -56,7 +56,7 @@ Usage: `ic-wasm <input.wasm> -o <output.wasm> resource --remove_cycles_transfer 
 
 ### Instrument (experimental)
 
-Instrument canister method to emit execution trace to stable memory. 
+Instrument canister method to emit execution trace to stable memory.
 
 Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --trace-only func2`
 
@@ -81,6 +81,29 @@ Current limitations:
 * We cannot measure query calls.
 * No concurrent calls
 
+### Optimize
+
+Invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
+
+The optimizer exposes different optimization levels to choose from.
+
+Performance levels (optimizes for runtime):
+- O4
+- O3 (default setting: best for minimizing cycle usage)
+- O2
+- O1
+- O0 (no optimizations)
+
+Code size levels (optimizes for binary size):
+- Oz (best for minimizing code size)
+- Os
+
+The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16%.
+
+Note: The `icp` metadata sections are preserved through the optimizations.
+
+
+Usage: `ic-wasm <input.wasm> -o <output.wasm> optimize --level <optional level>`
 
 ## Library
 

@@ -28,19 +28,19 @@ pub fn shrink(m: &mut Module) {
     passes::gc::run(m);
 }
 
-pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
+pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow::Result<()> {
     // recursively optimize embedded modules in Motoko actor classes
     if is_motoko_canister(m) {
         let data = get_motoko_wasm_data_sections(m);
         for (id, mut module) in data.into_iter() {
-            optimize(&mut module, keep_name_section, level);
+            optimize(&mut module, keep_name_section, level)?;
             let blob = encode_module_as_data_section(module);
             m.data.get_mut(id).value = blob;
         }
     }
 
     // pull out a copy of the custom sections to preserve
-    let m_copy = parse_wasm(&m.emit_wasm(), keep_name_section).unwrap();
+    let m_copy = parse_wasm(&m.emit_wasm(), keep_name_section)?;
     let mut metadata_sections = Vec::new();
     list_metadata(&m_copy).iter().for_each(|full_name| {
         match full_name.strip_prefix("icp:public ") {
@@ -57,14 +57,8 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
     });
 
     // write to temp file
-    let temp_file = NamedTempFile::new().unwrap_or_else(|e| {
-        eprintln!("unable to create temp file: {}", e);
-        std::process::exit(1);
-    });
-    m.emit_wasm_file(temp_file.path()).unwrap_or_else(|e| {
-        eprintln!("unable to write to temp file: {}", e);
-        std::process::exit(1);
-    });
+    let temp_file = NamedTempFile::new()?;
+    m.emit_wasm_file(temp_file.path())?;
 
     // read in from temp file and optimize
     match level {
@@ -77,17 +71,10 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
         "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
         _ => unreachable!(),
     }
-    .run(temp_file.path(), temp_file.path())
-    .unwrap_or_else(|e| {
-        eprintln!("unable to optimize wasm: {}", e);
-        std::process::exit(1);
-    });
+    .run(temp_file.path(), temp_file.path())?;
 
     // read optimized wasm back in from temp file
-    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section).unwrap_or_else(|e| {
-        eprintln!("unable to read optimized wasm: {}", e);
-        std::process::exit(1);
-    });
+    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section)?;
 
     // re-insert the custom sections
     metadata_sections
@@ -100,4 +87,5 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) {
             };
             add_metadata(m, visibility, name, data.to_vec());
         });
+    Ok(())
 }

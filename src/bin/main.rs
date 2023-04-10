@@ -72,7 +72,7 @@ fn main() -> anyhow::Result<()> {
         SubCommand::Shrink { optimize } => {
             use ic_wasm::shrink;
             match optimize {
-                Some(level) => shrink::optimize(&mut m, keep_name_section, level),
+                Some(level) => shrink::optimize(&mut m, keep_name_section, level)?,
                 None => shrink::shrink(&mut m),
             }
         }

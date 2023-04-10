@@ -231,11 +231,34 @@ icp:public whatever
 
 #[test]
 fn optimize() {
+    let expected_metadata = r#"icp:public candid:service
+icp:private candid:args
+icp:private motoko:stable-types
+icp:private motoko:compiler
+"#;
+
     wasm_input("motoko.wasm", true)
         .arg("optimize")
         .assert()
         .success();
     assert_wasm("motoko-optimize.wasm");
+    wasm_input("ok/motoko-optimize.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/motoko-optimize.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.25\n")
+        .success();
+    wasm_input("ok/motoko-optimize.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("motoko.wasm", true)
         .arg("optimize")
@@ -244,6 +267,23 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("motoko-optimize-level-4.wasm");
+    wasm_input("ok/motoko-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/motoko-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.25\n")
+        .success();
+    wasm_input("ok/motoko-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("motoko.wasm", true)
         .arg("optimize")
@@ -252,6 +292,23 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("motoko-optimize-level-z.wasm");
+    wasm_input("ok/motoko-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/motoko-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.25\n")
+        .success();
+    wasm_input("ok/motoko-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("rust.wasm", true)
         .arg("optimize")
@@ -280,6 +337,23 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("classes-optimize.wasm");
+    wasm_input("ok/classes-optimize.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/classes-optimize.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.26\n")
+        .success();
+    wasm_input("ok/classes-optimize.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("classes.wasm", true)
         .arg("optimize")
@@ -288,6 +362,23 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("classes-optimize-level-4.wasm");
+    wasm_input("ok/classes-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/classes-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.26\n")
+        .success();
+    wasm_input("ok/classes-optimize-level-4.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("classes.wasm", true)
         .arg("optimize")
@@ -296,6 +387,23 @@ fn optimize() {
         .assert()
         .success();
     assert_wasm("classes-optimize-level-z.wasm");
+    wasm_input("ok/classes-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .assert()
+        .stdout(expected_metadata)
+        .success();
+    wasm_input("ok/classes-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .arg("motoko:compiler")
+        .assert()
+        .stdout("0.6.26\n")
+        .success();
+    wasm_input("ok/classes-optimize-level-z.wasm", false)
+        .arg("metadata")
+        .arg("candid:args")
+        .assert()
+        .stdout("()\n")
+        .success();
 
     wasm_input("wat.wasm", true)
         .arg("optimize")

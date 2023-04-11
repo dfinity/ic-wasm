@@ -44,24 +44,22 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow:
     m.emit_wasm_file(temp_file.path())?;
 
     // pull out a copy of the custom sections to preserve
-    let mut metadata_sections: Vec<(Kind, &str, Vec<u8>)> = Vec::new();
-    list_metadata(m).iter().for_each(|full_name| {
-        match full_name.strip_prefix("icp:public ") {
-            Some(name) => metadata_sections.push((
-                Kind::Public,
-                name,
-                get_metadata(m, name).unwrap().to_vec(),
-            )),
-            None => match full_name.strip_prefix("icp:private ") {
-                Some(name) => metadata_sections.push((
-                    Kind::Private,
-                    name,
-                    get_metadata(m, name).unwrap().to_vec(),
-                )),
-                None => unreachable!(),
-            },
-        };
-    });
+    let metadata_sections: Vec<(Kind, &str, Vec<u8>)> = m
+        .customs
+        .iter()
+        .filter(|(_, section)| section.name().starts_with("icp:"))
+        .map(|(_, section)| {
+            let data = section.data(&IdsToIndices::default()).to_vec();
+            let full_name = section.name();
+            match full_name.strip_prefix("public ") {
+                Some(name) => (Kind::Public, name, data),
+                None => match full_name.strip_prefix("private ") {
+                    Some(name) => (Kind::Private, name, data),
+                    None => unreachable!(),
+                },
+            }
+        })
+        .collect();
 
     // read in from temp file and optimize
     match level {

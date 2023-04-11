@@ -25,7 +25,6 @@ function motoko(wasm) {
   call S.inc();
   call S.inc();
   call S.get();
-  call S.get();
   assert _ == (45 : nat);
   S
 };
@@ -39,7 +38,6 @@ function rust(wasm) {
   call S.inc();
   call S.inc();
   call S.read();
-  call S.read();
   assert _ == (45 : nat);
   S
 };
@@ -52,7 +50,6 @@ function wat(wasm) {
 
   call S.inc();
   call S.inc();
-  call S.get();
   call S.get();
   assert _ == (45 : int64);
   S

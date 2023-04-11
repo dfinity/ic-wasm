@@ -1,5 +1,6 @@
 use walrus::{IdsToIndices, Module, RawCustomSection};
 
+#[derive(Clone, Copy)]
 pub enum Kind {
     Public,
     Private,

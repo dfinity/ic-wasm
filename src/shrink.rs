@@ -39,26 +39,29 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow:
         }
     }
 
+    // write module to temp file
+    let temp_file = NamedTempFile::new()?;
+    m.emit_wasm_file(temp_file.path())?;
+
     // pull out a copy of the custom sections to preserve
-    let m_copy = parse_wasm(&m.emit_wasm(), keep_name_section)?;
-    let mut metadata_sections = Vec::new();
-    list_metadata(&m_copy).iter().for_each(|full_name| {
+    let mut metadata_sections: Vec<(Kind, &str, Vec<u8>)> = Vec::new();
+    list_metadata(m).iter().for_each(|full_name| {
         match full_name.strip_prefix("icp:public ") {
-            Some(name) => {
-                metadata_sections.push(("public", name, get_metadata(&m_copy, name).unwrap()))
-            }
+            Some(name) => metadata_sections.push((
+                Kind::Public,
+                name,
+                get_metadata(m, name).unwrap().to_vec(),
+            )),
             None => match full_name.strip_prefix("icp:private ") {
-                Some(name) => {
-                    metadata_sections.push(("private", name, get_metadata(&m_copy, name).unwrap()))
-                }
+                Some(name) => metadata_sections.push((
+                    Kind::Private,
+                    name,
+                    get_metadata(m, name).unwrap().to_vec(),
+                )),
                 None => unreachable!(),
             },
         };
     });
-
-    // write to temp file
-    let temp_file = NamedTempFile::new()?;
-    m.emit_wasm_file(temp_file.path())?;
 
     // read in from temp file and optimize
     match level {
@@ -74,18 +77,15 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow:
     .run(temp_file.path(), temp_file.path())?;
 
     // read optimized wasm back in from temp file
-    *m = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section)?;
+    let mut m_opt = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section)?;
 
     // re-insert the custom sections
     metadata_sections
-        .iter()
+        .into_iter()
         .for_each(|(visibility, name, data)| {
-            let visibility = match *visibility {
-                "public" => Kind::Public,
-                "private" => Kind::Private,
-                _ => unreachable!(),
-            };
-            add_metadata(m, visibility, name, data.to_vec());
+            add_metadata(&mut m_opt, visibility, name, data);
         });
+
+    *m = m_opt;
     Ok(())
 }

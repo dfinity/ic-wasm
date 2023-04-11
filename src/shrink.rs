@@ -28,12 +28,12 @@ pub fn shrink(m: &mut Module) {
     passes::gc::run(m);
 }
 
-pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow::Result<()> {
+pub fn shrink_with_wasm_opt(m: &mut Module, level: &str) -> anyhow::Result<()> {
     // recursively optimize embedded modules in Motoko actor classes
     if is_motoko_canister(m) {
         let data = get_motoko_wasm_data_sections(m);
         for (id, mut module) in data.into_iter() {
-            optimize(&mut module, keep_name_section, level)?;
+            shrink_with_wasm_opt(&mut module, level)?;
             let blob = encode_module_as_data_section(module);
             m.data.get_mut(id).value = blob;
         }
@@ -75,7 +75,7 @@ pub fn optimize(m: &mut Module, keep_name_section: bool, level: &str) -> anyhow:
     .run(temp_file.path(), temp_file.path())?;
 
     // read optimized wasm back in from temp file
-    let mut m_opt = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section)?;
+    let mut m_opt = parse_wasm_file(temp_file.path().to_path_buf(), false)?;
 
     // re-insert the custom sections
     metadata_sections

@@ -70,7 +70,7 @@ pub fn shrink_with_wasm_opt(m: &mut Module, level: &str) -> anyhow::Result<()> {
         "O4" => OptimizationOptions::new_opt_level_4(),
         "Os" => OptimizationOptions::new_optimize_for_size(),
         "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
-        _ => unreachable!(),
+        _ => anyhow::bail!("invalid optimization level"),
     }
     .run(temp_file.path(), temp_file.path())?;
 

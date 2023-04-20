@@ -50,7 +50,7 @@ enum SubCommand {
     Info,
     /// Remove unused functions and debug info. Optionally, optimize the Wasm code
     Shrink {
-        #[clap(short, long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
+        #[clap(long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
         optimize: Option<String>,
     },
     /// Instrument canister method to emit execution trace to stable memory (experimental)

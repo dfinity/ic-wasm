@@ -1,8 +1,6 @@
 use crate::metadata::*;
 use crate::utils::*;
-use tempfile::NamedTempFile;
 use walrus::*;
-use wasm_opt::OptimizationOptions;
 
 pub fn shrink(m: &mut Module) {
     if is_motoko_canister(m) {
@@ -28,7 +26,10 @@ pub fn shrink(m: &mut Module) {
     passes::gc::run(m);
 }
 
+#[cfg(feature = "wasm-opt")]
 pub fn shrink_with_wasm_opt(m: &mut Module, level: &str) -> anyhow::Result<()> {
+    use tempfile::NamedTempFile;
+    use wasm_opt::OptimizationOptions;
     // recursively optimize embedded modules in Motoko actor classes
     if is_motoko_canister(m) {
         let data = get_motoko_wasm_data_sections(m);

@@ -72,7 +72,12 @@ fn main() -> anyhow::Result<()> {
         SubCommand::Shrink { optimize } => {
             use ic_wasm::shrink;
             match optimize {
-                Some(level) => shrink::shrink_with_wasm_opt(&mut m, level)?,
+                Some(level) => {
+                    #[cfg(not(feature = "wasm-opt"))]
+                    panic!("Please build with wasm-opt feature");
+                    #[cfg(feature = "wasm-opt")]
+                    shrink::shrink_with_wasm_opt(&mut m, level)?
+                }
                 None => shrink::shrink(&mut m),
             }
         }

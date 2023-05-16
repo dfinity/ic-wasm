@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.3.6"
+version = "0.3.7"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -22,15 +22,16 @@ walrus = "0.19.0"
 candid = "0.9.0-beta.2"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
-wasm-opt = "0.112.0"
-tempfile = "3.5.0"
 
+wasm-opt = { version = "0.112.0", optional = true }
+tempfile = { version = "3.5.0", optional = true }
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
 
 [features]
-default = ["exe"]
+default = ["exe", "wasm-opt"]
 exe = ["anyhow", "clap"]
+wasm-opt = ["dep:wasm-opt", "tempfile"]
 
 [dev-dependencies]
 assert_cmd = "2"

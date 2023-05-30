@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - '*'
+    branches: # TODO: Remove before merging.
+      - portable-builds  # Pushing the feature branch should test this PR.
 jobs:
   build:
     name: Build for ${{ matrix.name }}
@@ -110,6 +112,7 @@ jobs:
           name: ${{ matrix.asset_name }}
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
+        if: 1 == 0
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ic-wasm

@@ -4,7 +4,7 @@ on:
     tags:
       - '*'
     branches: # TODO: Remove before merging.
-      - portable-builds # Pushing the feature branch should test this PR.
+      - portable-build-test # Pushing the feature branch should test this PR.
 jobs:
   build:
     name: Build for ${{ matrix.name }}

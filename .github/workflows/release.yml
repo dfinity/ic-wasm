@@ -15,7 +15,7 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux64
-            artifact_name: target/x86_64-unknown-linux-musl/release/ic-wasm
+            artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux64
           - os: macos-latest
             name: macos
@@ -26,40 +26,32 @@ jobs:
             artifact_name: target/arm-unknown-linux-gnueabihf/release/ic-wasm
             asset_name: ic-wasm-arm32
     steps:
-      - uses: actions/checkout@v2
-      - name: Install stable toolchain
-        if: matrix.name != 'arm'
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - name: Install stable toolchain
-        if: matrix.name == 'arm'
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: arm-unknown-linux-gnueabihf
-      - name: Build
-        if: matrix.name == 'linux64'
-        run: |
-          set -x
-          sudo apt-get update -yy
-          sudo apt-get install -yy musl musl-dev musl-tools
-          rustup target add x86_64-unknown-linux-musl
-          cargo build --release --locked --target x86_64-unknown-linux-musl
-      - name: Build
-        if: matrix.name == 'macos'
-        run: cargo build --release --locked
-      - name: Cross build
-        if: matrix.name == 'arm'
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --target arm-unknown-linux-gnueabihf --release --locked
+    - uses: actions/checkout@v2
+    - name: Install stable toolchain
+      if: matrix.name != 'arm'
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    - name: Install stable toolchain
+      if: matrix.name == 'arm'
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        target: arm-unknown-linux-gnueabihf
+    - name: Build
+      if: matrix.name != 'arm'
+      run: cargo build --release --locked
+    - name: Cross build
+      if: matrix.name == 'arm'
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --target arm-unknown-linux-gnueabihf --release --locked
       - name: 'Upload assets'
         uses: actions/upload-artifact@v3
         with:
@@ -112,7 +104,7 @@ jobs:
           name: ${{ matrix.asset_name }}
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
-        if: 1 == 0
+        if: 1 == 0 # TODO: Remove before merging
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ic-wasm

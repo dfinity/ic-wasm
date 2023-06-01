@@ -3,8 +3,6 @@ on:
   push:
     tags:
       - '*'
-    branches: # TODO: Remove before merging.
-      - portable-build-test # Pushing the feature branch should test this PR.
 jobs:
   build:
     name: Build for ${{ matrix.name }}
@@ -66,16 +64,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
-            asset_name: ic-wasm-linux64
+          #- os: ubuntu-22.04
+          #  asset_name: ic-wasm-linux64
           - os: ubuntu-20.04
             asset_name: ic-wasm-linux64
           - os: macos-13
             asset_name: ic-wasm-macos
           - os: macos-12
             asset_name: ic-wasm-macos
-          - os: macos-11
-            asset_name: ic-wasm-macos
+          #- os: macos-11
+          #  asset_name: ic-wasm-macos
     steps:
       - name: Get executable
         id: download
@@ -104,7 +102,6 @@ jobs:
           name: ${{ matrix.asset_name }}
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
-        if: 1 == 0 # TODO: Remove before merging
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ic-wasm

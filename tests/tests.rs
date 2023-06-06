@@ -84,6 +84,31 @@ icp:private motoko:compiler
 
     wasm_input("motoko.wasm", true)
         .arg("shrink")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("motoko-shrink-names.wasm");
+    wasm_input("wat.wasm", true)
+        .arg("shrink")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("wat-shrink-names.wasm");
+    wasm_input("rust.wasm", true)
+        .arg("shrink")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("rust-shrink-names.wasm");
+    wasm_input("classes.wasm", true)
+        .arg("shrink")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("classes-shrink-names.wasm");
+
+    wasm_input("motoko.wasm", true)
+        .arg("shrink")
         .arg("--optimize")
         .arg("O3")
         .assert()

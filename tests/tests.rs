@@ -164,7 +164,6 @@ icp:private motoko:compiler
         .assert()
         .stdout("()\n")
         .success();
-
     wasm_input("wat.wasm", true)
         .arg("shrink")
         .arg("--optimize")
@@ -172,6 +171,42 @@ icp:private motoko:compiler
         .assert()
         .success();
     assert_wasm("wat-optimize.wasm");
+
+    wasm_input("motoko.wasm", true)
+        .arg("shrink")
+        .arg("--optimize")
+        .arg("O3")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("motoko-optimize-names.wasm");
+
+    wasm_input("rust.wasm", true)
+        .arg("shrink")
+        .arg("--optimize")
+        .arg("O3")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("rust-optimize-names.wasm");
+
+    wasm_input("classes.wasm", true)
+        .arg("shrink")
+        .arg("--optimize")
+        .arg("O3")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("classes-optimize-names.wasm");
+
+    wasm_input("wat.wasm", true)
+        .arg("shrink")
+        .arg("--optimize")
+        .arg("O3")
+        .arg("--keep-name-section")
+        .assert()
+        .success();
+    assert_wasm("wat-optimize-names.wasm");
 }
 
 #[test]

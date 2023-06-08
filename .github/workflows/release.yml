@@ -1,6 +1,8 @@
 name: Release
 on:
   push:
+    branches:
+      - build-with-u20
     tags:
       - '*'
 jobs:
@@ -101,6 +103,7 @@ jobs:
         with:
           name: ${{ matrix.asset_name }}
       - name: Upload binaries to release
+        if: true == false
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}

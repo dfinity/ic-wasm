@@ -96,11 +96,11 @@ jobs:
           # - `binstall_name` is the name used by `cargo binstall`.  `binstall` installs a binary, if available for the given target, else builds from source.
           #   Building from source is time-consuming, hence the preference for `cargo binstall` over `cargo install` that always builds from source.
           - asset_name: ic-wasm-linux64
-            binstall_name: ic-wasm-x86_64-unknown-linux-gnu
+            binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
           - asset_name: ic-wasm-arm32
-            binstall_name: ic-wasm-arm-unknown-linux-gnueabihf
+            binstall_name: ic-wasm-arm-unknown-linux-gnueabihf.tar.gz
           - asset_name: ic-wasm-macos
-            binstall_name: ic-wasm-x86_64-apple-darwin
+            binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
     runs-on: ubuntu-latest
     steps:
       - name: Get executable
@@ -114,8 +114,10 @@ jobs:
           file: ic-wasm
           asset_name: ${{ matrix.asset_name }}
           tag: ${{ github.ref }}
-      - name: Duplicate for binstall
-        run: cp ${{ matrix.asset_name }} ${{ matrix.binstall_name }}
+      - name: Bundle for binstall
+        run: |
+          cp ${{ matrix.asset_name }} ic-wasm
+          tar -cvzf ${{ matrix.binstall_name }} ic-wasm
       - name: Upload binstall binaries to release
         uses: svenstaro/upload-release-action@v2
         with:

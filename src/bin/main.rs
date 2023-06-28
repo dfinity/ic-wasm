@@ -52,6 +52,8 @@ enum SubCommand {
     Shrink {
         #[clap(long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
         optimize: Option<String>,
+        #[clap(short, long)]
+        keep_name_section: bool,
     },
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument {
@@ -62,21 +64,26 @@ enum SubCommand {
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
-    let keep_name_section = matches!(opts.subcommand, SubCommand::Shrink { .. });
+    let keep_name_section = match opts.subcommand {
+        SubCommand::Shrink {
+            keep_name_section, ..
+        } => keep_name_section,
+        _ => false,
+    };
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
         SubCommand::Info => {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink { optimize } => {
+        SubCommand::Shrink { optimize, .. } => {
             use ic_wasm::shrink;
             match optimize {
                 Some(level) => {
                     #[cfg(not(feature = "wasm-opt"))]
                     panic!("Please build with wasm-opt feature");
                     #[cfg(feature = "wasm-opt")]
-                    shrink::shrink_with_wasm_opt(&mut m, level)?
+                    shrink::shrink_with_wasm_opt(&mut m, level, keep_name_section)?
                 }
                 None => shrink::shrink(&mut m),
             }

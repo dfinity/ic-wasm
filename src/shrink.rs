@@ -27,14 +27,18 @@ pub fn shrink(m: &mut Module) {
 }
 
 #[cfg(feature = "wasm-opt")]
-pub fn shrink_with_wasm_opt(m: &mut Module, level: &str) -> anyhow::Result<()> {
+pub fn shrink_with_wasm_opt(
+    m: &mut Module,
+    level: &str,
+    keep_name_section: bool,
+) -> anyhow::Result<()> {
     use tempfile::NamedTempFile;
     use wasm_opt::OptimizationOptions;
     // recursively optimize embedded modules in Motoko actor classes
     if is_motoko_canister(m) {
         let data = get_motoko_wasm_data_sections(m);
         for (id, mut module) in data.into_iter() {
-            shrink_with_wasm_opt(&mut module, level)?;
+            shrink_with_wasm_opt(&mut module, level, keep_name_section)?;
             let blob = encode_module_as_data_section(module);
             m.data.get_mut(id).value = blob;
         }
@@ -73,10 +77,11 @@ pub fn shrink_with_wasm_opt(m: &mut Module, level: &str) -> anyhow::Result<()> {
         "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
         _ => anyhow::bail!("invalid optimization level"),
     }
+    .debug_info(keep_name_section)
     .run(temp_file.path(), temp_file.path())?;
 
     // read optimized wasm back in from temp file
-    let mut m_opt = parse_wasm_file(temp_file.path().to_path_buf(), false)?;
+    let mut m_opt = parse_wasm_file(temp_file.path().to_path_buf(), keep_name_section)?;
 
     // re-insert the custom sections
     metadata_sections

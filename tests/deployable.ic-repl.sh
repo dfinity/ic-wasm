@@ -68,9 +68,9 @@ function classes(wasm) {
   call S.get(42);
   assert _ == opt "text2";
   metadata(S, "metadata/candid:args");
-  assert _ == "()";
+  assert _ == blob "()";
   metadata(S, "metadata/motoko:compiler");
-  assert _ == "0.6.26";
+  assert _ == blob "0.6.26";
   S
 };
 function classes_limit(wasm) {

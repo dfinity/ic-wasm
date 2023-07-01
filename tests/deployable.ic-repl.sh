@@ -86,7 +86,7 @@ function classes_redirect(wasm) {
   call S.get(42);
   assert _ == (null : opt empty);
   fail call S.put(42, "text");
-  assert _ ~= "No route to canister";
+  assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
   S
 };
 

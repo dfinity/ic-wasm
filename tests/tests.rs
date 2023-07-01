@@ -21,7 +21,7 @@ fn assert_wasm(expected: &str) {
     if ok != actual {
         use std::env;
         use std::io::Write;
-        if let Ok(_) = env::var("REGENERATE_GOLDENFILES") {
+        if env::var("REGENERATE_GOLDENFILES").is_ok() {
             let mut f = fs::File::create(&expected).unwrap();
             f.write_all(&actual).unwrap();
         } else {

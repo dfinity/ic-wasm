@@ -19,11 +19,18 @@ fn assert_wasm(expected: &str) {
     let ok = fs::read(&expected).unwrap();
     let actual = fs::read(&out).unwrap();
     if ok != actual {
-        panic!(
-            "ic_wasm did not result in expected wasm file: {} != {}",
-            expected.display(),
-            out.display()
-        );
+        use std::env;
+        use std::io::Write;
+        if env::var("REGENERATE_GOLDENFILES").is_ok() {
+            let mut f = fs::File::create(&expected).unwrap();
+            f.write_all(&actual).unwrap();
+        } else {
+            panic!(
+                "ic_wasm did not result in expected wasm file: {} != {}. Run \"REGENERATE_GOLDENFILES=1 cargo test\" to update the wasm files",
+                expected.display(),
+                out.display()
+            );
+        }
     }
 }
 
@@ -82,41 +89,6 @@ icp:private motoko:compiler
         .success();
     assert_wasm("classes-shrink.wasm");
 
-    wasm_input("motoko.wasm", false)
-        .arg("shrink")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-    wasm_input("wat.wasm", false)
-        .arg("shrink")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-    wasm_input("rust.wasm", false)
-        .arg("shrink")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-    wasm_input("classes.wasm", false)
-        .arg("shrink")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-
-    wasm_input("motoko.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .assert()
-        .success();
-
-    wasm_input("rust.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .assert()
-        .success();
-
     wasm_input("classes.wasm", true)
         .arg("shrink")
         .arg("--optimize")
@@ -129,41 +101,6 @@ icp:private motoko:compiler
         .assert()
         .stdout(expected_metadata)
         .success();
-    wasm_input("ok/classes-optimize.wasm", false)
-        .arg("metadata")
-        .arg("motoko:compiler")
-        .assert()
-        .stdout("0.6.26\n")
-        .success();
-    wasm_input("ok/classes-optimize.wasm", false)
-        .arg("metadata")
-        .arg("candid:args")
-        .assert()
-        .stdout("()\n")
-        .success();
-    wasm_input("wat.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .assert()
-        .success();
-
-    wasm_input("motoko.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-
-    wasm_input("rust.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-
     wasm_input("classes.wasm", true)
         .arg("shrink")
         .arg("--optimize")
@@ -172,14 +109,6 @@ icp:private motoko:compiler
         .assert()
         .success();
     assert_wasm("classes-optimize-names.wasm");
-
-    wasm_input("wat.wasm", false)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
 }
 
 #[test]

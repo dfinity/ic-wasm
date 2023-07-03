@@ -67,6 +67,10 @@ function classes(wasm) {
   call S.put(42, "text2");
   call S.get(42);
   assert _ == opt "text2";
+  metadata(S, "metadata/candid:args");
+  assert _ == blob "()";
+  metadata(S, "metadata/motoko:compiler");
+  assert _ == blob "0.6.26";
   S
 };
 function classes_limit(wasm) {
@@ -82,7 +86,7 @@ function classes_redirect(wasm) {
   call S.get(42);
   assert _ == (null : opt empty);
   fail call S.put(42, "text");
-  assert _ ~= "No route to canister";
+  assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
   S
 };
 

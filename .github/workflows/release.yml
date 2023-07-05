@@ -116,7 +116,7 @@ jobs:
           tag: ${{ github.ref }}
       - name: Bundle for binstall
         run: |
-          cp ${{ matrix.asset_name }} ic-wasm
+          chmod +x ic-wasm
           tar -cvzf ${{ matrix.binstall_name }} ic-wasm
       - name: Upload binstall binaries to release
         uses: svenstaro/upload-release-action@v2

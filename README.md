@@ -27,6 +27,8 @@ $ ic-wasm input.wasm metadata candid:service
 ```
 
 * Add/overwrite a private metadata section
+
+**Note**: the hashes of private metadata sections are readable by anyone. If a section contains low-entropy data, the attacker could brute-force the contents.
 ```
 $ ic-wasm input.wasm -o output.wasm metadata new_section -d "hello, world"
 ```

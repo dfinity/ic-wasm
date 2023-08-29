@@ -131,7 +131,7 @@ fn inject_metering(
             match instr {
                 Instr::Block(Block { seq }) | Instr::Loop(Loop { seq }) => {
                     match func.block(*seq).ty {
-                        InstrSeqType::Simple(Some(_)) => curr.cost += 1,
+                        InstrSeqType::Simple(Some(_)) => curr.cost += instr_cost(instr),
                         InstrSeqType::Simple(None) => (),
                         InstrSeqType::MultiValue(_) => unreachable!("Multivalue not supported"),
                     }
@@ -143,7 +143,7 @@ fn inject_metering(
                     consequent,
                     alternative,
                 }) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr);
                     stack.push(*consequent);
                     stack.push(*alternative);
                     injection_points.push(curr);
@@ -151,34 +151,37 @@ fn inject_metering(
                 }
                 Instr::Br(_) | Instr::BrIf(_) | Instr::BrTable(_) => {
                     // br always points to a block, so we don't need to push the br block to stack for traversal
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
                 Instr::Return(_) | Instr::Unreachable(_) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
-                Instr::Call(Call { func }) => match func_cost.get_cost(*func) {
-                    (cost, InjectionKind::Static) => curr.cost += cost,
-                    (cost, kind @ InjectionKind::Dynamic)
-                    | (cost, kind @ InjectionKind::Dynamic64) => {
-                        curr.cost += cost;
-                        let dynamic = InjectionPoint {
-                            position: pos,
-                            cost: 0,
-                            kind,
-                        };
-                        injection_points.push(dynamic);
+                Instr::Call(Call { func }) => {
+                    curr.cost += instr_cost(instr);
+                    match func_cost.get_cost(*func) {
+                        (cost, InjectionKind::Static) => curr.cost += cost,
+                        (cost, kind @ InjectionKind::Dynamic)
+                        | (cost, kind @ InjectionKind::Dynamic64) => {
+                            curr.cost += cost;
+                            let dynamic = InjectionPoint {
+                                position: pos,
+                                cost: 0,
+                                kind,
+                            };
+                            injection_points.push(dynamic);
+                        }
                     }
-                },
+                }
                 Instr::MemoryFill(_)
                 | Instr::MemoryCopy(_)
                 | Instr::MemoryInit(_)
                 | Instr::TableCopy(_)
                 | Instr::TableInit(_) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr);
                     let dynamic = InjectionPoint {
                         position: pos,
                         cost: 0,
@@ -187,7 +190,7 @@ fn inject_metering(
                     injection_points.push(dynamic);
                 }
                 _ => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr);
                 }
             }
         }

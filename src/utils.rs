@@ -48,21 +48,45 @@ impl FunctionCost {
             use InjectionKind::*;
             // System API cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasmtime_embedder/system_api_complexity.rs
             let cost = match method {
-                "msg_arg_data_copy" => (21, Dynamic),
-                "msg_method_name_copy" => (21, Dynamic),
-                "msg_reply_data_append" => (21, Dynamic),
-                "msg_reject" => (21, Dynamic),
-                "msg_reject_msg_copy" => (21, Dynamic),
-                "debug_print" => (101, Dynamic),
-                "trap" => (21, Dynamic),
-                "call_new" => (1, Static),
-                "call_data_append" => (21, Dynamic),
-                "call_perform" => (1, Static),
-                "stable_read" => (21, Dynamic),
-                "stable_write" => (21, Dynamic),
-                "stable64_read" => (21, Dynamic64),
-                "stable64_write" => (21, Dynamic64),
-                "performance_counter" => (201, Static),
+                "accept_message" => (500, Static),
+                "call_cycles_add" | "call_cycles_add128" => (500, Static),
+                "call_data_append" => (500, Dynamic),
+                "call_new" => (1500, Static),
+                "call_on_cleanup" => (500, Static),
+                "call_perform" => (5000, Static),
+                "canister_cycle_balance" | "canister_cycle_balance128" => (500, Static),
+                "canister_self_copy" => (500, Dynamic),
+                "canister_self_size" => (500, Static),
+                "canister_status" | "canister_version" => (500, Static),
+                "certified_data_set" => (500, Dynamic),
+                "data_certificate_copy" => (500, Dynamic),
+                "data_certificate_present" | "data_certificate_size" => (500, Static),
+                "debug_print" => (100, Dynamic),
+                "global_timer_set" => (500, Static),
+                "is_controller" => (1000, Dynamic),
+                "msg_arg_data_copy" => (500, Dynamic),
+                "msg_arg_data_size" => (500, Static),
+                "msg_caller_copy" => (500, Dynamic),
+                "msg_caller_size" => (500, Static),
+                "msg_cycles_accept" | "msg_cycles_accept128" => (500, Static),
+                "msg_cycles_available" | "msg_cycles_available128" => (500, Static),
+                "msg_cycles_refunded" | "msg_cycles_refunded128" => (500, Static),
+                "msg_method_name_copy" => (500, Dynamic),
+                "msg_method_name_size" => (500, Static),
+                "msg_reject_code" | "msg_reject_msg_size" => (500, Static),
+                "msg_reject_msg_copy" => (500, Dynamic),
+                "msg_reject" => (500, Dynamic),
+                "msg_reply_data_append" => (500, Dynamic),
+                "msg_reply" => (500, Static),
+                "performance_counter" => (200, Static),
+                "stable_grow" | "stable64_grow" => (500, Static),
+                "stable_size" | "stable64_size" => (20, Static),
+                "stable_read" => (20, Dynamic),
+                "stable_write" => (20, Dynamic),
+                "stable64_read" => (20, Dynamic64),
+                "stable64_write" => (20, Dynamic64),
+                "trap" => (500, Dynamic),
+                "time" => (500, Static),
                 _ => (1, Static),
             };
             res.insert(func, cost);
@@ -71,6 +95,47 @@ impl FunctionCost {
     }
     pub fn get_cost(&self, id: FunctionId) -> (i64, InjectionKind) {
         *self.0.get(&id).unwrap_or(&(1, InjectionKind::Static))
+    }
+}
+pub(crate) fn instr_cost(i: &ir::Instr) -> i64 {
+    use ir::*;
+    use BinaryOp::*;
+    use UnaryOp::*;
+    match i {
+        Instr::Block(..) | Instr::Loop(..) => 0,
+        Instr::Const(..) | Instr::Load(..) | Instr::Store(..) => 1,
+        Instr::GlobalGet(..) | Instr::GlobalSet(..) => 2,
+        Instr::TableGet(..) | Instr::TableSet(..) => 5,
+        Instr::TableGrow(..) | Instr::MemoryGrow(..) => 300,
+        Instr::TableSize(..) | Instr::MemorySize(..) => 20,
+        Instr::MemoryFill(..) | Instr::MemoryCopy(..) | Instr::MemoryInit(..) => 100,
+        Instr::TableFill(..) | Instr::TableCopy(..) | Instr::TableInit(..) => 100,
+        Instr::DataDrop(..) | Instr::ElemDrop(..) => 300,
+        Instr::Call(..) | Instr::CallIndirect(..) => 10, // missing ReturnCall/Indirect
+        Instr::IfElse(..) | Instr::Br(..) | Instr::BrIf(..) | Instr::BrTable(..) => 2,
+        Instr::RefIsNull(..) => 5,
+        Instr::RefFunc(..) => 130,
+        Instr::Unop(Unop { op }) => match op {
+            F32Ceil | F32Floor | F32Trunc | F32Nearest | F32Sqrt => 20,
+            F64Ceil | F64Floor | F64Trunc | F64Nearest | F64Sqrt => 20,
+            F32Abs | F32Neg | F64Abs | F64Neg => 2,
+            F32ConvertSI32 | F64ConvertSI64 | F32ConvertSI64 | F64ConvertSI32 => 3,
+            F64ConvertUI32 | F32ConvertUI64 | F32ConvertUI32 | F64ConvertUI64 => 16,
+            I64TruncSF32 | I64TruncUF32 | I64TruncSF64 | I64TruncUF64 => 20,
+            I32TruncSF32 | I32TruncUF32 | I32TruncSF64 | I32TruncUF64 => 20, // missing TruncSat?
+            _ => 1,
+        },
+        Instr::Binop(Binop { op }) => match op {
+            I32DivS | I32DivU | I32RemS | I32RemU => 10,
+            I64DivS | I64DivU | I64RemS | I64RemU => 10,
+            F32Add | F32Sub | F32Mul | F32Div | F32Min | F32Max => 20,
+            F64Add | F64Sub | F64Mul | F64Div | F64Min | F64Max => 20,
+            F32Copysign | F64Copysign => 2,
+            F32Eq | F32Ne | F32Lt | F32Gt | F32Le | F32Ge => 3,
+            F64Eq | F64Ne | F64Lt | F64Gt | F64Le | F64Ge => 3,
+            _ => 1,
+        },
+        _ => 1,
     }
 }
 

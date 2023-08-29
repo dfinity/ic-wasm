@@ -111,7 +111,7 @@ pub(crate) fn instr_cost(i: &ir::Instr) -> i64 {
         Instr::MemoryFill(..) | Instr::MemoryCopy(..) | Instr::MemoryInit(..) => 100,
         Instr::TableFill(..) | Instr::TableCopy(..) | Instr::TableInit(..) => 100,
         Instr::DataDrop(..) | Instr::ElemDrop(..) => 300,
-        Instr::Call(..) | Instr::CallIndirect(..) => 1, // missing ReturnCall/Indirect
+        Instr::Call(..) | Instr::CallIndirect(..) => 5, // missing ReturnCall/Indirect
         Instr::IfElse(..) | Instr::Br(..) | Instr::BrIf(..) | Instr::BrTable(..) => 2,
         Instr::RefIsNull(..) => 5,
         Instr::RefFunc(..) => 130,

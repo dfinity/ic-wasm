@@ -48,10 +48,54 @@ enum SubCommand {
     },
     /// List information about the Wasm canister
     Info,
-    /// Remove unused functions and debug info. Optionally, optimize the Wasm code
-    Shrink {
-        #[clap(long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
-        optimize: Option<String>,
+    /// Remove unused functions and debug info
+    Shrink,
+    /// Optimize the Wasm module using wasm-opt
+    Optimize {
+        #[clap(
+            long = "O4",
+            conflicts_with = "O3",
+            conflicts_with = "O2",
+            conflicts_with = "O1",
+            conflicts_with = "O0"
+        )]
+        o4: bool,
+        #[clap(
+            long = "O3",
+            conflicts_with = "O4",
+            conflicts_with = "O2",
+            conflicts_with = "O1",
+            conflicts_with = "O0"
+        )]
+        o3: bool,
+        #[clap(
+            long = "O2",
+            conflicts_with = "O4",
+            conflicts_with = "O3",
+            conflicts_with = "O1",
+            conflicts_with = "O0"
+        )]
+        o2: bool,
+        #[clap(
+            long = "O1",
+            conflicts_with = "O4",
+            conflicts_with = "O3",
+            conflicts_with = "O2",
+            conflicts_with = "O0"
+        )]
+        o1: bool,
+        #[clap(
+            long = "O0",
+            conflicts_with = "O4",
+            conflicts_with = "O3",
+            conflicts_with = "O2",
+            conflicts_with = "O1"
+        )]
+        o0: bool,
+        #[clap(long("inline-function-with-loops"))]
+        inline_function_with_loops: bool,
+        #[clap(long("always-inline-max-function-size"))]
+        always_inline_max_function_size: Option<u32>,
         #[clap(short, long)]
         keep_name_section: bool,
     },
@@ -65,7 +109,7 @@ enum SubCommand {
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let keep_name_section = match opts.subcommand {
-        SubCommand::Shrink {
+        SubCommand::Optimize {
             keep_name_section, ..
         } => keep_name_section,
         _ => false,
@@ -76,17 +120,39 @@ fn main() -> anyhow::Result<()> {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink { optimize, .. } => {
-            use ic_wasm::shrink;
-            match optimize {
-                Some(level) => {
-                    #[cfg(not(feature = "wasm-opt"))]
-                    panic!("Please build with wasm-opt feature");
-                    #[cfg(feature = "wasm-opt")]
-                    shrink::shrink_with_wasm_opt(&mut m, level, keep_name_section)?
-                }
-                None => shrink::shrink(&mut m),
-            }
+        SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
+        SubCommand::Optimize {
+            o4,
+            o3,
+            o2,
+            o1,
+            o0,
+            inline_function_with_loops,
+            always_inline_max_function_size,
+            ..
+        } => {
+            let level = if *o4 {
+                "O4"
+            } else if *o3 {
+                "O3"
+            } else if *o2 {
+                "O2"
+            } else if *o1 {
+                "O1"
+            } else {
+                "O0"
+            };
+
+            #[cfg(not(feature = "wasm-opt"))]
+            panic!("Please build with wasm-opt feature");
+            #[cfg(feature = "wasm-opt")]
+            ic_wasm::shrink::shrink_with_wasm_opt(
+                &mut m,
+                level,
+                *inline_function_with_loops,
+                always_inline_max_function_size,
+                keep_name_section,
+            )?
         }
         SubCommand::Instrument { trace_only } => match trace_only {
             None => ic_wasm::instrumentation::instrument(&mut m, &[]),

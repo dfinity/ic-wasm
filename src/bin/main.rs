@@ -56,42 +56,30 @@ enum SubCommand {
             long = "O4",
             conflicts_with = "o3",
             conflicts_with = "o2",
-            conflicts_with = "o1",
-            conflicts_with = "o0"
+            conflicts_with = "o1"
         )]
         o4: bool,
         #[clap(
             long = "O3",
             conflicts_with = "o4",
             conflicts_with = "o2",
-            conflicts_with = "o1",
-            conflicts_with = "o0"
+            conflicts_with = "o1"
         )]
         o3: bool,
         #[clap(
             long = "O2",
             conflicts_with = "o4",
             conflicts_with = "o3",
-            conflicts_with = "o1",
-            conflicts_with = "o0"
+            conflicts_with = "o1"
         )]
         o2: bool,
         #[clap(
             long = "O1",
             conflicts_with = "o4",
             conflicts_with = "o3",
-            conflicts_with = "o2",
-            conflicts_with = "o0"
+            conflicts_with = "o2"
         )]
         o1: bool,
-        #[clap(
-            long = "O0",
-            conflicts_with = "o4",
-            conflicts_with = "o3",
-            conflicts_with = "o2",
-            conflicts_with = "o1"
-        )]
-        o0: bool,
         #[clap(long("inline-functions-with-loops"))]
         inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
@@ -126,7 +114,6 @@ fn main() -> anyhow::Result<()> {
             o3,
             o2,
             o1,
-            o0,
             inline_functions_with_loops,
             always_inline_max_function_size,
             ..

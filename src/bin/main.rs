@@ -54,42 +54,42 @@ enum SubCommand {
     Optimize {
         #[clap(
             long = "O4",
-            conflicts_with = "O3",
-            conflicts_with = "O2",
-            conflicts_with = "O1",
-            conflicts_with = "O0"
+            conflicts_with = "o3",
+            conflicts_with = "o2",
+            conflicts_with = "o1",
+            conflicts_with = "o0"
         )]
         o4: bool,
         #[clap(
             long = "O3",
-            conflicts_with = "O4",
-            conflicts_with = "O2",
-            conflicts_with = "O1",
-            conflicts_with = "O0"
+            conflicts_with = "o4",
+            conflicts_with = "o2",
+            conflicts_with = "o1",
+            conflicts_with = "o0"
         )]
         o3: bool,
         #[clap(
             long = "O2",
-            conflicts_with = "O4",
-            conflicts_with = "O3",
-            conflicts_with = "O1",
-            conflicts_with = "O0"
+            conflicts_with = "o4",
+            conflicts_with = "o3",
+            conflicts_with = "o1",
+            conflicts_with = "o0"
         )]
         o2: bool,
         #[clap(
             long = "O1",
-            conflicts_with = "O4",
-            conflicts_with = "O3",
-            conflicts_with = "O2",
-            conflicts_with = "O0"
+            conflicts_with = "o4",
+            conflicts_with = "o3",
+            conflicts_with = "o2",
+            conflicts_with = "o0"
         )]
         o1: bool,
         #[clap(
             long = "O0",
-            conflicts_with = "O4",
-            conflicts_with = "O3",
-            conflicts_with = "O2",
-            conflicts_with = "O1"
+            conflicts_with = "o4",
+            conflicts_with = "o3",
+            conflicts_with = "o2",
+            conflicts_with = "o1"
         )]
         o0: bool,
         #[clap(long("inline-function-with-loops"))]

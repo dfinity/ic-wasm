@@ -49,8 +49,12 @@ enum SubCommand {
     /// List information about the Wasm canister
     Info,
     /// Remove unused functions and debug info
-    Shrink,
+    Shrink {
+        #[clap(short, long)]
+        keep_name_section: bool,
+    },
     /// Optimize the Wasm module using wasm-opt
+    #[cfg(feature = "wasm-opt")]
     Optimize {
         #[clap()]
         level: ic_wasm::shrink::OptLevel,
@@ -71,6 +75,8 @@ enum SubCommand {
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let keep_name_section = match opts.subcommand {
+        SubCommand::Shrink { keep_name_section } => keep_name_section,
+        #[cfg(feature = "wasm-opt")]
         SubCommand::Optimize {
             keep_name_section, ..
         } => keep_name_section,
@@ -82,24 +88,20 @@ fn main() -> anyhow::Result<()> {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
+        SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),
+        #[cfg(feature = "wasm-opt")]
         SubCommand::Optimize {
             level,
             inline_functions_with_loops,
             always_inline_max_function_size,
             ..
-        } => {
-            #[cfg(not(feature = "wasm-opt"))]
-            panic!("Please build with wasm-opt feature");
-            #[cfg(feature = "wasm-opt")]
-            ic_wasm::shrink::shrink_with_wasm_opt(
-                &mut m,
-                level,
-                *inline_functions_with_loops,
-                always_inline_max_function_size,
-                keep_name_section,
-            )?
-        }
+        } => ic_wasm::shrink::shrink_with_wasm_opt(
+            &mut m,
+            level,
+            *inline_functions_with_loops,
+            always_inline_max_function_size,
+            keep_name_section,
+        )?,
         SubCommand::Instrument { trace_only } => match trace_only {
             None => ic_wasm::instrumentation::instrument(&mut m, &[]),
             Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),

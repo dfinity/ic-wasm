@@ -62,12 +62,6 @@ fn instrumentation() {
 
 #[test]
 fn shrink() {
-    let expected_metadata = r#"icp:public candid:service
-icp:private candid:args
-icp:private motoko:stable-types
-icp:private motoko:compiler
-"#;
-
     wasm_input("motoko.wasm", true)
         .arg("shrink")
         .assert()
@@ -88,11 +82,19 @@ icp:private motoko:compiler
         .assert()
         .success();
     assert_wasm("classes-shrink.wasm");
+}
+
+#[test]
+fn optimize() {
+    let expected_metadata = r#"icp:public candid:service
+icp:private candid:args
+icp:private motoko:stable-types
+icp:private motoko:compiler
+"#;
 
     wasm_input("classes.wasm", true)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
+        .arg("optimize")
+        .arg("--O3")
         .assert()
         .success();
     assert_wasm("classes-optimize.wasm");
@@ -102,9 +104,8 @@ icp:private motoko:compiler
         .stdout(expected_metadata)
         .success();
     wasm_input("classes.wasm", true)
-        .arg("shrink")
-        .arg("--optimize")
-        .arg("O3")
+        .arg("optimize")
+        .arg("--O3")
         .arg("--keep-name-section")
         .assert()
         .success();

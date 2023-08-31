@@ -92,8 +92,8 @@ enum SubCommand {
             conflicts_with = "o1"
         )]
         o0: bool,
-        #[clap(long("inline-function-with-loops"))]
-        inline_function_with_loops: bool,
+        #[clap(long("inline-functions-with-loops"))]
+        inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
         always_inline_max_function_size: Option<u32>,
         #[clap(short, long)]
@@ -127,7 +127,7 @@ fn main() -> anyhow::Result<()> {
             o2,
             o1,
             o0,
-            inline_function_with_loops,
+            inline_functions_with_loops,
             always_inline_max_function_size,
             ..
         } => {
@@ -149,7 +149,7 @@ fn main() -> anyhow::Result<()> {
             ic_wasm::shrink::shrink_with_wasm_opt(
                 &mut m,
                 level,
-                *inline_function_with_loops,
+                *inline_functions_with_loops,
                 always_inline_max_function_size,
                 keep_name_section,
             )?

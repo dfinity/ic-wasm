@@ -30,7 +30,7 @@ pub fn shrink(m: &mut Module) {
 pub fn shrink_with_wasm_opt(
     m: &mut Module,
     level: &str,
-    inline_function_with_loops: bool,
+    inline_functions_with_loops: bool,
     always_inline_max_function_size: &Option<u32>,
     keep_name_section: bool,
 ) -> anyhow::Result<()> {
@@ -43,7 +43,7 @@ pub fn shrink_with_wasm_opt(
             shrink_with_wasm_opt(
                 &mut module,
                 level,
-                inline_function_with_loops,
+                inline_functions_with_loops,
                 always_inline_max_function_size,
                 keep_name_section,
             )?;
@@ -86,7 +86,7 @@ pub fn shrink_with_wasm_opt(
         _ => anyhow::bail!("invalid optimization level"),
     };
     optimizations.debug_info(keep_name_section);
-    optimizations.allow_functions_with_loops(inline_function_with_loops);
+    optimizations.allow_functions_with_loops(inline_functions_with_loops);
     if let Some(max_size) = always_inline_max_function_size {
         optimizations.always_inline_max_size(*max_size);
     }

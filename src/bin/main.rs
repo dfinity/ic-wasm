@@ -52,34 +52,8 @@ enum SubCommand {
     Shrink,
     /// Optimize the Wasm module using wasm-opt
     Optimize {
-        #[clap(
-            long = "O4",
-            conflicts_with = "o3",
-            conflicts_with = "o2",
-            conflicts_with = "o1"
-        )]
-        o4: bool,
-        #[clap(
-            long = "O3",
-            conflicts_with = "o4",
-            conflicts_with = "o2",
-            conflicts_with = "o1"
-        )]
-        o3: bool,
-        #[clap(
-            long = "O2",
-            conflicts_with = "o4",
-            conflicts_with = "o3",
-            conflicts_with = "o1"
-        )]
-        o2: bool,
-        #[clap(
-            long = "O1",
-            conflicts_with = "o4",
-            conflicts_with = "o3",
-            conflicts_with = "o2"
-        )]
-        o1: bool,
+        #[clap()]
+        level: ic_wasm::shrink::OptLevel,
         #[clap(long("inline-functions-with-loops"))]
         inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
@@ -110,26 +84,11 @@ fn main() -> anyhow::Result<()> {
         }
         SubCommand::Shrink => ic_wasm::shrink::shrink(&mut m),
         SubCommand::Optimize {
-            o4,
-            o3,
-            o2,
-            o1,
+            level,
             inline_functions_with_loops,
             always_inline_max_function_size,
             ..
         } => {
-            let level = if *o4 {
-                "O4"
-            } else if *o3 {
-                "O3"
-            } else if *o2 {
-                "O2"
-            } else if *o1 {
-                "O1"
-            } else {
-                "O0"
-            };
-
             #[cfg(not(feature = "wasm-opt"))]
             panic!("Please build with wasm-opt feature");
             #[cfg(feature = "wasm-opt")]

@@ -1,5 +1,6 @@
 use crate::metadata::*;
 use crate::utils::*;
+use clap::ValueEnum;
 use walrus::*;
 
 pub fn shrink(m: &mut Module) {
@@ -26,10 +27,21 @@ pub fn shrink(m: &mut Module) {
     passes::gc::run(m);
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum OptLevel {
+    O0,
+    O1,
+    O2,
+    O3,
+    O4,
+    Os,
+    Oz,
+}
+
 #[cfg(feature = "wasm-opt")]
 pub fn shrink_with_wasm_opt(
     m: &mut Module,
-    level: &str,
+    level: &OptLevel,
     inline_functions_with_loops: bool,
     always_inline_max_function_size: &Option<u32>,
     keep_name_section: bool,
@@ -76,14 +88,13 @@ pub fn shrink_with_wasm_opt(
 
     // read in from temp file and optimize
     let mut optimizations = match level {
-        "O0" => OptimizationOptions::new_opt_level_0(),
-        "O1" => OptimizationOptions::new_opt_level_1(),
-        "O2" => OptimizationOptions::new_opt_level_2(),
-        "O3" => OptimizationOptions::new_opt_level_3(),
-        "O4" => OptimizationOptions::new_opt_level_4(),
-        "Os" => OptimizationOptions::new_optimize_for_size(),
-        "Oz" => OptimizationOptions::new_optimize_for_size_aggressively(),
-        _ => anyhow::bail!("invalid optimization level"),
+        OptLevel::O0 => OptimizationOptions::new_opt_level_0(),
+        OptLevel::O1 => OptimizationOptions::new_opt_level_1(),
+        OptLevel::O2 => OptimizationOptions::new_opt_level_2(),
+        OptLevel::O3 => OptimizationOptions::new_opt_level_3(),
+        OptLevel::O4 => OptimizationOptions::new_opt_level_4(),
+        OptLevel::Os => OptimizationOptions::new_optimize_for_size(),
+        OptLevel::Oz => OptimizationOptions::new_optimize_for_size_aggressively(),
     };
     optimizations.debug_info(keep_name_section);
     optimizations.allow_functions_with_loops(inline_functions_with_loops);

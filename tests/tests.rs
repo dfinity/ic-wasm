@@ -94,7 +94,7 @@ icp:private motoko:compiler
 
     wasm_input("classes.wasm", true)
         .arg("optimize")
-        .arg("--O3")
+        .arg("O3")
         .assert()
         .success();
     assert_wasm("classes-optimize.wasm");
@@ -105,7 +105,7 @@ icp:private motoko:compiler
         .success();
     wasm_input("classes.wasm", true)
         .arg("optimize")
-        .arg("--O3")
+        .arg("O3")
         .arg("--keep-name-section")
         .assert()
         .success();

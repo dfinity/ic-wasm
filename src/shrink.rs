@@ -29,12 +29,19 @@ pub fn shrink(m: &mut Module) {
 
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OptLevel {
+    #[clap(name = "O0")]
     O0,
+    #[clap(name = "O1")]
     O1,
+    #[clap(name = "O2")]
     O2,
+    #[clap(name = "O3")]
     O3,
+    #[clap(name = "O4")]
     O4,
+    #[clap(name = "Os")]
     Os,
+    #[clap(name = "Oz")]
     Oz,
 }
 

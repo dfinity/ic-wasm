@@ -107,11 +107,13 @@ pub(crate) fn instr_cost(i: &ir::Instr) -> i64 {
         Instr::GlobalGet(..) | Instr::GlobalSet(..) => 2,
         Instr::TableGet(..) | Instr::TableSet(..) => 5,
         Instr::TableGrow(..) | Instr::MemoryGrow(..) => 300,
-        Instr::TableSize(..) | Instr::MemorySize(..) => 20,
+        Instr::MemorySize(..) => 20,
+        Instr::TableSize(..) => 100,
         Instr::MemoryFill(..) | Instr::MemoryCopy(..) | Instr::MemoryInit(..) => 100,
         Instr::TableFill(..) | Instr::TableCopy(..) | Instr::TableInit(..) => 100,
         Instr::DataDrop(..) | Instr::ElemDrop(..) => 300,
-        Instr::Call(..) | Instr::CallIndirect(..) => 10, // missing ReturnCall/Indirect
+        Instr::Call(..) => 5,
+        Instr::CallIndirect(..) => 10, // missing ReturnCall/Indirect
         Instr::IfElse(..) | Instr::Br(..) | Instr::BrIf(..) | Instr::BrTable(..) => 2,
         Instr::RefIsNull(..) => 5,
         Instr::RefFunc(..) => 130,

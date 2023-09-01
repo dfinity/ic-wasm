@@ -57,7 +57,7 @@ enum SubCommand {
     #[cfg(feature = "wasm-opt")]
     Optimize {
         #[clap()]
-        level: ic_wasm::shrink::OptLevel,
+        level: ic_wasm::optimize::OptLevel,
         #[clap(long("inline-functions-with-loops"))]
         inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
@@ -95,7 +95,7 @@ fn main() -> anyhow::Result<()> {
             inline_functions_with_loops,
             always_inline_max_function_size,
             ..
-        } => ic_wasm::shrink::shrink_with_wasm_opt(
+        } => ic_wasm::optimize::optimize(
             &mut m,
             level,
             *inline_functions_with_loops,

@@ -21,7 +21,6 @@ pub enum OptLevel {
     Oz,
 }
 
-#[cfg(feature = "wasm-opt")]
 pub fn optimize(
     m: &mut Module,
     level: &OptLevel,

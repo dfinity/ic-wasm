@@ -95,6 +95,9 @@ icp:private motoko:compiler
     wasm_input("classes.wasm", true)
         .arg("optimize")
         .arg("O3")
+        .arg("--inline-functions-with-loops")
+        .arg("--always-inline-max-function-size")
+        .arg("100")
         .assert()
         .success();
     assert_wasm("classes-optimize.wasm");

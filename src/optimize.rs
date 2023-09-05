@@ -47,6 +47,8 @@ pub fn optimize(
             if new_size <= old_size {
                 let blob = encode_module_as_data_section(module);
                 m.data.get_mut(id).value = blob;
+            } else {
+                eprintln!("Warning: embedded actor class module was not optimized because the optimized module is larger than the original module");
             }
         }
     }

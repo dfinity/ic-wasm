@@ -34,6 +34,7 @@ pub fn optimize(
     if is_motoko_canister(m) {
         let data = get_motoko_wasm_data_sections(m);
         for (id, mut module) in data.into_iter() {
+            let old_size = module.emit_wasm().len();
             optimize(
                 &mut module,
                 level,
@@ -41,8 +42,14 @@ pub fn optimize(
                 always_inline_max_function_size,
                 keep_name_section,
             )?;
-            let blob = encode_module_as_data_section(module);
-            m.data.get_mut(id).value = blob;
+            let new_size = module.emit_wasm().len();
+            // Guard against embedded actor class overriding the parent module
+            if new_size <= old_size {
+                let blob = encode_module_as_data_section(module);
+                m.data.get_mut(id).value = blob;
+            } else {
+                eprintln!("Warning: embedded actor class module was not optimized because the optimized module is larger than the original module");
+            }
         }
     }
 

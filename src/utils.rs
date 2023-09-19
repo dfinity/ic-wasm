@@ -79,7 +79,7 @@ impl FunctionCost {
                 "msg_reply_data_append" => (500, Dynamic),
                 "msg_reply" => (500, Static),
                 "performance_counter" => (200, Static),
-                "stable_grow" | "stable64_grow" => (500, Static),
+                "stable_grow" | "stable64_grow" => (100, Static),
                 "stable_size" | "stable64_size" => (20, Static),
                 "stable_read" => (20, Dynamic),
                 "stable_write" => (20, Dynamic),

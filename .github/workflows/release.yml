@@ -122,6 +122,6 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ic-wasm
+          file: ${{ matrix.binstall_name }}
           asset_name: ${{ matrix.binstall_name }}
           tag: ${{ github.ref }}

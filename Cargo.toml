@@ -35,3 +35,7 @@ wasm-opt = ["dep:wasm-opt", "tempfile"]
 
 [dev-dependencies]
 assert_cmd = "2"
+
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
+pkg-fmt = "tgz" # archive-suffix = .tar.gz

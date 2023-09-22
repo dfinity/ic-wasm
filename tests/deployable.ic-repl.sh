@@ -89,25 +89,27 @@ function classes_redirect(wasm) {
   assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
   S
 };
+function check_profiling(S, cycles, len) {
+  call S.__get_cycles();
+  assert _ == (cycles : int64);
+  call S.__get_profiling();
+  assert _.size() == (len : nat);
+};
 
 let S = motoko(file("ok/motoko-instrument.wasm"));
-call S.__get_cycles();
-assert _ == (9003 : int64);
+check_profiling(S, 9003, 54);
 let S = motoko(file("ok/motoko-gc-instrument.wasm"));
-call S.__get_cycles();
-assert _ == (295 : int64);
+check_profiling(S, 295, 2);
 motoko(file("ok/motoko-shrink.wasm"));
 motoko(file("ok/motoko-limit.wasm"));
 
 let S = rust(file("ok/rust-instrument.wasm"));
-call S.__get_cycles();
-assert _ == (136378 : int64);
+check_profiling(S, 136378, 1654);
 rust(file("ok/rust-shrink.wasm"));
 rust(file("ok/rust-limit.wasm"));
 
 let S = wat(file("ok/wat-instrument.wasm"));
-call S.__get_cycles();
-assert _ == (189 : int64);
+check_profiling(S, 189, 2);
 wat(file("ok/wat-shrink.wasm"));
 wat(file("ok/wat-limit.wasm"));
 

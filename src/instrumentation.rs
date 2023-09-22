@@ -591,25 +591,24 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
     }
 }
 fn inject_init(m: &mut Module, is_init: GlobalId) {
-    match get_export_func_id(m, "canister_init") {
-        Some(id) => {
-            let mut builder = get_builder(m, id);
-            // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
-            // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
-            // Region initialization in Motoko is also done here, so we cannot profile canister_init.
-            builder.i32_const(0).global_set(is_init);
-        }
-        None => {
-            let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
-            builder.func_body().i32_const(0).global_set(is_init);
-            let id = builder.finish(vec![], &mut m.funcs);
-            m.exports.add("canister_init", id);
-        }
-    }
+    let mut builder = get_or_create_export_func(m, "canister_init");
+    // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
+    // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
+    // Region initialization in Motoko is also done here, so we cannot profile canister_init.
+    builder.i32_const(0).global_set(is_init);
 }
 /*
-fn inject_upgrade(m: &mut Module, vars: &Variables) {
-
+fn inject_pre_upgrade(m: &mut Module, vars: &Variables) {
+    let id = match get_export_func_id(m, "canister_pre_upgrade") {
+        Some(id) => id,
+        None => {
+            let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
+            let id = builder.finish(vec![], &mut m.funcs);
+            m.exports.add("canister_pre_upgrade", id);
+            id
+        }
+    };
+    let builder = get_builder(m, id);
 }
 */
 fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {

@@ -140,6 +140,21 @@ pub(crate) fn get_export_func_id(m: &Module, method: &str) -> Option<FunctionId>
         None
     }
 }
+pub(crate) fn get_or_create_export_func<'a>(
+    m: &'a mut Module,
+    method: &'a str,
+) -> InstrSeqBuilder<'a> {
+    let id = match get_export_func_id(m, method) {
+        Some(id) => id,
+        None => {
+            let builder = FunctionBuilder::new(&mut m.types, &[], &[]);
+            let id = builder.finish(vec![], &mut m.funcs);
+            m.exports.add(method, id);
+            id
+        }
+    };
+    get_builder(m, id)
+}
 
 pub(crate) fn get_builder(m: &mut Module, id: FunctionId) -> InstrSeqBuilder<'_> {
     if let FunctionKind::Local(func) = &mut m.funcs.get_mut(id).kind {

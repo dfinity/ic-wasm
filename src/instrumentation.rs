@@ -22,6 +22,7 @@ impl InjectionPoint {
 struct Variables {
     total_counter: GlobalId,
     log_size: GlobalId,
+    // page_size is only used when preallocation is not available, and will not persist across upgrades
     page_size: GlobalId,
     is_init: GlobalId,
     is_entry: GlobalId,
@@ -38,7 +39,10 @@ impl Config {
     pub fn is_preallocated(&self) -> bool {
         self.start_address.is_some()
     }
-    pub fn start_address(&self) -> i32 {
+    pub fn log_start_address(&self) -> i32 {
+        self.start_address.unwrap_or(0) + 20
+    }
+    pub fn metadata_start_address(&self) -> i32 {
         self.start_address.unwrap_or(0)
     }
     pub fn page_limit(&self) -> i32 {
@@ -102,11 +106,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
             );
         }
     }
-    let writer = if config.is_preallocated() {
-        make_stable_writer_preallocated(m, &vars, &config)
-    } else {
-        make_stable_writer(m, &vars)
-    };
+    let writer = make_stable_writer(m, &vars, &config);
     let printer = make_printer(m, &vars, writer);
     for (id, func) in m.funcs.iter_local_mut() {
         if id != printer
@@ -421,7 +421,7 @@ fn make_dynamic_counter64(
         .local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
-fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
+fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> FunctionId {
     let writer = get_ic_func_id(m, "stable_write");
     let grow = get_ic_func_id(m, "stable_grow");
     let mut builder = FunctionBuilder::new(
@@ -429,68 +429,9 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
         &[ValType::I32, ValType::I32, ValType::I32],
         &[],
     );
-    let offset = m.locals.add(ValType::I32);
-    let src = m.locals.add(ValType::I32);
-    let size = m.locals.add(ValType::I32);
-    builder
-        .func_body()
-        .local_get(offset)
-        .local_get(size)
-        .binop(BinaryOp::I32Add)
-        .global_get(vars.page_size)
-        .i32_const(65536)
-        .binop(BinaryOp::I32Mul)
-        .binop(BinaryOp::I32GtS)
-        .if_else(
-            None,
-            |then| {
-                // TODO: This assumes user code doesn't use stable memory
-                then.global_get(vars.page_size)
-                    .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
-                    .binop(BinaryOp::I32GtS) // trace >= 2M
-                    .if_else(
-                        None,
-                        |then| {
-                            then.return_();
-                        },
-                        |else_| {
-                            else_
-                                .i32_const(1)
-                                .call(grow)
-                                .drop()
-                                .global_get(vars.page_size)
-                                .i32_const(1)
-                                .binop(BinaryOp::I32Add)
-                                .global_set(vars.page_size);
-                        },
-                    );
-            },
-            |_| {},
-        )
-        .local_get(offset)
-        .local_get(src)
-        .local_get(size)
-        .call(writer)
-        .global_get(vars.log_size)
-        .i32_const(1)
-        .binop(BinaryOp::I32Add)
-        .global_set(vars.log_size);
-    builder.finish(vec![offset, src, size], &mut m.funcs)
-}
-
-fn make_stable_writer_preallocated(
-    m: &mut Module,
-    vars: &Variables,
-    config: &Config,
-) -> FunctionId {
-    let writer = get_ic_func_id(m, "stable_write");
-    let mut builder = FunctionBuilder::new(
-        &mut m.types,
-        &[ValType::I32, ValType::I32, ValType::I32],
-        &[],
-    );
-    let start_address = config.start_address();
+    let start_address = config.log_start_address();
     let size_limit = config.page_limit() * 65536;
+    let is_preallocated = config.is_preallocated();
     let offset = m.locals.add(ValType::I32);
     let src = m.locals.add(ValType::I32);
     let size = m.locals.add(ValType::I32);
@@ -498,13 +439,46 @@ fn make_stable_writer_preallocated(
         .func_body()
         .local_get(offset)
         .local_get(size)
-        .binop(BinaryOp::I32Add)
-        .i32_const(size_limit)
+        .binop(BinaryOp::I32Add);
+    if is_preallocated {
+        builder.func_body().i32_const(size_limit);
+    } else {
+        builder
+            .func_body()
+            .global_get(vars.page_size)
+            .i32_const(65536)
+            .binop(BinaryOp::I32Mul);
+    }
+    builder
+        .func_body()
         .binop(BinaryOp::I32GtS)
         .if_else(
             None,
             |then| {
-                then.return_();
+                if is_preallocated {
+                    then.return_();
+                } else {
+                    // This assumes user code doesn't use stable memory
+                    then.global_get(vars.page_size)
+                        .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
+                        .binop(BinaryOp::I32GtS) // trace >= 2M
+                        .if_else(
+                            None,
+                            |then| {
+                                then.return_();
+                            },
+                            |else_| {
+                                else_
+                                    .i32_const(1)
+                                    .call(grow)
+                                    .drop()
+                                    .global_get(vars.page_size)
+                                    .i32_const(1)
+                                    .binop(BinaryOp::I32Add)
+                                    .global_set(vars.page_size);
+                            },
+                        );
+                }
             },
             |_| {},
         )
@@ -633,6 +607,11 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
         }
     }
 }
+/*
+fn inject_upgrade(m: &mut Module, vars: &Variables) {
+
+}
+*/
 fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
@@ -658,7 +637,7 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .i32_const(5)
         .call(reply_data)
         .i32_const(0)
-        .i32_const(config.start_address())
+        .i32_const(config.log_start_address())
         .global_get(vars.log_size)
         .i32_const(12)
         .binop(BinaryOp::I32Mul)

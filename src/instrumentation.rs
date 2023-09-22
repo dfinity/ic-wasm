@@ -587,12 +587,14 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
             ExportItem::Function(id)
                 if e.name != "canister_update __motoko_async_helper"
                     && (e.name.starts_with("canister_update")
-                            || e.name.starts_with("canister_query")
-                            || e.name.starts_with("canister_composite_query")
-                            || e.name.starts_with("canister_heartbeat")
-                            || e.name == "canister_global_timer"
-                        // don't clear logs for post_upgrade
-                            || e.name == "canister_pre_upgrade") =>
+                    // don't clear logs for query method, as we cannot store the logs anyway
+                    //|| e.name.starts_with("canister_query")
+                    //|| e.name.starts_with("canister_composite_query")
+                    || e.name.starts_with("canister_heartbeat")
+                    // don't clear logs for timer and post_upgrade, as they are trigger by other signals
+                    //|| e.name == "canister_global_timer"
+                    //|| e.name == "canister_post_upgrade"
+                    || e.name == "canister_pre_upgrade") =>
             {
                 Some(id)
             }
@@ -620,6 +622,7 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
             let mut builder = get_builder(m, id);
             // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
             // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
+            // Region initialization in Motoko is also done here, so we cannot profile canister_init.
             builder.i32_const(0).global_set(is_init);
         }
         None => {

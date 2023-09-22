@@ -523,8 +523,12 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
             ExportItem::Function(id)
                 if e.name != "canister_update __motoko_async_helper"
                     && (e.name.starts_with("canister_update")
-                        || e.name.starts_with("canister_query")
-                        || e.name.starts_with("canister_heartbeat")) =>
+                            || e.name.starts_with("canister_query")
+                            || e.name.starts_with("canister_composite_query")
+                            || e.name.starts_with("canister_heartbeat")
+                            || e.name == "canister_global_timer"
+                        // don't clear logs for post_upgrade
+                            || e.name == "canister_pre_upgrade") =>
             {
                 Some(id)
             }

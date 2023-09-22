@@ -29,11 +29,28 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
+pub struct Config {
+    pub trace_only_funcs: Vec<String>,
+    pub start_address: Option<i32>,
+    pub page_limit: Option<i32>,
+}
+impl Config {
+    pub fn is_preallocated(&self) -> bool {
+        self.start_address.is_some()
+    }
+    pub fn start_address(&self) -> i32 {
+        self.start_address.unwrap_or(0)
+    }
+    pub fn page_limit(&self) -> i32 {
+        self.page_limit.unwrap_or(30)
+    }
+}
+
 /// When trace_only_funcs is not empty, counting and tracing is only enabled for those listed functions per update call.
 /// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
-pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), String> {
+pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     let mut trace_only_ids = HashSet::new();
-    for name in trace_only_funcs.iter() {
+    for name in config.trace_only_funcs.iter() {
         let id = match m.funcs.by_name(name) {
             Some(id) => id,
             None => return Err(format!("func \"{name}\" not found")),
@@ -85,7 +102,11 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
             );
         }
     }
-    let writer = make_stable_writer(m, &vars);
+    let writer = if config.is_preallocated() {
+        make_stable_writer_preallocated(m, &vars, &config)
+    } else {
+        make_stable_writer(m, &vars)
+    };
     let printer = make_printer(m, &vars, writer);
     for (id, func) in m.funcs.iter_local_mut() {
         if id != printer
@@ -103,7 +124,7 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
     }
     inject_canister_methods(m, &vars);
     let leb = make_leb128_encoder(m);
-    make_stable_getter(m, &vars, leb);
+    make_stable_getter(m, &vars, leb, &config);
     make_getter(m, &vars);
     make_toggle_func(m, "__toggle_tracing", vars.is_init);
     make_toggle_func(m, "__toggle_entry", vars.is_entry);
@@ -457,6 +478,49 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
     builder.finish(vec![offset, src, size], &mut m.funcs)
 }
 
+fn make_stable_writer_preallocated(
+    m: &mut Module,
+    vars: &Variables,
+    config: &Config,
+) -> FunctionId {
+    let writer = get_ic_func_id(m, "stable_write");
+    let mut builder = FunctionBuilder::new(
+        &mut m.types,
+        &[ValType::I32, ValType::I32, ValType::I32],
+        &[],
+    );
+    let start_address = config.start_address();
+    let size_limit = config.page_limit() * 65536;
+    let offset = m.locals.add(ValType::I32);
+    let src = m.locals.add(ValType::I32);
+    let size = m.locals.add(ValType::I32);
+    builder
+        .func_body()
+        .local_get(offset)
+        .local_get(size)
+        .binop(BinaryOp::I32Add)
+        .i32_const(size_limit)
+        .binop(BinaryOp::I32GtS)
+        .if_else(
+            None,
+            |then| {
+                then.return_();
+            },
+            |_| {},
+        )
+        .i32_const(start_address)
+        .local_get(offset)
+        .binop(BinaryOp::I32Add)
+        .local_get(src)
+        .local_get(size)
+        .call(writer)
+        .global_get(vars.log_size)
+        .i32_const(1)
+        .binop(BinaryOp::I32Add)
+        .global_set(vars.log_size);
+    builder.finish(vec![offset, src, size], &mut m.funcs)
+}
+
 fn make_printer(m: &mut Module, vars: &Variables, writer: FunctionId) -> FunctionId {
     let memory = get_memory_id(m);
     let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I32], &[]);
@@ -566,7 +630,7 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
         }
     }
 }
-fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId) {
+fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
@@ -591,7 +655,7 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId) {
         .i32_const(5)
         .call(reply_data)
         .i32_const(0)
-        .i32_const(0)
+        .i32_const(config.start_address())
         .global_get(vars.log_size)
         .i32_const(12)
         .binop(BinaryOp::I32Mul)

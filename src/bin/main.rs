@@ -102,11 +102,15 @@ fn main() -> anyhow::Result<()> {
             always_inline_max_function_size,
             keep_name_section,
         )?,
-        SubCommand::Instrument { trace_only } => match trace_only {
-            None => ic_wasm::instrumentation::instrument(&mut m, &[]),
-            Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),
+        SubCommand::Instrument { trace_only } => {
+            use ic_wasm::instrumentation::{instrument, Config};
+            let config = Config {
+                trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
+                start_address: None,
+                page_limit: None,
+            };
+            instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }
-        .map_err(|e| anyhow::anyhow!("{e}"))?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,

@@ -71,7 +71,7 @@ fn instrumentation() {
         .arg("1")
         .assert()
         .success();
-    assert_wasm("rust-region-instrument.wasm");    
+    assert_wasm("rust-region-instrument.wasm");
 }
 
 #[test]

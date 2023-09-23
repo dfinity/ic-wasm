@@ -54,7 +54,7 @@ fn instrumentation() {
         .arg("16")
         .assert()
         .success();
-    assert_wasm("motoko-region-instrument.wasm");    
+    assert_wasm("motoko-region-instrument.wasm");
     wasm_input("wat.wasm", true)
         .arg("instrument")
         .assert()

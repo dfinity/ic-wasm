@@ -4,6 +4,9 @@ use walrus::*;
 use crate::utils::*;
 use std::collections::HashSet;
 
+const METADATA_SIZE: i32 = 24;
+const DEFAULT_PAGE_LIMIT: i32 = 30;
+
 struct InjectionPoint {
     position: usize,
     cost: i64,
@@ -22,7 +25,6 @@ impl InjectionPoint {
 struct Variables {
     total_counter: GlobalId,
     log_size: GlobalId,
-    // page_size is only used when preallocation is not available, and will not persist across upgrades
     page_size: GlobalId,
     is_init: GlobalId,
     is_entry: GlobalId,
@@ -40,13 +42,13 @@ impl Config {
         self.start_address.is_some()
     }
     pub fn log_start_address(&self) -> i32 {
-        self.start_address.unwrap_or(0) + 20
+        self.start_address.unwrap_or(0) + METADATA_SIZE
     }
     pub fn metadata_start_address(&self) -> i32 {
         self.start_address.unwrap_or(0)
     }
     pub fn page_limit(&self) -> i32 {
-        self.page_limit.unwrap_or(30)
+        self.page_limit.unwrap_or(DEFAULT_PAGE_LIMIT)
     }
 }
 
@@ -121,6 +123,11 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     if !is_partial_tracing {
         //inject_start(m, vars.is_init);
         inject_init(m, vars.is_init);
+    }
+    // Only persist globals when stable memory is preallocated
+    if config.is_preallocated() {
+        inject_pre_upgrade(m, &vars, &config);
+        inject_post_upgrade(m, &vars, &config);
     }
     inject_canister_methods(m, &vars);
     let leb = make_leb128_encoder(m);
@@ -592,25 +599,113 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
 }
 fn inject_init(m: &mut Module, is_init: GlobalId) {
     let mut builder = get_or_create_export_func(m, "canister_init");
-    // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
+    // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize.
+    // Region initialization in Motoko is also done here.
     // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
-    // Region initialization in Motoko is also done here, so we cannot profile canister_init.
     builder.i32_const(0).global_set(is_init);
 }
-/*
-fn inject_pre_upgrade(m: &mut Module, vars: &Variables) {
-    let id = match get_export_func_id(m, "canister_pre_upgrade") {
-        Some(id) => id,
-        None => {
-            let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
-            let id = builder.finish(vec![], &mut m.funcs);
-            m.exports.add("canister_pre_upgrade", id);
-            id
-        }
-    };
-    let builder = get_builder(m, id);
+fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
+    let writer = get_ic_func_id(m, "stable_write");
+    let memory = get_memory_id(m);
+    let a = m.locals.add(ValType::I64);
+    let b = m.locals.add(ValType::I64);
+    let c = m.locals.add(ValType::I64);
+    let mut builder = get_or_create_export_func(m, "canister_pre_upgrade");
+    #[rustfmt::skip]
+    builder
+        // backup memory
+        .i32_const(0)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(a)
+        .i32_const(8)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(b)
+        .i32_const(16)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(c)
+        // persist globals
+        .i32_const(0)
+        .global_get(vars.total_counter)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .global_get(vars.log_size)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(12)
+        .global_get(vars.page_size)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(16)
+        .global_get(vars.is_init)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(20)
+        .global_get(vars.is_entry)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(0)
+        .i32_const(config.metadata_start_address())
+        .i32_const(METADATA_SIZE)
+        .call(writer)
+        // restore memory
+        .i32_const(0)
+        .local_get(a)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .local_get(b)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .local_get(c)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 });
 }
-*/
+fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
+    let reader = get_ic_func_id(m, "stable_read");
+    let memory = get_memory_id(m);
+    let a = m.locals.add(ValType::I64);
+    let b = m.locals.add(ValType::I64);
+    let c = m.locals.add(ValType::I64);
+    let mut builder = get_or_create_export_func(m, "canister_post_upgrade");
+    #[rustfmt::skip]
+    inject_top(&mut builder, vec![
+        // backup
+        Const { value: Value::I32(0) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: a }.into(),
+        Const { value: Value::I32(8) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: b }.into(),
+        Const { value: Value::I32(16) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: c }.into(),
+        // load from stable memory
+        Const { value: Value::I32(0) }.into(),
+        Const { value: Value::I32(config.metadata_start_address()) }.into(),
+        Const { value: Value::I32(METADATA_SIZE) }.into(),
+        Call { func: reader }.into(),
+        Const { value: Value::I32(0) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        GlobalSet { global: vars.total_counter }.into(),
+        Const { value: Value::I32(8) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.log_size }.into(),
+        Const { value: Value::I32(12) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.page_size }.into(),
+        Const { value: Value::I32(16) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.is_init }.into(),
+        Const { value: Value::I32(20) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.is_entry }.into(),
+        // restore
+        Const { value: Value::I32(0) }.into(),
+        LocalGet { local: a }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        Const { value: Value::I32(8) }.into(),
+        LocalGet { local: b }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        Const { value: Value::I32(16) }.into(),
+        LocalGet { local: c }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+    ]);
+}
+
 fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");

@@ -48,6 +48,13 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("motoko-gc-instrument.wasm");
+    wasm_input("motoko-region.wasm", true)
+        .arg("instrument")
+        .arg("-s")
+        .arg("16")
+        .assert()
+        .success();
+    assert_wasm("motoko-region-instrument.wasm");    
     wasm_input("wat.wasm", true)
         .arg("instrument")
         .assert()

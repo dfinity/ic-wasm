@@ -613,7 +613,7 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
     let mut builder = get_or_create_export_func(m, "canister_pre_upgrade");
     #[rustfmt::skip]
     builder
-        // backup memory
+        // backup memory. This is not restricted needed, since the end of pre-upgrade.
         .i32_const(0)
         .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
         .local_set(a)

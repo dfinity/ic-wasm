@@ -14,6 +14,16 @@ function install(wasm) {
   );
   S
 };
+function upgrade(S, wasm) {
+  call ic.install_code(
+    record {
+      arg = encode ();
+      wasm_module = wasm;
+      mode = variant { upgrade };
+      canister_id = S;
+    }
+  );
+};
 
 function motoko(wasm) {
   let S = install(wasm);
@@ -94,14 +104,20 @@ function check_profiling(S, cycles, len) {
   assert _ == (cycles : int64);
   call S.__get_profiling();
   assert _.size() == (len : nat);
+  null
 };
 
 let S = motoko(file("ok/motoko-instrument.wasm"));
 check_profiling(S, 9397, 78);
 let S = motoko(file("ok/motoko-gc-instrument.wasm"));
 check_profiling(S, 250, 4);
-let S = motoko(file("ok/motoko-region-instrument.wasm"));
+let wasm = file("ok/motoko-region-instrument.wasm");
+let S = motoko(wasm);
 check_profiling(S, 463589, 78);
+upgrade(S, wasm);
+call S.get();
+assert _ == (45 : nat);
+check_profiling(S, 472223, 374);
 motoko(file("ok/motoko-shrink.wasm"));
 motoko(file("ok/motoko-limit.wasm"));
 

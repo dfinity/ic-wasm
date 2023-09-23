@@ -639,8 +639,8 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .i32_const(20)
         .global_get(vars.is_entry)
         .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
-        .i32_const(0)
         .i32_const(config.metadata_start_address())
+        .i32_const(0)
         .i32_const(METADATA_SIZE)
         .call(writer)
         // restore memory

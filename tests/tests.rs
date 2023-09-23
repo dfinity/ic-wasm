@@ -65,6 +65,13 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("rust-instrument.wasm");
+    wasm_input("rust-region.wasm", true)
+        .arg("instrument")
+        .arg("-s")
+        .arg("1")
+        .assert()
+        .success();
+    assert_wasm("rust-region-instrument.wasm");    
 }
 
 #[test]

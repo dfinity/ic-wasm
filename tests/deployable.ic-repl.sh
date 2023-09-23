@@ -110,6 +110,13 @@ counter(file("ok/motoko-limit.wasm"));
 
 let S = counter(file("ok/rust-instrument.wasm"));
 check_profiling(S, 53149, 576);
+let wasm = file("ok/rust-region-instrument.wasm");
+let S = counter(wasm);
+check_profiling(S, 126136, 574);
+upgrade(S, wasm);
+call S.get();
+assert _ == (45 : nat);
+check_profiling(S, 911310, 2344);
 counter(file("ok/rust-shrink.wasm"));
 counter(file("ok/rust-limit.wasm"));
 

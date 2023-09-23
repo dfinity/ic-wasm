@@ -97,9 +97,11 @@ function check_profiling(S, cycles, len) {
 };
 
 let S = motoko(file("ok/motoko-instrument.wasm"));
-check_profiling(S, 9003, 54);
+check_profiling(S, 9397, 78);
 let S = motoko(file("ok/motoko-gc-instrument.wasm"));
-check_profiling(S, 295, 2);
+check_profiling(S, 250, 4);
+let S = motoko(file("ok/motoko-region-instrument.wasm"));
+check_profiling(S, 463589, 78);
 motoko(file("ok/motoko-shrink.wasm"));
 motoko(file("ok/motoko-limit.wasm"));
 

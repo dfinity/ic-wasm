@@ -216,9 +216,9 @@ fn metadata() {
         .assert()
         .stdout(
             r#"icp:public candid:service
-icp:private candid:args
 icp:private motoko:stable-types
 icp:private motoko:compiler
+icp:public candid:args
 "#,
         )
         .success();
@@ -227,7 +227,7 @@ icp:private motoko:compiler
         .arg("metadata")
         .arg("motoko:compiler")
         .assert()
-        .stdout("0.6.25\n")
+        .stdout("0.10.0\n")
         .success();
     // Get a non-existed metadata
     wasm_input("motoko.wasm", false)
@@ -265,9 +265,9 @@ icp:private motoko:compiler
         .assert()
         .stdout(
             r#"icp:public candid:service
-icp:private candid:args
 icp:private motoko:stable-types
 icp:private motoko:compiler
+icp:public candid:args
 icp:public whatever
 "#,
         )

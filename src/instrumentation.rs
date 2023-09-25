@@ -454,7 +454,9 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
             .func_body()
             .global_get(vars.page_size)
             .i32_const(65536)
-            .binop(BinaryOp::I32Mul);
+            .binop(BinaryOp::I32Mul)
+            .i32_const(METADATA_SIZE)
+            .binop(BinaryOp::I32Sub);
     }
     builder
         .func_body()
@@ -568,9 +570,8 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
             ExportItem::Function(id)
                 if e.name != "canister_update __motoko_async_helper"
                     && (e.name.starts_with("canister_update")
-                    // don't clear logs for query method, as we cannot store the logs anyway
-                    //|| e.name.starts_with("canister_query")
-                    //|| e.name.starts_with("canister_composite_query")
+                    || e.name.starts_with("canister_query")
+                    || e.name.starts_with("canister_composite_query")
                     || e.name.starts_with("canister_heartbeat")
                     // don't clear logs for timer and post_upgrade, as they are trigger by other signals
                     //|| e.name == "canister_global_timer"

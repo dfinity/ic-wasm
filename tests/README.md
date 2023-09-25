@@ -6,8 +6,11 @@ To regenerate the Wasm file:
 ```motoko
 import Region "mo:base/Region";
 actor {
-  let profiling = Region.new();
-  ignore Region.grow(profiling, 32);
+  stable let profiling = do {
+    let r = Region.new();
+    ignore Region.grow(r, 32);
+    r;
+  };
   ...
 }
 ```

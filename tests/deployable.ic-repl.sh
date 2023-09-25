@@ -100,11 +100,11 @@ let S = counter(file("ok/motoko-gc-instrument.wasm"));
 check_profiling(S, 250, 4);
 let wasm = file("ok/motoko-region-instrument.wasm");
 let S = counter(wasm);
-check_profiling(S, 463589, 78);
+check_profiling(S, 463666, 78);
 upgrade(S, wasm);
 call S.get();
 assert _ == (45 : nat);
-check_profiling(S, 472223, 374);
+check_profiling(S, 474294, 460);
 counter(file("ok/motoko-shrink.wasm"));
 counter(file("ok/motoko-limit.wasm"));
 

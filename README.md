@@ -48,6 +48,8 @@ Usage: `ic-wasm <input.wasm> info`
 
 Remove unused functions and debug info.
 
+Note: The `icp` metadata sections are preserved through the shrink.
+
 Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
 
 ### Optimize

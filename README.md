@@ -48,9 +48,13 @@ Usage: `ic-wasm <input.wasm> info`
 
 Remove unused functions and debug info.
 
+Note: The `icp` metadata sections are preserved through the shrink.
+
 Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
 
-Optionally invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
+### Optimize
+
+Invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
 
 The optimizer exposes different optimization levels to choose from.
 
@@ -69,8 +73,16 @@ The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and
 
 Note: The `icp` metadata sections are preserved through the optimizations.
 
+Usage: `ic-wasm <input.wasm> -o <output.wasm> optimize <level>`
 
-Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink --optimize <level>`
+There are two further flags exposed from `wasm-opt`:
+- `--inline-functions-with-loops`
+- `--always-inline-max-function-size <FUNCTION_SIZE>`
+
+These were exposed to aggressively inline functions, which are common in Motoko programs. With the new cost model, there is a large performance gain from inlining functions with loops, but also a large blowup in binary size. Due to the binary size increase, we may not be able to apply this inlining for actor classes inside a Wasm module.
+
+E.g.
+`ic-wasm <input.wasm> -o <output.wasm> optimize O3 --inline-functions-with-loops --always-inline-max-function-size 100`
 
 ### Resource
 

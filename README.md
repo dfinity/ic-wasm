@@ -79,7 +79,7 @@ There are two further flags exposed from `wasm-opt`:
 - `--inline-functions-with-loops`
 - `--always-inline-max-function-size <FUNCTION_SIZE>`
 
-These were exposed to aggressively inline functions, which are common in Motoko programs. There is a large performance gain from inlining functions with loops, but also a large blowup in binary size.
+These were exposed to aggressively inline functions, which are common in Motoko programs. With the new cost model, there is a large performance gain from inlining functions with loops, but also a large blowup in binary size. Due to the binary size increase, we may not be able to apply this inlining for actor classes inside a Wasm module.
 
 E.g.
 `ic-wasm <input.wasm> -o <output.wasm> optimize O3 --inline-functions-with-loops --always-inline-max-function-size 100`

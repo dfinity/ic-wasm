@@ -163,7 +163,7 @@ fn post_upgrade() {
 
 #### Current limitations
 
-* Without pre-allocating stable memory from user code, we cannot profile upgrade or code that accesses to stable memory.
+* Without pre-allocating stable memory from user code, we cannot profile upgrade or code that accesses stable memory.
 * Since the pre-allocation happens in `canister_init`, we cannot profile `canister_init`.
 * If heartbeat is present, it's hard to measure any other method calls. It's also hard to measure a specific heartbeat event.
 * We only store the first 2M of profiling data.

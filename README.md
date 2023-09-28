@@ -94,7 +94,7 @@ Usage: `ic-wasm <input.wasm> -o <output.wasm> resource --remove_cycles_transfer 
 
 Instrument canister method to emit execution trace to stable memory.
 
-Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --trace-only func2`
+Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --trace-only func2 --start-page 16 --page-limit 30`
 
 Instrumented canister has the following additional endpoints:
 
@@ -106,16 +106,69 @@ Instrumented canister has the following additional endpoints:
 
 When `--trace-only` flag is provided, the counter and trace logging will only happen during the execution of that function, instead of tracing the whole update call. Note that the function itself has to be non-recursive.
 
-Current limitations:
+#### Working with upgrades and stable memory
 
-* Logs are stored in the first few pages of stable memory (up to 32 pages). This may break:
-  + break upgrade
-  + break manual access to stable memory
-  + `canister_init` in Motoko cannot be profiled, because it uses `stable_size` to decide if there are stable vars to decode
+By default, execution trace is stored in the first few pages (up to 32 pages) of stable memory. Without any user side support, we cannot profile upgrade or code which accesses stable memory. If the canister can pre-allocate a fixed region of stable memory at `canister_init`, we can then pass this address to `ic-wasm` via the `--start-page` flag, so that the trace is written to this pre-allocated space without corrupting the rest of the stable memory access.
+
+Another optional flag `--page-limit` specifies the number of pre-allocated pages in stable memory. By default, it's set to 30 pages. We only store trace up to `page-limit` pages, the remaining trace is dropped. Currently, due to the message size limit, we can only store 2M of trace data, which equates to roughly 30 pages. This limitation can be lifted in the future by supporting streamed output of the trace.
+
+The recommended way of pre-allocating stable memory is via the `Region` library in Motoko, and `ic-stable-structures` in Rust. But developers are free to use any other libraries or even the raw stable memory system API to pre-allocate space, as long as the developer can guarantee that the pre-allocated space is not touched by the rest of the code.
+
+The following is the code sample for pre-allocating stable memory in Motoko (with `--start-page 16`),
+
+```motoko
+import Region "mo:base/Region";
+actor {
+  stable let profiling = do {
+    let r = Region.new();
+    ignore Region.grow(r, 32);
+    r;
+  };
+  ...
+}
+```
+
+and in Rust (with `--start-page 1`) 
+
+```rust
+use ic_stable_structures::{
+    memory_manager::{MemoryId, MemoryManager},
+    writer::Writer,
+    DefaultMemoryImpl, Memory,
+};
+thread_local! {
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> =
+        RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+}
+const PROFILING: MemoryId = MemoryId::new(0);
+const UPGRADES: MemoryId = MemoryId::new(1);
+
+#[ic_cdk::init]
+fn init() {
+    let memory = MEMORY_MANAGER.with(|m| m.borrow().get(PROFILING));
+    memory.grow(32);
+    ...
+}
+#[ic_cdk::pre_upgrade]
+fn pre_upgrade() {
+    let mut memory = MEMORY_MANAGER.with(|m| m.borrow().get(UPGRADES));
+    ...
+}
+#[ic_cdk::post_upgrade]
+fn post_upgrade() {
+    let memory = MEMORY_MANAGER.with(|m| m.borrow().get(UPGRADES));
+    ...
+}
+```
+
+#### Current limitations
+
+* Without pre-allocating stable memory from user code, we cannot profile upgrade or code that accesses stable memory.
+* Since the pre-allocation happens in `canister_init`, we cannot profile `canister_init`.
 * If heartbeat is present, it's hard to measure any other method calls. It's also hard to measure a specific heartbeat event.
 * We only store the first 2M of profiling data.
 * We cannot measure query calls.
-* No concurrent calls
+* No concurrent calls.
 
 ## Library
 

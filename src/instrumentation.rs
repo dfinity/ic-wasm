@@ -4,6 +4,10 @@ use walrus::*;
 use crate::utils::*;
 use std::collections::HashSet;
 
+const METADATA_SIZE: i32 = 24;
+const DEFAULT_PAGE_LIMIT: i32 = 30;
+const LOG_ITEM_SIZE: i32 = 12;
+
 struct InjectionPoint {
     position: usize,
     cost: i64,
@@ -29,11 +33,31 @@ struct Variables {
     dynamic_counter64_func: FunctionId,
 }
 
+pub struct Config {
+    pub trace_only_funcs: Vec<String>,
+    pub start_address: Option<i32>,
+    pub page_limit: Option<i32>,
+}
+impl Config {
+    pub fn is_preallocated(&self) -> bool {
+        self.start_address.is_some()
+    }
+    pub fn log_start_address(&self) -> i32 {
+        self.start_address.unwrap_or(0) + METADATA_SIZE
+    }
+    pub fn metadata_start_address(&self) -> i32 {
+        self.start_address.unwrap_or(0)
+    }
+    pub fn page_limit(&self) -> i32 {
+        self.page_limit.unwrap_or(DEFAULT_PAGE_LIMIT)
+    }
+}
+
 /// When trace_only_funcs is not empty, counting and tracing is only enabled for those listed functions per update call.
 /// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
-pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), String> {
+pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     let mut trace_only_ids = HashSet::new();
-    for name in trace_only_funcs.iter() {
+    for name in config.trace_only_funcs.iter() {
         let id = match m.funcs.by_name(name) {
             Some(id) => id,
             None => return Err(format!("func \"{name}\" not found")),
@@ -85,7 +109,7 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
             );
         }
     }
-    let writer = make_stable_writer(m, &vars);
+    let writer = make_stable_writer(m, &vars, &config);
     let printer = make_printer(m, &vars, writer);
     for (id, func) in m.funcs.iter_local_mut() {
         if id != printer
@@ -101,9 +125,13 @@ pub fn instrument(m: &mut Module, trace_only_funcs: &[String]) -> Result<(), Str
         //inject_start(m, vars.is_init);
         inject_init(m, vars.is_init);
     }
+    // Persist globals
+    inject_pre_upgrade(m, &vars, &config);
+    inject_post_upgrade(m, &vars, &config);
+
     inject_canister_methods(m, &vars);
     let leb = make_leb128_encoder(m);
-    make_stable_getter(m, &vars, leb);
+    make_stable_getter(m, &vars, leb, &config);
     make_getter(m, &vars);
     make_toggle_func(m, "__toggle_tracing", vars.is_init);
     make_toggle_func(m, "__toggle_entry", vars.is_entry);
@@ -400,7 +428,7 @@ fn make_dynamic_counter64(
         .local_get(size);
     builder.finish(vec![size], &mut m.funcs)
 }
-fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
+fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> FunctionId {
     let writer = get_ic_func_id(m, "stable_write");
     let grow = get_ic_func_id(m, "stable_grow");
     let mut builder = FunctionBuilder::new(
@@ -408,6 +436,9 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
         &[ValType::I32, ValType::I32, ValType::I32],
         &[],
     );
+    let start_address = config.log_start_address();
+    let size_limit = config.page_limit() * 65536;
+    let is_preallocated = config.is_preallocated();
     let offset = m.locals.add(ValType::I32);
     let src = m.locals.add(ValType::I32);
     let size = m.locals.add(ValType::I32);
@@ -415,38 +446,54 @@ fn make_stable_writer(m: &mut Module, vars: &Variables) -> FunctionId {
         .func_body()
         .local_get(offset)
         .local_get(size)
-        .binop(BinaryOp::I32Add)
-        .global_get(vars.page_size)
-        .i32_const(65536)
-        .binop(BinaryOp::I32Mul)
+        .binop(BinaryOp::I32Add);
+    if is_preallocated {
+        builder.func_body().i32_const(size_limit);
+    } else {
+        builder
+            .func_body()
+            .global_get(vars.page_size)
+            .i32_const(65536)
+            .binop(BinaryOp::I32Mul)
+            .i32_const(METADATA_SIZE)
+            .binop(BinaryOp::I32Sub);
+    }
+    builder
+        .func_body()
         .binop(BinaryOp::I32GtS)
         .if_else(
             None,
             |then| {
-                // TODO: This assumes user code doesn't use stable memory
-                then.global_get(vars.page_size)
-                    .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
-                    .binop(BinaryOp::I32GtS) // trace >= 2M
-                    .if_else(
-                        None,
-                        |then| {
-                            then.return_();
-                        },
-                        |else_| {
-                            else_
-                                .i32_const(1)
-                                .call(grow)
-                                .drop()
-                                .global_get(vars.page_size)
-                                .i32_const(1)
-                                .binop(BinaryOp::I32Add)
-                                .global_set(vars.page_size);
-                        },
-                    );
+                if is_preallocated {
+                    then.return_();
+                } else {
+                    // This assumes user code doesn't use stable memory
+                    then.global_get(vars.page_size)
+                        .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
+                        .binop(BinaryOp::I32GtS) // trace >= 2M
+                        .if_else(
+                            None,
+                            |then| {
+                                then.return_();
+                            },
+                            |else_| {
+                                else_
+                                    .i32_const(1)
+                                    .call(grow)
+                                    .drop()
+                                    .global_get(vars.page_size)
+                                    .i32_const(1)
+                                    .binop(BinaryOp::I32Add)
+                                    .global_set(vars.page_size);
+                            },
+                        );
+                }
             },
             |_| {},
         )
+        .i32_const(start_address)
         .local_get(offset)
+        .binop(BinaryOp::I32Add)
         .local_get(src)
         .local_get(size)
         .call(writer)
@@ -486,10 +533,10 @@ fn make_printer(m: &mut Module, vars: &Variables, writer: FunctionId) -> Functio
                 .global_get(vars.total_counter)
                 .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
                 .global_get(vars.log_size)
-                .i32_const(12)
+                .i32_const(LOG_ITEM_SIZE)
                 .binop(BinaryOp::I32Mul)
                 .i32_const(0)
-                .i32_const(12)
+                .i32_const(LOG_ITEM_SIZE)
                 .call(writer)
                 // restore memory
                 .i32_const(0)
@@ -523,8 +570,13 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
             ExportItem::Function(id)
                 if e.name != "canister_update __motoko_async_helper"
                     && (e.name.starts_with("canister_update")
-                        || e.name.starts_with("canister_query")
-                        || e.name.starts_with("canister_heartbeat")) =>
+                    || e.name.starts_with("canister_query")
+                    || e.name.starts_with("canister_composite_query")
+                    || e.name.starts_with("canister_heartbeat")
+                    // don't clear logs for timer and post_upgrade, as they are trigger by other signals
+                    //|| e.name == "canister_global_timer"
+                    //|| e.name == "canister_post_upgrade"
+                    || e.name == "canister_pre_upgrade") =>
             {
                 Some(id)
             }
@@ -547,22 +599,93 @@ fn inject_canister_methods(m: &mut Module, vars: &Variables) {
     }
 }
 fn inject_init(m: &mut Module, is_init: GlobalId) {
-    match get_export_func_id(m, "canister_init") {
-        Some(id) => {
-            let mut builder = get_builder(m, id);
-            // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize
-            // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
-            builder.i32_const(0).global_set(is_init);
-        }
-        None => {
-            let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
-            builder.func_body().i32_const(0).global_set(is_init);
-            let id = builder.finish(vec![], &mut m.funcs);
-            m.exports.add("canister_init", id);
-        }
-    }
+    let mut builder = get_or_create_export_func(m, "canister_init");
+    // canister_init in Motoko use stable_size to decide if there is stable memory to deserialize.
+    // Region initialization in Motoko is also done here.
+    // We can only enable profiling at the end of init, otherwise stable.grow breaks this check.
+    builder.i32_const(0).global_set(is_init);
 }
-fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId) {
+fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
+    let writer = get_ic_func_id(m, "stable_write");
+    let memory = get_memory_id(m);
+    let mut builder = get_or_create_export_func(m, "canister_pre_upgrade");
+    #[rustfmt::skip]
+    builder
+        // no need to backup memory, since this is the end of the pre-upgrade.
+        // persist globals
+        .i32_const(0)
+        .global_get(vars.total_counter)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .global_get(vars.log_size)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(12)
+        .global_get(vars.page_size)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(16)
+        .global_get(vars.is_init)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(20)
+        .global_get(vars.is_entry)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(config.metadata_start_address())
+        .i32_const(0)
+        .i32_const(METADATA_SIZE)
+        .call(writer);
+}
+fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
+    let reader = get_ic_func_id(m, "stable_read");
+    let memory = get_memory_id(m);
+    let a = m.locals.add(ValType::I64);
+    let b = m.locals.add(ValType::I64);
+    let c = m.locals.add(ValType::I64);
+    let mut builder = get_or_create_export_func(m, "canister_post_upgrade");
+    #[rustfmt::skip]
+    inject_top(&mut builder, vec![
+        // backup
+        Const { value: Value::I32(0) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: a }.into(),
+        Const { value: Value::I32(8) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: b }.into(),
+        Const { value: Value::I32(16) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        LocalSet { local: c }.into(),
+        // load from stable memory
+        Const { value: Value::I32(0) }.into(),
+        Const { value: Value::I32(config.metadata_start_address()) }.into(),
+        Const { value: Value::I32(METADATA_SIZE) }.into(),
+        Call { func: reader }.into(),
+        Const { value: Value::I32(0) }.into(),
+        Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        GlobalSet { global: vars.total_counter }.into(),
+        Const { value: Value::I32(8) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.log_size }.into(),
+        Const { value: Value::I32(12) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.page_size }.into(),
+        Const { value: Value::I32(16) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.is_init }.into(),
+        Const { value: Value::I32(20) }.into(),
+        Load { memory, kind: LoadKind::I32 { atomic: false }, arg: MemArg { offset: 0, align: 4 } }.into(),
+        GlobalSet { global: vars.is_entry }.into(),
+        // restore
+        Const { value: Value::I32(0) }.into(),
+        LocalGet { local: a }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        Const { value: Value::I32(8) }.into(),
+        LocalGet { local: b }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+        Const { value: Value::I32(16) }.into(),
+        LocalGet { local: c }.into(),
+        Store { memory, kind: StoreKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
+    ]);
+}
+
+fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
@@ -587,14 +710,14 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId) {
         .i32_const(5)
         .call(reply_data)
         .i32_const(0)
-        .i32_const(0)
+        .i32_const(config.log_start_address())
         .global_get(vars.log_size)
-        .i32_const(12)
+        .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reader)
         .i32_const(0)
         .global_get(vars.log_size)
-        .i32_const(12)
+        .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reply_data)
         .call(reply);

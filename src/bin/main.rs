@@ -67,8 +67,15 @@ enum SubCommand {
     },
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument {
+        /// Trace only the specified list of functions. The function cannot be recursive
         #[clap(short, long)]
         trace_only: Option<Vec<String>>,
+        /// If the canister preallocates a stable memory region, specify the starting page. Required if you want to profile upgrades, or the canister uses stable memory
+        #[clap(short, long)]
+        start_page: Option<i32>,
+        /// The number of pages of the preallocated stable memory
+        #[clap(short, long, requires("start_page"))]
+        page_limit: Option<i32>,
     },
 }
 
@@ -102,11 +109,19 @@ fn main() -> anyhow::Result<()> {
             always_inline_max_function_size,
             keep_name_section,
         )?,
-        SubCommand::Instrument { trace_only } => match trace_only {
-            None => ic_wasm::instrumentation::instrument(&mut m, &[]),
-            Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),
+        SubCommand::Instrument {
+            trace_only,
+            start_page,
+            page_limit,
+        } => {
+            use ic_wasm::instrumentation::{instrument, Config};
+            let config = Config {
+                trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
+                start_address: start_page.map(|page| page * 65536),
+                page_limit: *page_limit,
+            };
+            instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }
-        .map_err(|e| anyhow::anyhow!("{e}"))?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,

@@ -48,6 +48,13 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("motoko-gc-instrument.wasm");
+    wasm_input("motoko-region.wasm", true)
+        .arg("instrument")
+        .arg("-s")
+        .arg("16")
+        .assert()
+        .success();
+    assert_wasm("motoko-region-instrument.wasm");
     wasm_input("wat.wasm", true)
         .arg("instrument")
         .assert()
@@ -58,6 +65,13 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("rust-instrument.wasm");
+    wasm_input("rust-region.wasm", true)
+        .arg("instrument")
+        .arg("-s")
+        .arg("1")
+        .assert()
+        .success();
+    assert_wasm("rust-region-instrument.wasm");
 }
 
 #[test]
@@ -209,9 +223,9 @@ fn metadata() {
         .assert()
         .stdout(
             r#"icp:public candid:service
-icp:private candid:args
 icp:private motoko:stable-types
 icp:private motoko:compiler
+icp:public candid:args
 "#,
         )
         .success();
@@ -220,7 +234,7 @@ icp:private motoko:compiler
         .arg("metadata")
         .arg("motoko:compiler")
         .assert()
-        .stdout("0.6.25\n")
+        .stdout("0.10.0\n")
         .success();
     // Get a non-existed metadata
     wasm_input("motoko.wasm", false)
@@ -258,9 +272,9 @@ icp:private motoko:compiler
         .assert()
         .stdout(
             r#"icp:public candid:service
-icp:private candid:args
 icp:private motoko:stable-types
 icp:private motoko:compiler
+icp:public candid:args
 icp:public whatever
 "#,
         )

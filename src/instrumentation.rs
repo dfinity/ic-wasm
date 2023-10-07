@@ -194,7 +194,6 @@ fn inject_metering(
                     curr = InjectionPoint::new();
                 }
                 Instr::Call(Call { func }) => {
-                    curr.cost += instr_cost(instr, use_new_metering);
                     match func_cost
                         .get_cost(*func)
                         .unwrap_or((instr_cost(instr, use_new_metering), InjectionKind::Static))

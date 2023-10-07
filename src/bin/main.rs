@@ -76,7 +76,7 @@ enum SubCommand {
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,
-        /// Use the new metering cost, default to false
+        /// Use the new metering cost, default to false. This flag will eventually be removed and set to true after the mainnet has adapted the new metering.
         #[clap(short, long)]
         use_new_metering: bool,
     },

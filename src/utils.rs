@@ -114,8 +114,8 @@ impl FunctionCost {
         }
         Self(res)
     }
-    pub fn get_cost(&self, id: FunctionId) -> (i64, InjectionKind) {
-        *self.0.get(&id).unwrap_or(&(1, InjectionKind::Static))
+    pub fn get_cost(&self, id: FunctionId) -> Option<(i64, InjectionKind)> {
+        self.0.get(&id).copied()
     }
 }
 pub(crate) fn instr_cost(i: &ir::Instr, use_new_metering: bool) -> i64 {

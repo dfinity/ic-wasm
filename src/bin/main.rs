@@ -48,24 +48,43 @@ enum SubCommand {
     },
     /// List information about the Wasm canister
     Info,
-    /// Remove unused functions and debug info. Optionally, optimize the Wasm code
+    /// Remove unused functions and debug info
     Shrink {
-        #[clap(long, value_parser = ["O0", "O1", "O2", "O3", "O4", "Os", "Oz"])]
-        optimize: Option<String>,
+        #[clap(short, long)]
+        keep_name_section: bool,
+    },
+    /// Optimize the Wasm module using wasm-opt
+    #[cfg(feature = "wasm-opt")]
+    Optimize {
+        #[clap()]
+        level: ic_wasm::optimize::OptLevel,
+        #[clap(long("inline-functions-with-loops"))]
+        inline_functions_with_loops: bool,
+        #[clap(long("always-inline-max-function-size"))]
+        always_inline_max_function_size: Option<u32>,
         #[clap(short, long)]
         keep_name_section: bool,
     },
     /// Instrument canister method to emit execution trace to stable memory (experimental)
     Instrument {
+        /// Trace only the specified list of functions. The function cannot be recursive
         #[clap(short, long)]
         trace_only: Option<Vec<String>>,
+        /// If the canister preallocates a stable memory region, specify the starting page. Required if you want to profile upgrades, or the canister uses stable memory
+        #[clap(short, long)]
+        start_page: Option<i32>,
+        /// The number of pages of the preallocated stable memory
+        #[clap(short, long, requires("start_page"))]
+        page_limit: Option<i32>,
     },
 }
 
 fn main() -> anyhow::Result<()> {
     let opts: Opts = Opts::parse();
     let keep_name_section = match opts.subcommand {
-        SubCommand::Shrink {
+        SubCommand::Shrink { keep_name_section } => keep_name_section,
+        #[cfg(feature = "wasm-opt")]
+        SubCommand::Optimize {
             keep_name_section, ..
         } => keep_name_section,
         _ => false,
@@ -76,23 +95,33 @@ fn main() -> anyhow::Result<()> {
             let mut stdout = std::io::stdout();
             ic_wasm::info::info(&m, &mut stdout)?;
         }
-        SubCommand::Shrink { optimize, .. } => {
-            use ic_wasm::shrink;
-            match optimize {
-                Some(level) => {
-                    #[cfg(not(feature = "wasm-opt"))]
-                    panic!("Please build with wasm-opt feature");
-                    #[cfg(feature = "wasm-opt")]
-                    shrink::shrink_with_wasm_opt(&mut m, level, keep_name_section)?
-                }
-                None => shrink::shrink(&mut m),
-            }
+        SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),
+        #[cfg(feature = "wasm-opt")]
+        SubCommand::Optimize {
+            level,
+            inline_functions_with_loops,
+            always_inline_max_function_size,
+            ..
+        } => ic_wasm::optimize::optimize(
+            &mut m,
+            level,
+            *inline_functions_with_loops,
+            always_inline_max_function_size,
+            keep_name_section,
+        )?,
+        SubCommand::Instrument {
+            trace_only,
+            start_page,
+            page_limit,
+        } => {
+            use ic_wasm::instrumentation::{instrument, Config};
+            let config = Config {
+                trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
+                start_address: start_page.map(|page| page * 65536),
+                page_limit: *page_limit,
+            };
+            instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }
-        SubCommand::Instrument { trace_only } => match trace_only {
-            None => ic_wasm::instrumentation::instrument(&mut m, &[]),
-            Some(vec) => ic_wasm::instrumentation::instrument(&mut m, vec),
-        }
-        .map_err(|e| anyhow::anyhow!("{e}"))?,
         SubCommand::Resource {
             remove_cycles_transfer,
             limit_stable_memory_page,

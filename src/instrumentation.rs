@@ -618,14 +618,14 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
 fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
     let writer = get_ic_func_id(m, "stable_write");
     let memory = get_memory_id(m);
-    /*let a = m.locals.add(ValType::I64);
+    let a = m.locals.add(ValType::I64);
     let b = m.locals.add(ValType::I64);
-    let c = m.locals.add(ValType::I64);*/
+    let c = m.locals.add(ValType::I64);
     let mut builder = get_or_create_export_func(m, "canister_pre_upgrade");
     #[rustfmt::skip]
     builder
         // backup memory. This is not strictly needed, since it's at the end of pre-upgrade.
-        /*.i32_const(0)
+        .i32_const(0)
         .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
         .local_set(a)
         .i32_const(8)
@@ -633,7 +633,7 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .local_set(b)
         .i32_const(16)
         .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
-        .local_set(c)*/
+        .local_set(c)
         // persist globals
         .i32_const(0)
         .global_get(vars.total_counter)
@@ -655,7 +655,7 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .i32_const(METADATA_SIZE)
         .call(writer)
         // restore memory
-        /*.i32_const(0)
+        .i32_const(0)
         .local_get(a)
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .i32_const(8)
@@ -663,7 +663,7 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .i32_const(16)
         .local_get(c)
-        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })*/;
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 });
 }
 fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
     let reader = get_ic_func_id(m, "stable_read");

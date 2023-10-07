@@ -88,7 +88,7 @@ impl FunctionCost {
                     "stable64_write" => (20, Dynamic64),
                     "trap" => (500, Dynamic),
                     "time" => (500, Static),
-                    _ => (1, Static),
+                    _ => (20, Static),
                 }
             } else {
                 match method {

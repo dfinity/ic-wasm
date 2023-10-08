@@ -726,6 +726,10 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
     builder.name("__get_profiling".to_string());
     #[rustfmt::skip]
     builder.func_body()
+        // allocate 2M of heap memory, it's a query call, the system will give back the memory.
+        .i32_const(32)
+        .memory_grow(memory)
+        // write header
         .i32_const(0)
         // vec { record { int32; int64 } }
         .i64_const(0x6c016d024c444944) // "DIDL026d016c"

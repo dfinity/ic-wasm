@@ -125,6 +125,7 @@ pub(crate) fn instr_cost(i: &ir::Instr, use_new_metering: bool) -> i64 {
     if !use_new_metering {
         return 1;
     }
+    // Cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasm_utils/instrumentation.rs
     match i {
         Instr::Block(..) | Instr::Loop(..) => 0,
         Instr::Const(..) | Instr::Load(..) | Instr::Store(..) => 1,

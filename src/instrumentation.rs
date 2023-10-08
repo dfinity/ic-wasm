@@ -729,6 +729,7 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         // allocate 2M of heap memory, it's a query call, the system will give back the memory.
         .i32_const(32)
         .memory_grow(memory)
+        .drop()
         // write header
         .i32_const(0)
         // vec { record { int32; int64 } }

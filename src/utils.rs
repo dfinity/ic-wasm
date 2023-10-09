@@ -207,6 +207,10 @@ pub(crate) fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
                 ),
                 "debug_print" => m.types.add(&[ValType::I32, ValType::I32], &[]),
                 "trap" => m.types.add(&[ValType::I32, ValType::I32], &[]),
+                "msg_arg_data_size" => m.types.add(&[], &[ValType::I32]),
+                "msg_arg_data_copy" => m
+                    .types
+                    .add(&[ValType::I32, ValType::I32, ValType::I32], &[]),
                 "msg_reply_data_append" => m.types.add(&[ValType::I32, ValType::I32], &[]),
                 "msg_reply" => m.types.add(&[], &[]),
                 _ => unreachable!(),

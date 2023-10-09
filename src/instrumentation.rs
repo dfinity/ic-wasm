@@ -734,9 +734,19 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
     #[rustfmt::skip]
     builder.func_body()
         // allocate 2M of heap memory, it's a query call, the system will give back the memory.
+        .memory_size(memory)
         .i32_const(32)
-        .memory_grow(memory)
-        .drop()
+        .binop(BinaryOp::I32LtU)
+        .if_else(
+            None,
+            |then| {
+                then
+                    .i32_const(32)
+                    .memory_grow(memory)
+                    .drop();
+            },
+            |_| {}
+        )
         // parse input idx
         .call(arg_size)
         .i32_const(11)

@@ -5,7 +5,7 @@ use crate::utils::*;
 use std::collections::HashSet;
 
 const METADATA_SIZE: i32 = 24;
-const DEFAULT_PAGE_LIMIT: i32 = 30;
+const DEFAULT_PAGE_LIMIT: i32 = 16 * 256; // 256M
 const LOG_ITEM_SIZE: i32 = 12;
 const MAX_ITEMS_PER_QUERY: i32 = 174758; // (2M - 40) / LOG_ITEM_SIZE;
 
@@ -51,7 +51,9 @@ impl Config {
         self.start_address.unwrap_or(0)
     }
     pub fn page_limit(&self) -> i32 {
-        self.page_limit.unwrap_or(DEFAULT_PAGE_LIMIT)
+        self.page_limit
+            .map(|x| x - 1)
+            .unwrap_or(DEFAULT_PAGE_LIMIT - 1) // minus 1 because of metadata
     }
 }
 
@@ -479,8 +481,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
                 } else {
                     // This assumes user code doesn't use stable memory
                     then.global_get(vars.page_size)
-                        .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
-                        .binop(BinaryOp::I32GtS) // trace >= 2M
+                        .i32_const(DEFAULT_PAGE_LIMIT)
+                        .binop(BinaryOp::I32GtS) // trace > default_page_limit
                         .if_else(
                             None,
                             |then| {

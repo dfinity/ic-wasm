@@ -110,7 +110,7 @@ When `--trace-only` flag is provided, the counter and trace logging will only ha
 
 By default, execution trace is stored in the first few pages (up to 32 pages) of stable memory. Without any user side support, we cannot profile upgrade or code which accesses stable memory. If the canister can pre-allocate a fixed region of stable memory at `canister_init`, we can then pass this address to `ic-wasm` via the `--start-page` flag, so that the trace is written to this pre-allocated space without corrupting the rest of the stable memory access.
 
-Another optional flag `--page-limit` specifies the number of pre-allocated pages in stable memory. By default, it's set to 30 pages. We only store trace up to `page-limit` pages, the remaining trace is dropped. Due to the metadata stored in the profiling region, `page-limit` should be *one page less* than the actual allocated pages.
+Another optional flag `--page-limit` specifies the number of pre-allocated pages in stable memory. By default, it's set to 4096 pages (256MB). We only store trace up to `page-limit` pages, the remaining trace is dropped. 
 
 The recommended way of pre-allocating stable memory is via the `Region` library in Motoko, and `ic-stable-structures` in Rust. But developers are free to use any other libraries or even the raw stable memory system API to pre-allocate space, as long as the developer can guarantee that the pre-allocated space is not touched by the rest of the code.
 
@@ -121,7 +121,7 @@ import Region "mo:base/Region";
 actor {
   stable let profiling = do {
     let r = Region.new();
-    ignore Region.grow(r, 32);  // Increase the page number if you need larger log space. Note that `page-limit` should be 32 - 1 = 31
+    ignore Region.grow(r, 4096);  // Increase the page number if you need larger log space
     r;
   };
   ...
@@ -146,7 +146,7 @@ const UPGRADES: MemoryId = MemoryId::new(1);
 #[ic_cdk::init]
 fn init() {
     let memory = MEMORY_MANAGER.with(|m| m.borrow().get(PROFILING));
-    memory.grow(32);  // Increase the page number if you need larger log space. Note that `page-limit` should be 32 - 1 = 31
+    memory.grow(4096);  // Increase the page number if you need larger log space
     ...
 }
 #[ic_cdk::pre_upgrade]
@@ -163,7 +163,7 @@ fn post_upgrade() {
 
 #### Current limitations
 
-* Without pre-allocating stable memory from user code, we cannot profile upgrade or code that accesses stable memory. You can profile traces larger than 2M, if you pre-allocate large pages of stable memory and specify the `page-limit` flag. Larger traces can be fetched in a streamming fashion via `__get_profiling(idx)`.
+* Without pre-allocating stable memory from user code, we cannot profile upgrade or code that accesses stable memory. You can profile traces larger than 256M, if you pre-allocate large pages of stable memory and specify the `page-limit` flag. Larger traces can be fetched in a streamming fashion via `__get_profiling(idx)`.
 * Since the pre-allocation happens in `canister_init`, we cannot profile `canister_init`.
 * If heartbeat is present, it's hard to measure any other method calls. It's also hard to measure a specific heartbeat event.
 * We cannot measure query calls.

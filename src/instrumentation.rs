@@ -719,9 +719,13 @@ fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
 
 fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
+    let arg_size = get_ic_func_id(m, "msg_arg_data_size");
+    let arg_copy = get_ic_func_id(m, "msg_arg_data_copy");
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
+    let trap = get_ic_func_id(m, "trap");
     let reader = get_ic_func_id(m, "stable_read");
+    let offset = m.locals.add(ValType::I32);
     let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
     builder.name("__get_profiling".to_string());
     #[rustfmt::skip]
@@ -730,16 +734,39 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .i32_const(32)
         .memory_grow(memory)
         .drop()
+        // parse input offset
+        .call(arg_size)
+        .i32_const(11)
+        .binop(BinaryOp::I32Ne)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .call(trap);
+            },
+            |_| {},
+        )
+        .i32_const(0)
+        .i32_const(7)
+        .i32_const(4)
+        .call(arg_copy)
+        .i32_const(0)
+        .load(memory, LoadKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+        .local_set(offset)
         // write header
         .i32_const(0)
-        // vec { record { int32; int64 } }
-        .i64_const(0x6c016d024c444944) // "DIDL026d016c"
+        // (vec { record { int32; int64 } }, opt int32)
+        .i64_const(0x6c016d034c444944) // "DIDL036d016c"
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .i32_const(8)
-        .i64_const(0x0000017401750002)  // "02007501740100xx"
+        .i64_const(0x02756e7401750002)  // "02007501746e7502"
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .i32_const(0x0200) // "0002"
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
         .i32_const(0)
-        .i32_const(15)
+        .i32_const(18)
         .call(reply_data)
         .global_get(vars.log_size)
         .call(leb)
@@ -756,6 +783,13 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .global_get(vars.log_size)
         .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
+        .call(reply_data)
+        // opt next offset
+        .i32_const(0)
+        .i32_const(0)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+        .i32_const(0)
+        .i32_const(1)
         .call(reply_data)
         .call(reply);
     let getter = builder.finish(vec![], &mut m.funcs);

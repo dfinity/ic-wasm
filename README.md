@@ -99,7 +99,7 @@ Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --tr
 Instrumented canister has the following additional endpoints:
 
 * `__get_cycles: () -> (int64) query`. Get the current cycle counter.
-* `__get_profiling: () -> (vec { record { int32; int64 }}) query`. Get the execution trace log.
+* `__get_profiling: (offset:int32) -> (vec { record { int32; int64 }}, opt int32) query`. Get the execution trace log, starting with `offset` 0. If the log is larger than 2M, it returns the first 2M of trace, and the next `offset` for the next 2M chunk.
 * `__toggle_tracing: () -> ()`. Disable/enable logging the execution trace.
 * `__toggle_entry: () -> ()`. Disable/enable clearing exection trace for each update call.
 * `icp:public name` metadata. Used to map func_id from execution trace to function name.

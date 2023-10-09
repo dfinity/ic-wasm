@@ -195,13 +195,11 @@ fn inject_metering(
                     curr = InjectionPoint::new();
                 }
                 Instr::Call(Call { func }) => {
-                    match func_cost
-                        .get_cost(*func)
-                        .unwrap_or((instr_cost(instr, use_new_metering), InjectionKind::Static))
-                    {
-                        (cost, InjectionKind::Static) => curr.cost += cost,
-                        (cost, kind @ InjectionKind::Dynamic)
-                        | (cost, kind @ InjectionKind::Dynamic64) => {
+                    curr.cost += instr_cost(instr, use_new_metering);
+                    match func_cost.get_cost(*func) {
+                        Some((cost, InjectionKind::Static)) => curr.cost += cost,
+                        Some((cost, kind @ InjectionKind::Dynamic))
+                        | Some((cost, kind @ InjectionKind::Dynamic64)) => {
                             curr.cost += cost;
                             let dynamic = InjectionPoint {
                                 position: pos,
@@ -210,6 +208,7 @@ fn inject_metering(
                             };
                             injection_points.push(dynamic);
                         }
+                        None => {}
                     }
                 }
                 Instr::MemoryFill(_)

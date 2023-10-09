@@ -7,6 +7,7 @@ use std::collections::HashSet;
 const METADATA_SIZE: i32 = 24;
 const DEFAULT_PAGE_LIMIT: i32 = 30;
 const LOG_ITEM_SIZE: i32 = 12;
+const MAX_ITEMS_PER_QUERY: i32 = 174758; // (2M - 40) / LOG_ITEM_SIZE;
 
 struct InjectionPoint {
     position: usize,
@@ -725,7 +726,9 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
     let reply = get_ic_func_id(m, "msg_reply");
     let trap = get_ic_func_id(m, "trap");
     let reader = get_ic_func_id(m, "stable_read");
-    let offset = m.locals.add(ValType::I32);
+    let idx = m.locals.add(ValType::I32);
+    let len = m.locals.add(ValType::I32);
+    let next_idx = m.locals.add(ValType::I32);
     let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
     builder.name("__get_profiling".to_string());
     #[rustfmt::skip]
@@ -734,7 +737,7 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .i32_const(32)
         .memory_grow(memory)
         .drop()
-        // parse input offset
+        // parse input idx
         .call(arg_size)
         .i32_const(11)
         .binop(BinaryOp::I32Ne)
@@ -753,10 +756,9 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .call(arg_copy)
         .i32_const(0)
         .load(memory, LoadKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
-        .local_set(offset)
-        // write header
+        .local_set(idx)
+        // write header (vec { record { int32; int64 } }, opt int32)
         .i32_const(0)
-        // (vec { record { int32; int64 } }, opt int32)
         .i64_const(0x6c016d034c444944) // "DIDL036d016c"
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .i32_const(8)
@@ -768,29 +770,74 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .i32_const(0)
         .i32_const(18)
         .call(reply_data)
+        // if log_size - idx > MAX_ITEMS_PER_QUERY
         .global_get(vars.log_size)
+        .local_get(idx)
+        .binop(BinaryOp::I32Sub)
+        .local_tee(len)
+        .i32_const(MAX_ITEMS_PER_QUERY)
+        .binop(BinaryOp::I32GtU)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(MAX_ITEMS_PER_QUERY)
+                    .local_set(len)
+                    .local_get(idx)
+                    .i32_const(MAX_ITEMS_PER_QUERY)
+                    .binop(BinaryOp::I32Add)
+                    .local_set(next_idx);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .local_set(next_idx);
+            },
+        )
+        .local_get(len)
         .call(leb)
         .i32_const(0)
         .i32_const(5)
         .call(reply_data)
+        // read stable logs
         .i32_const(0)
         .i32_const(config.log_start_address())
-        .global_get(vars.log_size)
+        .local_get(idx)
+        .i32_const(LOG_ITEM_SIZE)
+        .binop(BinaryOp::I32Mul)
+        .binop(BinaryOp::I32Add)
+        .local_get(len)
         .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reader)
         .i32_const(0)
-        .global_get(vars.log_size)
+        .local_get(len)
         .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reply_data)
-        // opt next offset
-        .i32_const(0)
-        .i32_const(0)
-        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
-        .i32_const(0)
-        .i32_const(1)
-        .call(reply_data)
+        // opt next idx
+        .local_get(next_idx)
+        .unop(UnaryOp::I32Eqz)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(1)
+                    .call(reply_data);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .i32_const(1)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 1})
+                    .i32_const(1)
+                    .local_get(next_idx)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(5)
+                    .call(reply_data);
+            },
+        )
         .call(reply);
     let getter = builder.finish(vec![], &mut m.funcs);
     m.exports.add("canister_query __get_profiling", getter);

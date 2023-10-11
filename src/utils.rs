@@ -72,6 +72,7 @@ impl FunctionCost {
                     "msg_cycles_accept" | "msg_cycles_accept128" => (500, Static),
                     "msg_cycles_available" | "msg_cycles_available128" => (500, Static),
                     "msg_cycles_refunded" | "msg_cycles_refunded128" => (500, Static),
+                    "cycles_burn128" => (100, Static),
                     "msg_method_name_copy" => (500, Dynamic),
                     "msg_method_name_size" => (500, Static),
                     "msg_reject_code" | "msg_reject_msg_size" => (500, Static),
@@ -193,6 +194,9 @@ pub(crate) fn get_ic_func_id(m: &mut Module, method: &str) -> FunctionId {
                 "stable64_size" => m.types.add(&[], &[ValType::I64]),
                 "call_cycles_add" => m.types.add(&[ValType::I64], &[]),
                 "call_cycles_add128" => m.types.add(&[ValType::I64, ValType::I64], &[]),
+                "cycles_burn128" => m
+                    .types
+                    .add(&[ValType::I64, ValType::I64, ValType::I32], &[]),
                 "call_new" => m.types.add(
                     &[
                         ValType::I32,

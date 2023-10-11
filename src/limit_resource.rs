@@ -178,7 +178,11 @@ fn make_cycles_add128(m: &mut Module) -> FunctionId {
     builder.finish(vec![high, low], &mut m.funcs)
 }
 fn make_cycles_burn128(m: &mut Module) -> FunctionId {
-    let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64, ValType::I64], &[]);
+    let mut builder = FunctionBuilder::new(
+        &mut m.types,
+        &[ValType::I64, ValType::I64, ValType::I32],
+        &[],
+    );
     let high = m.locals.add(ValType::I64);
     let low = m.locals.add(ValType::I64);
     let dst = m.locals.add(ValType::I32);

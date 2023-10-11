@@ -89,8 +89,11 @@ function classes_redirect(wasm) {
 function check_profiling(S, cycles, len) {
   call S.__get_cycles();
   assert _ == (cycles : int64);
-  call S.__get_profiling();
-  assert _.size() == (len : nat);
+  call S.__get_profiling((0:nat32));
+  assert _[0].size() == (len : nat);
+  assert _[1] == (null : opt empty);
+  call S.__get_profiling((1:nat32));
+  assert _[0].size() == (sub(len,1) : nat);
   null
 };
 

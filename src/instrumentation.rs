@@ -5,8 +5,9 @@ use crate::utils::*;
 use std::collections::HashSet;
 
 const METADATA_SIZE: i32 = 24;
-const DEFAULT_PAGE_LIMIT: i32 = 30;
+const DEFAULT_PAGE_LIMIT: i32 = 16 * 256; // 256M
 const LOG_ITEM_SIZE: i32 = 12;
+const MAX_ITEMS_PER_QUERY: i32 = 174758; // (2M - 40) / LOG_ITEM_SIZE;
 
 struct InjectionPoint {
     position: usize,
@@ -37,6 +38,7 @@ pub struct Config {
     pub trace_only_funcs: Vec<String>,
     pub start_address: Option<i32>,
     pub page_limit: Option<i32>,
+    pub use_new_metering: bool,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
@@ -49,7 +51,9 @@ impl Config {
         self.start_address.unwrap_or(0)
     }
     pub fn page_limit(&self) -> i32 {
-        self.page_limit.unwrap_or(DEFAULT_PAGE_LIMIT)
+        self.page_limit
+            .map(|x| x - 1)
+            .unwrap_or(DEFAULT_PAGE_LIMIT - 1) // minus 1 because of metadata
     }
 }
 
@@ -65,7 +69,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
         trace_only_ids.insert(id);
     }
     let is_partial_tracing = !trace_only_ids.is_empty();
-    let func_cost = FunctionCost::new(m);
+    let func_cost = FunctionCost::new(m, config.use_new_metering);
     let total_counter = m
         .globals
         .add_local(ValType::I64, true, InitExpr::Value(Value::I64(0)));
@@ -106,6 +110,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
                 &vars,
                 &func_cost,
                 is_partial_tracing,
+                config.use_new_metering,
             );
         }
     }
@@ -146,6 +151,7 @@ fn inject_metering(
     vars: &Variables,
     func_cost: &FunctionCost,
     is_partial_tracing: bool,
+    use_new_metering: bool,
 ) {
     use InjectionKind::*;
     let mut stack = vec![start];
@@ -159,7 +165,9 @@ fn inject_metering(
             match instr {
                 Instr::Block(Block { seq }) | Instr::Loop(Loop { seq }) => {
                     match func.block(*seq).ty {
-                        InstrSeqType::Simple(Some(_)) => curr.cost += 1,
+                        InstrSeqType::Simple(Some(_)) => {
+                            curr.cost += instr_cost(instr, use_new_metering)
+                        }
                         InstrSeqType::Simple(None) => (),
                         InstrSeqType::MultiValue(_) => unreachable!("Multivalue not supported"),
                     }
@@ -171,7 +179,7 @@ fn inject_metering(
                     consequent,
                     alternative,
                 }) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr, use_new_metering);
                     stack.push(*consequent);
                     stack.push(*alternative);
                     injection_points.push(curr);
@@ -179,34 +187,38 @@ fn inject_metering(
                 }
                 Instr::Br(_) | Instr::BrIf(_) | Instr::BrTable(_) => {
                     // br always points to a block, so we don't need to push the br block to stack for traversal
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr, use_new_metering);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
                 Instr::Return(_) | Instr::Unreachable(_) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr, use_new_metering);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
-                Instr::Call(Call { func }) => match func_cost.get_cost(*func) {
-                    (cost, InjectionKind::Static) => curr.cost += cost,
-                    (cost, kind @ InjectionKind::Dynamic)
-                    | (cost, kind @ InjectionKind::Dynamic64) => {
-                        curr.cost += cost;
-                        let dynamic = InjectionPoint {
-                            position: pos,
-                            cost: 0,
-                            kind,
-                        };
-                        injection_points.push(dynamic);
+                Instr::Call(Call { func }) => {
+                    curr.cost += instr_cost(instr, use_new_metering);
+                    match func_cost.get_cost(*func) {
+                        Some((cost, InjectionKind::Static)) => curr.cost += cost,
+                        Some((cost, kind @ InjectionKind::Dynamic))
+                        | Some((cost, kind @ InjectionKind::Dynamic64)) => {
+                            curr.cost += cost;
+                            let dynamic = InjectionPoint {
+                                position: pos,
+                                cost: 0,
+                                kind,
+                            };
+                            injection_points.push(dynamic);
+                        }
+                        None => {}
                     }
-                },
+                }
                 Instr::MemoryFill(_)
                 | Instr::MemoryCopy(_)
                 | Instr::MemoryInit(_)
                 | Instr::TableCopy(_)
                 | Instr::TableInit(_) => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr, use_new_metering);
                     let dynamic = InjectionPoint {
                         position: pos,
                         cost: 0,
@@ -215,7 +227,7 @@ fn inject_metering(
                     injection_points.push(dynamic);
                 }
                 _ => {
-                    curr.cost += 1;
+                    curr.cost += instr_cost(instr, use_new_metering);
                 }
             }
         }
@@ -469,8 +481,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
                 } else {
                     // This assumes user code doesn't use stable memory
                     then.global_get(vars.page_size)
-                        .i32_const(30) // cannot use the full 2M, because Candid header takes some extra bytes
-                        .binop(BinaryOp::I32GtS) // trace >= 2M
+                        .i32_const(DEFAULT_PAGE_LIMIT)
+                        .binop(BinaryOp::I32GtS) // trace > default_page_limit
                         .if_else(
                             None,
                             |then| {
@@ -608,10 +620,22 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
 fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
     let writer = get_ic_func_id(m, "stable_write");
     let memory = get_memory_id(m);
+    let a = m.locals.add(ValType::I64);
+    let b = m.locals.add(ValType::I64);
+    let c = m.locals.add(ValType::I64);
     let mut builder = get_or_create_export_func(m, "canister_pre_upgrade");
     #[rustfmt::skip]
     builder
-        // no need to backup memory, since this is the end of the pre-upgrade.
+        // backup memory. This is not strictly needed, since it's at the end of pre-upgrade.
+        .i32_const(0)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(a)
+        .i32_const(8)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(b)
+        .i32_const(16)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8})
+        .local_set(c)
         // persist globals
         .i32_const(0)
         .global_get(vars.total_counter)
@@ -631,7 +655,17 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .i32_const(config.metadata_start_address())
         .i32_const(0)
         .i32_const(METADATA_SIZE)
-        .call(writer);
+        .call(writer)
+        // restore memory
+        .i32_const(0)
+        .local_get(a)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .local_get(b)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .local_get(c)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 });
 }
 fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
     let reader = get_ic_func_id(m, "stable_read");
@@ -687,39 +721,134 @@ fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
 
 fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config: &Config) {
     let memory = get_memory_id(m);
+    let arg_size = get_ic_func_id(m, "msg_arg_data_size");
+    let arg_copy = get_ic_func_id(m, "msg_arg_data_copy");
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
+    let trap = get_ic_func_id(m, "trap");
     let reader = get_ic_func_id(m, "stable_read");
+    let idx = m.locals.add(ValType::I32);
+    let len = m.locals.add(ValType::I32);
+    let next_idx = m.locals.add(ValType::I32);
     let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
     builder.name("__get_profiling".to_string());
     #[rustfmt::skip]
     builder.func_body()
+        // allocate 2M of heap memory, it's a query call, the system will give back the memory.
+        .memory_size(memory)
+        .i32_const(32)
+        .binop(BinaryOp::I32LtU)
+        .if_else(
+            None,
+            |then| {
+                then
+                    .i32_const(32)
+                    .memory_grow(memory)
+                    .drop();
+            },
+            |_| {}
+        )
+        // parse input idx
+        .call(arg_size)
+        .i32_const(11)
+        .binop(BinaryOp::I32Ne)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .call(trap);
+            },
+            |_| {},
+        )
         .i32_const(0)
-        // vec { record { int32; int64 } }
-        .i64_const(0x6c016d024c444944) // "DIDL026d016c"
+        .i32_const(7)
+        .i32_const(4)
+        .call(arg_copy)
+        .i32_const(0)
+        .load(memory, LoadKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+        .local_set(idx)
+        // write header (vec { record { int32; int64 } }, opt int32)
+        .i32_const(0)
+        .i64_const(0x6c016d034c444944) // "DIDL036d016c"
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
         .i32_const(8)
-        .i64_const(0x0000017401750002)  // "02007501740100xx"
+        .i64_const(0x02756e7401750002)  // "02007501746e7502"
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .i32_const(0x0200) // "0002"
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
         .i32_const(0)
-        .i32_const(15)
+        .i32_const(18)
         .call(reply_data)
+        // if log_size - idx > MAX_ITEMS_PER_QUERY
         .global_get(vars.log_size)
+        .local_get(idx)
+        .binop(BinaryOp::I32Sub)
+        .local_tee(len)
+        .i32_const(MAX_ITEMS_PER_QUERY)
+        .binop(BinaryOp::I32GtU)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(MAX_ITEMS_PER_QUERY)
+                    .local_set(len)
+                    .local_get(idx)
+                    .i32_const(MAX_ITEMS_PER_QUERY)
+                    .binop(BinaryOp::I32Add)
+                    .local_set(next_idx);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .local_set(next_idx);
+            },
+        )
+        .local_get(len)
         .call(leb)
         .i32_const(0)
         .i32_const(5)
         .call(reply_data)
+        // read stable logs
         .i32_const(0)
         .i32_const(config.log_start_address())
-        .global_get(vars.log_size)
+        .local_get(idx)
+        .i32_const(LOG_ITEM_SIZE)
+        .binop(BinaryOp::I32Mul)
+        .binop(BinaryOp::I32Add)
+        .local_get(len)
         .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reader)
         .i32_const(0)
-        .global_get(vars.log_size)
+        .local_get(len)
         .i32_const(LOG_ITEM_SIZE)
         .binop(BinaryOp::I32Mul)
         .call(reply_data)
+        // opt next idx
+        .local_get(next_idx)
+        .unop(UnaryOp::I32Eqz)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(1)
+                    .call(reply_data);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .i32_const(1)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 1})
+                    .i32_const(1)
+                    .local_get(next_idx)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(5)
+                    .call(reply_data);
+            },
+        )
         .call(reply);
     let getter = builder.finish(vec![], &mut m.funcs);
     m.exports.add("canister_query __get_profiling", getter);

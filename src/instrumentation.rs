@@ -160,6 +160,10 @@ fn inject_metering(
         // Finding injection points
         let mut injection_points = vec![];
         let mut curr = InjectionPoint::new();
+        // each function has at least a unit cost
+        if seq_id == start && use_new_metering {
+            curr.cost += 1;
+        }
         for (pos, (instr, _)) in seq.instrs.iter().enumerate() {
             curr.position = pos;
             match instr {

@@ -13,9 +13,12 @@ jobs:
       IC_REPL_VERSION: 0.4.0
     steps:
       - uses: actions/checkout@v2
-      - name: Install
+      - name: Install dfx
+        uses: dfinity/setup-dfx@main
+        with:
+          dfx-version: "${{ env.DFX_VERSION }}"
+      - name: Install dependencies
         run: |
-          echo y | DFX_VERSION=$DFX_VERSION bash -ci "$(curl -fsSL https://sdk.dfinity.org/install.sh)"
           wget https://github.com/chenyan2002/ic-repl/releases/download/$IC_REPL_VERSION/ic-repl-linux64
           cp ./ic-repl-linux64 /usr/local/bin/ic-repl
           chmod a+x /usr/local/bin/ic-repl

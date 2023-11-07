@@ -16,7 +16,7 @@ pub struct WasmInfo {
     number_of_functions: usize,
     number_of_callbacks: usize,
     start_function: Option<String>,
-    exported_methods: Vec<(String, String)>,
+    exported_methods: Vec<ExportedMethodInfo>,
     imported_ic0_system_api: Vec<String>,
     custom_sections: Vec<CustomSectionInfo>,
 }
@@ -28,6 +28,13 @@ pub enum LanguageSpecificInfo {
         embedded_wasm: Vec<(String, WasmInfo)>,
     },
     Unknown,
+}
+
+/// Information about an exported method.
+#[derive(Serialize, Deserialize)]
+pub struct ExportedMethodInfo {
+    name: String,
+    internal_name: String,
 }
 
 /// Statistics about a custom section.
@@ -57,7 +64,10 @@ impl From<&Module> for WasmInfo {
                 .exports
                 .iter()
                 .filter_map(|e| match e.item {
-                    ExportItem::Function(id) => Some((e.name.clone(), get_func_name(m, id))),
+                    ExportItem::Function(id) => Some(ExportedMethodInfo {
+                        name: e.name.clone(),
+                        internal_name: get_func_name(m, id),
+                    }),
                     _ => None,
                 })
                 .collect(),
@@ -115,13 +125,18 @@ impl fmt::Display for WasmInfo {
         let exports: Vec<_> = self
             .exported_methods
             .iter()
-            .map(|(exported, internal)| {
-                if exported == internal {
-                    internal.clone()
-                } else {
-                    format!("{exported} ({internal})")
-                }
-            })
+            .map(
+                |ExportedMethodInfo {
+                     name,
+                     internal_name,
+                 }| {
+                    if name == internal_name {
+                        internal_name.clone()
+                    } else {
+                        format!("{name} ({internal_name})")
+                    }
+                },
+            )
             .collect();
         writeln!(f, "Exported methods: {exports:#?}")?;
         writeln!(f)?;

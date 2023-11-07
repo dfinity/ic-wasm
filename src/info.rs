@@ -10,6 +10,9 @@ use crate::{utils::*, Error};
 pub struct WasmInfo {
     language: LanguageSpecificInfo,
     number_of_types: usize,
+    number_of_globals: usize,
+    number_of_data_sections: usize,
+    size_of_data_sections: usize,
 }
 
 /// External information that is specific to one language
@@ -23,9 +26,16 @@ pub enum LanguageSpecificInfo {
 
 impl From<&Module> for WasmInfo {
     fn from(m: &Module) -> WasmInfo {
+        let (number_of_data_sections, size_of_data_sections) = m
+            .data
+            .iter()
+            .fold((0, 0), |(count, size), d| (count + 1, size + d.value.len()));
         WasmInfo {
             language: LanguageSpecificInfo::from(m),
             number_of_types: m.types.iter().count(),
+            number_of_globals: m.globals.iter().count(),
+            number_of_data_sections,
+            size_of_data_sections,
         }
     }
 }
@@ -46,7 +56,19 @@ impl From<&Module> for LanguageSpecificInfo {
 impl fmt::Display for WasmInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.language)?;
-        writeln!(f, "Number of types: {}", self.number_of_types)
+        writeln!(f, "Number of types: {}", self.number_of_types)?;
+        writeln!(f, "Number of globals: {}", self.number_of_globals)?;
+        writeln!(
+            f,
+            "Number of data sections: {}",
+            self.number_of_data_sections
+        )?;
+        writeln!(
+            f,
+            "Size of data sections: {} bytes",
+            self.size_of_data_sections
+        )?;
+        writeln!(f)
     }
 }
 

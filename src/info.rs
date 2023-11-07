@@ -13,6 +13,8 @@ pub struct WasmInfo {
     number_of_globals: usize,
     number_of_data_sections: usize,
     size_of_data_sections: usize,
+    number_of_functions: usize,
+    number_of_callbacks: usize,
 }
 
 /// External information that is specific to one language
@@ -36,6 +38,8 @@ impl From<&Module> for WasmInfo {
             number_of_globals: m.globals.iter().count(),
             number_of_data_sections,
             size_of_data_sections,
+            number_of_functions: m.funcs.iter().count(),
+            number_of_callbacks: m.elements.iter().count(),
         }
     }
 }
@@ -68,7 +72,9 @@ impl fmt::Display for WasmInfo {
             "Size of data sections: {} bytes",
             self.size_of_data_sections
         )?;
-        writeln!(f)
+        writeln!(f)?;
+        writeln!(f, "Number of functions: {}", self.number_of_functions)?;
+        writeln!(f, "Number of callbacks: {}", self.number_of_callbacks)
     }
 }
 

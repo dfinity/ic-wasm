@@ -17,6 +17,7 @@ pub struct WasmInfo {
     number_of_callbacks: usize,
     start_function: Option<String>,
     exported_methods: Vec<(String, String)>,
+    imported_ic0_system_api: Vec<String>,
 }
 
 /// External information that is specific to one language
@@ -51,6 +52,12 @@ impl From<&Module> for WasmInfo {
                     ExportItem::Function(id) => Some((e.name.clone(), get_func_name(m, id))),
                     _ => None,
                 })
+                .collect(),
+            imported_ic0_system_api: m
+                .imports
+                .iter()
+                .filter(|i| i.module == "ic0")
+                .map(|i| i.name.clone())
                 .collect(),
         }
     }
@@ -100,6 +107,9 @@ impl fmt::Display for WasmInfo {
             })
             .collect();
         writeln!(f, "Exported methods: {exports:#?}")?;
+        writeln!(f)?;
+        writeln!(f, "Imported IC0 System API: {:#?}", self.imported_ic0_system_api)?;
+    
         Ok(())
     }
 }

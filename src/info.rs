@@ -18,6 +18,7 @@ pub struct WasmInfo {
     start_function: Option<String>,
     exported_methods: Vec<(String, String)>,
     imported_ic0_system_api: Vec<String>,
+    custom_sections: Vec<CustomSectionInfo>,
 }
 
 /// External information that is specific to one language
@@ -27,6 +28,13 @@ pub enum LanguageSpecificInfo {
         embedded_wasm: Vec<(String, WasmInfo)>,
     },
     Unknown,
+}
+
+/// Statistics about a custom section.
+#[derive(Serialize, Deserialize)]
+pub struct CustomSectionInfo {
+    name: String,
+    size: usize,
 }
 
 impl From<&Module> for WasmInfo {
@@ -59,6 +67,14 @@ impl From<&Module> for WasmInfo {
                 .filter(|i| i.module == "ic0")
                 .map(|i| i.name.clone())
                 .collect(),
+            custom_sections: m
+                .customs
+                .iter()
+                .map(|(_, s)| CustomSectionInfo {
+                    name: s.name().to_string(),
+                    size: s.data(&Default::default()).len(),
+                })
+                .collect(),
         }
     }
 }
@@ -81,6 +97,7 @@ impl fmt::Display for WasmInfo {
         write!(f, "{}", self.language)?;
         writeln!(f, "Number of types: {}", self.number_of_types)?;
         writeln!(f, "Number of globals: {}", self.number_of_globals)?;
+        writeln!(f)?;
         writeln!(
             f,
             "Number of data sections: {}",
@@ -108,8 +125,18 @@ impl fmt::Display for WasmInfo {
             .collect();
         writeln!(f, "Exported methods: {exports:#?}")?;
         writeln!(f)?;
-        writeln!(f, "Imported IC0 System API: {:#?}", self.imported_ic0_system_api)?;
-    
+        writeln!(
+            f,
+            "Imported IC0 System API: {:#?}",
+            self.imported_ic0_system_api
+        )?;
+        writeln!(f)?;
+        let customs: Vec<_> = self
+            .custom_sections
+            .iter()
+            .map(|section_info| format!("{} ({} bytes)", section_info.name, section_info.size))
+            .collect();
+        writeln!(f, "Custom sections with size: {customs:#?}")?;
         Ok(())
     }
 }

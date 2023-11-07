@@ -105,7 +105,7 @@ fn main() -> anyhow::Result<()> {
                     .expect("Failed to express the Wasm information as JSON.");
                 println!("{}", json);
             } else {
-                println!("{wasm_info}");
+                print!("{wasm_info}");
             }
         }
         SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),

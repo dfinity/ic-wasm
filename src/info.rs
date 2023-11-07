@@ -15,6 +15,8 @@ pub struct WasmInfo {
     size_of_data_sections: usize,
     number_of_functions: usize,
     number_of_callbacks: usize,
+    start_function: Option<String>,
+    exported_methods: Vec<(String, String)>,
 }
 
 /// External information that is specific to one language
@@ -32,6 +34,7 @@ impl From<&Module> for WasmInfo {
             .data
             .iter()
             .fold((0, 0), |(count, size), d| (count + 1, size + d.value.len()));
+
         WasmInfo {
             language: LanguageSpecificInfo::from(m),
             number_of_types: m.types.iter().count(),
@@ -40,6 +43,15 @@ impl From<&Module> for WasmInfo {
             size_of_data_sections,
             number_of_functions: m.funcs.iter().count(),
             number_of_callbacks: m.elements.iter().count(),
+            start_function: m.start.map(|id| get_func_name(m, id)),
+            exported_methods: m
+                .exports
+                .iter()
+                .filter_map(|e| match e.item {
+                    ExportItem::Function(id) => Some((e.name.clone(), get_func_name(m, id))),
+                    _ => None,
+                })
+                .collect(),
         }
     }
 }
@@ -74,7 +86,21 @@ impl fmt::Display for WasmInfo {
         )?;
         writeln!(f)?;
         writeln!(f, "Number of functions: {}", self.number_of_functions)?;
-        writeln!(f, "Number of callbacks: {}", self.number_of_callbacks)
+        writeln!(f, "Number of callbacks: {}", self.number_of_callbacks)?;
+        writeln!(f, "Start function: {:?}", self.start_function)?;
+        let exports: Vec<_> = self
+            .exported_methods
+            .iter()
+            .map(|(exported, internal)| {
+                if exported == internal {
+                    internal.clone()
+                } else {
+                    format!("{exported} ({internal})")
+                }
+            })
+            .collect();
+        writeln!(f, "Exported methods: {exports:#?}")?;
+        Ok(())
     }
 }
 

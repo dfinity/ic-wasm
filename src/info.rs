@@ -1,7 +1,44 @@
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use walrus::{ExportItem, Module};
 
 use crate::{utils::*, Error};
+
+/// External information about a Wasm, such as API methods.
+#[derive(Serialize, Deserialize)]
+pub struct WasmInfo {
+    language: LanguageSpecificInfo,
+}
+
+/// External information that is specific to one language
+#[derive(Serialize, Deserialize)]
+pub enum LanguageSpecificInfo {
+    Motoko {
+        embedded_wasm: Vec<(String, WasmInfo)>,
+    },
+    Unknown,
+}
+
+impl From<&Module> for WasmInfo {
+    fn from(m: &Module) -> WasmInfo {
+        WasmInfo {
+            language: LanguageSpecificInfo::from(m),
+        }
+    }
+}
+
+impl From<&Module> for LanguageSpecificInfo {
+    fn from(m: &Module) -> LanguageSpecificInfo {
+        if is_motoko_canister(m) {
+            let mut embedded_wasm = Vec::new();
+            for (data_id, embedded_module) in get_motoko_wasm_data_sections(m) {
+                embedded_wasm.push((format!("{:?}", data_id), WasmInfo::from(&embedded_module)));
+            }
+            return LanguageSpecificInfo::Motoko { embedded_wasm };
+        }
+        LanguageSpecificInfo::Unknown
+    }
+}
 
 /// Print general summary of the Wasm module
 pub fn info(m: &Module, output: &mut dyn Write) -> Result<(), Error> {

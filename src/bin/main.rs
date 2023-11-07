@@ -99,8 +99,15 @@ fn main() -> anyhow::Result<()> {
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
         SubCommand::Info { json } => {
+            let info = ic_wasm::info::WasmInfo::from(&m);
             let mut stdout = std::io::stdout();
-            ic_wasm::info::info(&m, &mut stdout)?;
+            if *json {
+                let json = serde_json::to_string_pretty(&info)
+                    .expect("Failed to express the Wasm information as JSON.");
+                println!("{}", json);
+            } else {
+                ic_wasm::info::info(&m, &mut stdout)?;
+            }
         }
         SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),
         #[cfg(feature = "wasm-opt")]

@@ -28,6 +28,9 @@ tempfile = { version = "3.5.0", optional = true }
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
 
+serde = "1.0"
+serde_json = "1.0"
+
 [features]
 default = ["exe", "wasm-opt"]
 exe = ["anyhow", "clap"]

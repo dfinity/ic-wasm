@@ -9,6 +9,7 @@ use crate::{utils::*, Error};
 #[derive(Serialize, Deserialize)]
 pub struct WasmInfo {
     language: LanguageSpecificInfo,
+    number_of_types: usize,
 }
 
 /// External information that is specific to one language
@@ -24,6 +25,7 @@ impl From<&Module> for WasmInfo {
     fn from(m: &Module) -> WasmInfo {
         WasmInfo {
             language: LanguageSpecificInfo::from(m),
+            number_of_types: m.types.iter().count(),
         }
     }
 }
@@ -43,7 +45,8 @@ impl From<&Module> for LanguageSpecificInfo {
 
 impl fmt::Display for WasmInfo {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.language)
+        write!(f, "{}", self.language)?;
+        writeln!(f, "Number of types: {}", self.number_of_types)
     }
 }
 

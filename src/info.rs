@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::io::Write;
 use walrus::{ExportItem, Module};
 
@@ -37,6 +38,29 @@ impl From<&Module> for LanguageSpecificInfo {
             return LanguageSpecificInfo::Motoko { embedded_wasm };
         }
         LanguageSpecificInfo::Unknown
+    }
+}
+
+impl fmt::Display for WasmInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.language)
+    }
+}
+
+impl fmt::Display for LanguageSpecificInfo {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            LanguageSpecificInfo::Motoko { embedded_wasm } => {
+                writeln!(f, "This is a Motoko canister")?;
+                for (_, wasm_info) in embedded_wasm {
+                    writeln!(f, "--- Start decoding an embedded Wasm ---")?;
+                    write!(f, "{}", wasm_info)?;
+                    writeln!(f, "--- End of decoding ---")?;
+                }
+                writeln!(f)
+            }
+            LanguageSpecificInfo::Unknown => Ok(()),
+        }
     }
 }
 

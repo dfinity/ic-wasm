@@ -47,7 +47,11 @@ enum SubCommand {
         playground_backend_redirect: Option<candid::Principal>,
     },
     /// List information about the Wasm canister
-    Info,
+    Info {
+        /// Format the output as JSON
+        #[clap(short, long)]
+        json: bool,
+    },
     /// Remove unused functions and debug info
     Shrink {
         #[clap(short, long)]
@@ -94,9 +98,15 @@ fn main() -> anyhow::Result<()> {
     };
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
-        SubCommand::Info => {
-            let mut stdout = std::io::stdout();
-            ic_wasm::info::info(&m, &mut stdout)?;
+        SubCommand::Info { json } => {
+            let wasm_info = ic_wasm::info::WasmInfo::from(&m);
+            if *json {
+                let json = serde_json::to_string_pretty(&wasm_info)
+                    .expect("Failed to express the Wasm information as JSON.");
+                println!("{}", json);
+            } else {
+                print!("{wasm_info}");
+            }
         }
         SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),
         #[cfg(feature = "wasm-opt")]

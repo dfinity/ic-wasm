@@ -216,6 +216,49 @@ Custom sections with size: []
 }
 
 #[test]
+fn json_info() {
+    let expected = r#"{
+  "language": "Unknown",
+  "number_of_types": 6,
+  "number_of_globals": 1,
+  "number_of_data_sections": 3,
+  "size_of_data_sections": 35,
+  "number_of_functions": 9,
+  "number_of_callbacks": 0,
+  "start_function": null,
+  "exported_methods": [
+    {
+      "name": "canister_query get",
+      "internal_name": "func_5"
+    },
+    {
+      "name": "canister_update inc",
+      "internal_name": "func_6"
+    },
+    {
+      "name": "canister_update set",
+      "internal_name": "func_7"
+    }
+  ],
+  "imported_ic0_system_api": [
+    "msg_reply",
+    "msg_reply_data_append",
+    "msg_arg_data_size",
+    "msg_arg_data_copy",
+    "trap"
+  ],
+  "custom_sections": []
+}
+"#;
+    wasm_input("wat.wasm", false)
+        .arg("info")
+        .arg("--json")
+        .assert()
+        .stdout(expected)
+        .success();
+}
+
+#[test]
 fn metadata() {
     // List metadata
     wasm_input("motoko.wasm", false)

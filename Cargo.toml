@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -27,11 +27,14 @@ wasm-opt = { version = "0.113.0", optional = true }
 tempfile = { version = "3.5.0", optional = true }
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
 
 [features]
-default = ["exe", "wasm-opt"]
-exe = ["anyhow", "clap"]
+default = ["anyhow", "clap", "wasm-opt"]
+exe = ["anyhow", "clap", "serde"]
 wasm-opt = ["dep:wasm-opt", "tempfile"]
+serde = ["dep:serde", "dep:serde_json"]
 
 [dev-dependencies]
 assert_cmd = "2"

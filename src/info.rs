@@ -1,12 +1,14 @@
-use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::io::Write;
 use walrus::{ExportItem, Module};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use crate::{utils::*, Error};
 
 /// External information about a Wasm, such as API methods.
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct WasmInfo {
     language: LanguageSpecificInfo,
     number_of_types: usize,
@@ -22,7 +24,7 @@ pub struct WasmInfo {
 }
 
 /// External information that is specific to one language
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum LanguageSpecificInfo {
     Motoko {
         embedded_wasm: Vec<(String, WasmInfo)>,
@@ -31,14 +33,14 @@ pub enum LanguageSpecificInfo {
 }
 
 /// Information about an exported method.
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ExportedMethodInfo {
     name: String,
     internal_name: String,
 }
 
 /// Statistics about a custom section.
-#[derive(Serialize, Deserialize)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CustomSectionInfo {
     name: String,
     size: usize,

@@ -96,7 +96,7 @@ function check_profiling(S, cycles, len) {
   assert _[0].size() == (sub(len,1) : nat);
   null
 };
-/*
+
 let S = counter(file("ok/motoko-instrument.wasm"));
 check_profiling(S, 21571, 78);
 let S = counter(file("ok/motoko-gc-instrument.wasm"));

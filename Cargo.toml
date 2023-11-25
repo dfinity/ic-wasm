@@ -19,7 +19,7 @@ required-features = ["exe"]
 
 [dependencies]
 walrus = "0.20.1"
-candid = "0.9.9"
+candid = "0.10"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
 

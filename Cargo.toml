@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.6.1"
+version = "0.7.0"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -19,7 +19,7 @@ required-features = ["exe"]
 
 [dependencies]
 walrus = "0.20.1"
-candid = "0.9.9"
+candid = "0.10"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
 
@@ -31,7 +31,7 @@ serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [features]
-default = ["anyhow", "clap", "wasm-opt"]
+default = ["exe", "wasm-opt"]
 exe = ["anyhow", "clap", "serde"]
 wasm-opt = ["dep:wasm-opt", "tempfile"]
 serde = ["dep:serde", "dep:serde_json"]

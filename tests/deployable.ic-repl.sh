@@ -98,33 +98,33 @@ function check_profiling(S, cycles, len) {
 };
 
 let S = counter(file("ok/motoko-instrument.wasm"));
-check_profiling(S, 9397, 78);
+check_profiling(S, 21571, 78);
 let S = counter(file("ok/motoko-gc-instrument.wasm"));
-check_profiling(S, 250, 4);
+check_profiling(S, 595, 4);
 let wasm = file("ok/motoko-region-instrument.wasm");
 let S = counter(wasm);
-check_profiling(S, 463666, 78);
+check_profiling(S, 478652, 78);
 upgrade(S, wasm);
 call S.get();
 assert _ == (45 : nat);
-check_profiling(S, 474294, 460);
+check_profiling(S, 494682, 460);
 counter(file("ok/motoko-shrink.wasm"));
 counter(file("ok/motoko-limit.wasm"));
 
 let S = counter(file("ok/rust-instrument.wasm"));
-check_profiling(S, 53149, 576);
+check_profiling(S, 75279, 576);
 let wasm = file("ok/rust-region-instrument.wasm");
 let S = counter(wasm);
-check_profiling(S, 126136, 574);
+check_profiling(S, 152042, 574);
 upgrade(S, wasm);
 call S.get();
 assert _ == (45 : nat);
-check_profiling(S, 911310, 2344);
+check_profiling(S, 1023168, 2344);
 counter(file("ok/rust-shrink.wasm"));
 counter(file("ok/rust-limit.wasm"));
 
 let S = wat(file("ok/wat-instrument.wasm"));
-check_profiling(S, 189, 2);
+check_profiling(S, 5656, 2);
 wat(file("ok/wat-shrink.wasm"));
 wat(file("ok/wat-limit.wasm"));
 

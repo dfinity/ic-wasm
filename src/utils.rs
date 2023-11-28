@@ -32,7 +32,7 @@ pub(crate) enum InjectionKind {
 
 pub(crate) struct FunctionCost(HashMap<FunctionId, (i64, InjectionKind)>);
 impl FunctionCost {
-    pub fn new(m: &Module, use_new_metering: bool) -> Self {
+    pub fn new(m: &Module) -> Self {
         let mut res = HashMap::new();
         for (method, func) in m.imports.iter().filter_map(|i| {
             if let ImportKind::Function(func) = i.kind {
@@ -47,70 +47,48 @@ impl FunctionCost {
         }) {
             use InjectionKind::*;
             // System API cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasmtime_embedder/system_api_complexity.rs
-            let cost = if use_new_metering {
-                match method {
-                    "accept_message" => (500, Static),
-                    "call_cycles_add" | "call_cycles_add128" => (500, Static),
-                    "call_data_append" => (500, Dynamic),
-                    "call_new" => (1500, Static),
-                    "call_on_cleanup" => (500, Static),
-                    "call_perform" => (5000, Static),
-                    "canister_cycle_balance" | "canister_cycle_balance128" => (500, Static),
-                    "canister_self_copy" => (500, Dynamic),
-                    "canister_self_size" => (500, Static),
-                    "canister_status" | "canister_version" => (500, Static),
-                    "certified_data_set" => (500, Dynamic),
-                    "data_certificate_copy" => (500, Dynamic),
-                    "data_certificate_present" | "data_certificate_size" => (500, Static),
-                    "debug_print" => (100, Dynamic),
-                    "global_timer_set" => (500, Static),
-                    "is_controller" => (1000, Dynamic),
-                    "msg_arg_data_copy" => (500, Dynamic),
-                    "msg_arg_data_size" => (500, Static),
-                    "msg_caller_copy" => (500, Dynamic),
-                    "msg_caller_size" => (500, Static),
-                    "msg_cycles_accept" | "msg_cycles_accept128" => (500, Static),
-                    "msg_cycles_available" | "msg_cycles_available128" => (500, Static),
-                    "msg_cycles_refunded" | "msg_cycles_refunded128" => (500, Static),
-                    "cycles_burn128" => (100, Static),
-                    "msg_method_name_copy" => (500, Dynamic),
-                    "msg_method_name_size" => (500, Static),
-                    "msg_reject_code" | "msg_reject_msg_size" => (500, Static),
-                    "msg_reject_msg_copy" => (500, Dynamic),
-                    "msg_reject" => (500, Dynamic),
-                    "msg_reply_data_append" => (500, Dynamic),
-                    "msg_reply" => (500, Static),
-                    "performance_counter" => (200, Static),
-                    "stable_grow" | "stable64_grow" => (100, Static),
-                    "stable_size" | "stable64_size" => (20, Static),
-                    "stable_read" => (20, Dynamic),
-                    "stable_write" => (20, Dynamic),
-                    "stable64_read" => (20, Dynamic64),
-                    "stable64_write" => (20, Dynamic64),
-                    "trap" => (500, Dynamic),
-                    "time" => (500, Static),
-                    _ => (20, Static),
-                }
-            } else {
-                match method {
-                    "msg_arg_data_copy" => (20, Dynamic),
-                    "msg_method_name_copy" => (20, Dynamic),
-                    "msg_reply_data_append" => (20, Dynamic),
-                    "msg_reject" => (20, Dynamic),
-                    "msg_reject_msg_copy" => (20, Dynamic),
-                    "debug_print" => (100, Dynamic),
-                    "is_controller" => (1000, Dynamic),
-                    "trap" => (20, Dynamic),
-                    "call_new" => (0, Static),
-                    "call_data_append" => (20, Dynamic),
-                    "call_perform" => (0, Static),
-                    "stable_read" => (20, Dynamic),
-                    "stable_write" => (20, Dynamic),
-                    "stable64_read" => (20, Dynamic64),
-                    "stable64_write" => (20, Dynamic64),
-                    "performance_counter" => (200, Static),
-                    _ => (0, Static),
-                }
+            let cost = match method {
+                "accept_message" => (500, Static),
+                "call_cycles_add" | "call_cycles_add128" => (500, Static),
+                "call_data_append" => (500, Dynamic),
+                "call_new" => (1500, Static),
+                "call_on_cleanup" => (500, Static),
+                "call_perform" => (5000, Static),
+                "canister_cycle_balance" | "canister_cycle_balance128" => (500, Static),
+                "canister_self_copy" => (500, Dynamic),
+                "canister_self_size" => (500, Static),
+                "canister_status" | "canister_version" => (500, Static),
+                "certified_data_set" => (500, Dynamic),
+                "data_certificate_copy" => (500, Dynamic),
+                "data_certificate_present" | "data_certificate_size" => (500, Static),
+                "debug_print" => (100, Dynamic),
+                "global_timer_set" => (500, Static),
+                "is_controller" => (1000, Dynamic),
+                "msg_arg_data_copy" => (500, Dynamic),
+                "msg_arg_data_size" => (500, Static),
+                "msg_caller_copy" => (500, Dynamic),
+                "msg_caller_size" => (500, Static),
+                "msg_cycles_accept" | "msg_cycles_accept128" => (500, Static),
+                "msg_cycles_available" | "msg_cycles_available128" => (500, Static),
+                "msg_cycles_refunded" | "msg_cycles_refunded128" => (500, Static),
+                "cycles_burn128" => (100, Static),
+                "msg_method_name_copy" => (500, Dynamic),
+                "msg_method_name_size" => (500, Static),
+                "msg_reject_code" | "msg_reject_msg_size" => (500, Static),
+                "msg_reject_msg_copy" => (500, Dynamic),
+                "msg_reject" => (500, Dynamic),
+                "msg_reply_data_append" => (500, Dynamic),
+                "msg_reply" => (500, Static),
+                "performance_counter" => (200, Static),
+                "stable_grow" | "stable64_grow" => (100, Static),
+                "stable_size" | "stable64_size" => (20, Static),
+                "stable_read" => (20, Dynamic),
+                "stable_write" => (20, Dynamic),
+                "stable64_read" => (20, Dynamic64),
+                "stable64_write" => (20, Dynamic64),
+                "trap" => (500, Dynamic),
+                "time" => (500, Static),
+                _ => (20, Static),
             };
             res.insert(func, cost);
         }
@@ -120,13 +98,10 @@ impl FunctionCost {
         self.0.get(&id).copied()
     }
 }
-pub(crate) fn instr_cost(i: &ir::Instr, use_new_metering: bool) -> i64 {
+pub(crate) fn instr_cost(i: &ir::Instr) -> i64 {
     use ir::*;
     use BinaryOp::*;
     use UnaryOp::*;
-    if !use_new_metering {
-        return 1;
-    }
     // Cost taken from https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasm_utils/instrumentation.rs
     match i {
         Instr::Block(..) | Instr::Loop(..) => 0,

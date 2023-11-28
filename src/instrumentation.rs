@@ -38,7 +38,6 @@ pub struct Config {
     pub trace_only_funcs: Vec<String>,
     pub start_address: Option<i32>,
     pub page_limit: Option<i32>,
-    pub use_new_metering: bool,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
@@ -69,7 +68,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
         trace_only_ids.insert(id);
     }
     let is_partial_tracing = !trace_only_ids.is_empty();
-    let func_cost = FunctionCost::new(m, config.use_new_metering);
+    let func_cost = FunctionCost::new(m);
     let total_counter = m
         .globals
         .add_local(ValType::I64, true, InitExpr::Value(Value::I64(0)));
@@ -110,7 +109,6 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
                 &vars,
                 &func_cost,
                 is_partial_tracing,
-                config.use_new_metering,
             );
         }
     }
@@ -151,7 +149,6 @@ fn inject_metering(
     vars: &Variables,
     func_cost: &FunctionCost,
     is_partial_tracing: bool,
-    use_new_metering: bool,
 ) {
     use InjectionKind::*;
     let mut stack = vec![start];
@@ -161,7 +158,7 @@ fn inject_metering(
         let mut injection_points = vec![];
         let mut curr = InjectionPoint::new();
         // each function has at least a unit cost
-        if seq_id == start && use_new_metering {
+        if seq_id == start {
             curr.cost += 1;
         }
         for (pos, (instr, _)) in seq.instrs.iter().enumerate() {
@@ -169,9 +166,7 @@ fn inject_metering(
             match instr {
                 Instr::Block(Block { seq }) | Instr::Loop(Loop { seq }) => {
                     match func.block(*seq).ty {
-                        InstrSeqType::Simple(Some(_)) => {
-                            curr.cost += instr_cost(instr, use_new_metering)
-                        }
+                        InstrSeqType::Simple(Some(_)) => curr.cost += instr_cost(instr),
                         InstrSeqType::Simple(None) => (),
                         InstrSeqType::MultiValue(_) => unreachable!("Multivalue not supported"),
                     }
@@ -183,7 +178,7 @@ fn inject_metering(
                     consequent,
                     alternative,
                 }) => {
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                     stack.push(*consequent);
                     stack.push(*alternative);
                     injection_points.push(curr);
@@ -191,17 +186,17 @@ fn inject_metering(
                 }
                 Instr::Br(_) | Instr::BrIf(_) | Instr::BrTable(_) => {
                     // br always points to a block, so we don't need to push the br block to stack for traversal
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
                 Instr::Return(_) | Instr::Unreachable(_) => {
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                     injection_points.push(curr);
                     curr = InjectionPoint::new();
                 }
                 Instr::Call(Call { func }) => {
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                     match func_cost.get_cost(*func) {
                         Some((cost, InjectionKind::Static)) => curr.cost += cost,
                         Some((cost, kind @ InjectionKind::Dynamic))
@@ -222,7 +217,7 @@ fn inject_metering(
                 | Instr::MemoryInit(_)
                 | Instr::TableCopy(_)
                 | Instr::TableInit(_) => {
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                     let dynamic = InjectionPoint {
                         position: pos,
                         cost: 0,
@@ -231,7 +226,7 @@ fn inject_metering(
                     injection_points.push(dynamic);
                 }
                 _ => {
-                    curr.cost += instr_cost(instr, use_new_metering);
+                    curr.cost += instr_cost(instr);
                 }
             }
         }

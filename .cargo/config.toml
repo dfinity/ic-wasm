@@ -2,5 +2,4 @@
 rustflags = [
   "-C", "linker=c++"
 ]
-linker = "/nix/store/zh206nri10wwp68g7qf9ccya1irynx5g-clang-wrapper-16.0.6/bin/c++"
 

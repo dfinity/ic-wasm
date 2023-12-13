@@ -1,5 +1,6 @@
+[target.x86_64-apple-darwin]
+rustflags = [ "-C", "linker=c++" ]
+
 [target.aarch64-apple-darwin]
-rustflags = [
-  "-C", "linker=c++"
-]
+rustflags = [ "-C", "linker=c++" ]
 

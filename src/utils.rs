@@ -37,7 +37,7 @@ pub fn parse_wasm(bytes: &[u8], keep_name_section: bool) -> Result<Module, Error
     .map_err(Error::IO)?;
     let config = wasm_parser_config(keep_name_section);
     config
-        .parse(&*wasm)
+        .parse(&wasm)
         .map_err(|e| Error::WasmParse(e.to_string()))
 }
 

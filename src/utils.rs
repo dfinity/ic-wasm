@@ -64,7 +64,7 @@ pub fn parse_wasm_robust(bytes: Vec<u8>, keep_name_section: bool) -> Result<Modu
 }
 
 pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
-    let bytes = std::fs::read(file).map_err(|err| Error::IO(err))?;
+    let bytes = std::fs::read(file).map_err(Error::IO)?;
 
     parse_wasm_robust(bytes, keep_name_section)
 }

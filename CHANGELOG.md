@@ -6,7 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-### Added
+## [0.7.1]
+
+* `utils::parse_wasm` and `utils::parse_wasm_file` can take both gzipped and original Wasm inputs.
+
+## [0.3.0 -- 0.7.0]
+
+- Profiling
+  + Support profiling stable memory
+  + `__get_profiling` supports streaming data download
+  + Trace only a subset of functions
+  + Add `__toggle_entry` function
+  + Use the new cost model for metering
+- Add optimize command to use wasm-opt
 - Added support for JSON output to `ic-wasm info`.
 
 ## [0.2.0] - 2022-09-21

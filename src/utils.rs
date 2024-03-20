@@ -1,6 +1,12 @@
 use crate::Error;
 use std::collections::HashMap;
 use walrus::*;
+use libflate::gzip;
+use std::io::{self, Read};
+
+pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
+
+pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8, 0];
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();
@@ -9,18 +15,57 @@ fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     config
 }
 
-pub fn parse_wasm(wasm: &[u8], keep_name_section: bool) -> Result<Module, Error> {
+pub fn parse_wasm(bytes: &[u8], keep_name_section: bool) -> Result<Module, Error> {
+    let wasm = if bytes.starts_with(WASM_MAGIC_BYTES) {
+        Ok(bytes)
+    } else if bytes.starts_with(GZIPPED_WASM_MAGIC_BYTES) {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Please use parse_wasm_robust with gzipped inputs.",
+        ))
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Input must be uncompressed WASM.",
+        ))
+    }.map_err(Error::IO)?;
     let config = wasm_parser_config(keep_name_section);
     config
         .parse(wasm)
         .map_err(|e| Error::WasmParse(e.to_string()))
 }
 
-pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
+fn decompress(bytes: &[u8]) -> Result<Vec<u8>, std::io::Error> {
+    let mut decoder = gzip::Decoder::new(bytes)?;
+    let mut decoded_data = Vec::new();
+    decoder.read_to_end(&mut decoded_data)?;
+    Ok(decoded_data)
+}
+
+/// Similar to parse_wasm, but if the input is gzipped, first uncompresses it and then parses.
+pub fn parse_wasm_robust(bytes: Vec<u8>, keep_name_section: bool) -> Result<Module, Error> {
+    let wasm = if bytes.starts_with(WASM_MAGIC_BYTES) {
+        Ok(bytes)
+    } else if bytes.starts_with(GZIPPED_WASM_MAGIC_BYTES) {
+        decompress(&bytes[..])
+    } else {
+        Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "Input must be either gzipped or uncompressed WASM.",
+        ))
+    }.map_err(Error::IO)?;
+
     let config = wasm_parser_config(keep_name_section);
     config
-        .parse_file(file)
+        .parse(&wasm[..])
         .map_err(|e| Error::WasmParse(e.to_string()))
+}
+
+pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
+    let bytes = std::fs::read(file)
+        .map_err(|err| Error::IO(err))?;
+
+    parse_wasm_robust(bytes, keep_name_section)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

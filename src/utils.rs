@@ -1,8 +1,8 @@
 use crate::Error;
-use std::collections::HashMap;
-use walrus::*;
 use libflate::gzip;
+use std::collections::HashMap;
 use std::io::{self, Read};
+use walrus::*;
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
@@ -28,7 +28,8 @@ pub fn parse_wasm(bytes: &[u8], keep_name_section: bool) -> Result<Module, Error
             io::ErrorKind::InvalidInput,
             "Input must be uncompressed WASM.",
         ))
-    }.map_err(Error::IO)?;
+    }
+    .map_err(Error::IO)?;
     let config = wasm_parser_config(keep_name_section);
     config
         .parse(wasm)
@@ -53,7 +54,8 @@ pub fn parse_wasm_robust(bytes: Vec<u8>, keep_name_section: bool) -> Result<Modu
             io::ErrorKind::InvalidInput,
             "Input must be either gzipped or uncompressed WASM.",
         ))
-    }.map_err(Error::IO)?;
+    }
+    .map_err(Error::IO)?;
 
     let config = wasm_parser_config(keep_name_section);
     config
@@ -62,8 +64,7 @@ pub fn parse_wasm_robust(bytes: Vec<u8>, keep_name_section: bool) -> Result<Modu
 }
 
 pub fn parse_wasm_file(file: std::path::PathBuf, keep_name_section: bool) -> Result<Module, Error> {
-    let bytes = std::fs::read(file)
-        .map_err(|err| Error::IO(err))?;
+    let bytes = std::fs::read(file).map_err(|err| Error::IO(err))?;
 
     parse_wasm_robust(bytes, keep_name_section)
 }

@@ -60,6 +60,11 @@ fn instrumentation() {
         .assert()
         .success();
     assert_wasm("wat-instrument.wasm");
+    wasm_input("wat.wasm.gz", true)
+        .arg("instrument")
+        .assert()
+        .success();
+    assert_wasm("wat-instrument.wasm");
     wasm_input("rust.wasm", true)
         .arg("instrument")
         .assert()
@@ -82,6 +87,11 @@ fn shrink() {
         .success();
     assert_wasm("motoko-shrink.wasm");
     wasm_input("wat.wasm", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("wat-shrink.wasm");
+    wasm_input("wat.wasm.gz", true)
         .arg("shrink")
         .assert()
         .success();
@@ -140,6 +150,14 @@ fn resource() {
         .success();
     assert_wasm("motoko-limit.wasm");
     wasm_input("wat.wasm", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("wat-limit.wasm");
+    wasm_input("wat.wasm.gz", true)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
@@ -213,6 +231,11 @@ Custom sections with size: []
         .assert()
         .stdout(expected)
         .success();
+    wasm_input("wat.wasm.gz", false)
+        .arg("info")
+        .assert()
+        .stdout(expected)
+        .success();
 }
 
 #[test]
@@ -251,6 +274,12 @@ fn json_info() {
 }
 "#;
     wasm_input("wat.wasm", false)
+        .arg("info")
+        .arg("--json")
+        .assert()
+        .stdout(expected)
+        .success();
+    wasm_input("wat.wasm.gz", false)
         .arg("info")
         .arg("--json")
         .assert()

@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.7.3]
+
+* Enable WebAssembly SIMD in `optimize` subcommand.
+
+## [0.7.2]
+
+* Bump dependency for libflate
+
 ## [0.7.1]
 
 * `utils::parse_wasm` and `utils::parse_wasm_file` can take both gzipped and original Wasm inputs.

@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.7.2"
+version = "0.7.3"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -24,7 +24,7 @@ rustc-demangle = "0.1"
 thiserror = "1.0.35"
 libflate = "2.0"
 
-wasm-opt = { version = "0.113.0", optional = true }
+wasm-opt = { version = "0.116.0", optional = true }
 tempfile = { version = "3.5.0", optional = true }
 anyhow = { version = "1.0.34", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }

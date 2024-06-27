@@ -120,7 +120,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
             && id != dynamic_counter_func
             && id != dynamic_counter64_func
         {
-            let is_partial_tracing = trace_only_ids.get(&id).is_some();
+            let is_partial_tracing = trace_only_ids.contains(&id);
             inject_profiling_prints(&m.types, printer, id, func, is_partial_tracing, &vars);
         }
     }

@@ -90,6 +90,15 @@ pub fn optimize(
     if let Some(max_size) = always_inline_max_function_size {
         optimizations.always_inline_max_size(*max_size);
     }
+    // The feature set should be align with IC `wasmtime` validation config:
+    // https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
+    optimizations.enable_feature(wasm_opt::Feature::MutableGlobals);
+    optimizations.enable_feature(wasm_opt::Feature::TruncSat);
+    optimizations.enable_feature(wasm_opt::Feature::Simd);
+    optimizations.enable_feature(wasm_opt::Feature::BulkMemory);
+    optimizations.enable_feature(wasm_opt::Feature::SignExt);
+    optimizations.enable_feature(wasm_opt::Feature::ReferenceTypes);
+    optimizations.enable_feature(wasm_opt::Feature::Memory64);
     optimizations.run(temp_file.path(), temp_file.path())?;
 
     // read optimized wasm back in from temp file

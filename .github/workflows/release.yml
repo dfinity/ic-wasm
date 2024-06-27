@@ -16,7 +16,7 @@ jobs:
             name: linux64
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux64
-          - os: macos-latest
+          - os: macos-12
             name: macos
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos

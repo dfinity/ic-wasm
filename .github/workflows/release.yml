@@ -3,6 +3,7 @@ on:
   push:
     tags:
       - '*'
+  pull_request:
 jobs:
   build:
     name: Build for ${{ matrix.name }}
@@ -19,37 +20,16 @@ jobs:
             name: macos
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos
-          - os: ubuntu-latest
-            name: arm
-            artifact_name: target/arm-unknown-linux-gnueabihf/release/ic-wasm
-            asset_name: ic-wasm-arm32
     steps:
       - uses: actions/checkout@v2
       - name: Install stable toolchain
-        if: matrix.name != 'arm'
         uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: stable
           override: true
-      - name: Install stable toolchain
-        if: matrix.name == 'arm'
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: arm-unknown-linux-gnueabihf
       - name: Build
-        if: matrix.name != 'arm'
         run: cargo build --release --locked
-      - name: Cross build
-        if: matrix.name == 'arm'
-        uses: actions-rs/cargo@v1
-        with:
-          use-cross: true
-          command: build
-          args: --target arm-unknown-linux-gnueabihf --release --locked
       - name: 'Upload assets'
         uses: actions/upload-artifact@v3
         with:
@@ -97,8 +77,6 @@ jobs:
           #   Building from source is time-consuming, hence the preference for `cargo binstall` over `cargo install` that always builds from source.
           - asset_name: ic-wasm-linux64
             binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
-          - asset_name: ic-wasm-arm32
-            binstall_name: ic-wasm-arm-unknown-linux-gnueabihf.tar.gz
           - asset_name: ic-wasm-macos
             binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
     runs-on: ubuntu-latest

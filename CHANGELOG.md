@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.8.0]
+
+* Upgrade dependency walrus.
+
 ## [0.7.3]
 
 * Enable WebAssembly SIMD in `optimize` subcommand.

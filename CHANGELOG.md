@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.8.0]
 
 * Upgrade dependency walrus.
+  * This enables ic-wasm to process memory64 Wasm modules.
 
 ## [0.7.3]
 

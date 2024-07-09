@@ -69,21 +69,21 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     }
     let is_partial_tracing = !trace_only_ids.is_empty();
     let func_cost = FunctionCost::new(m);
-    let total_counter = m
-        .globals
-        .add_local(ValType::I64, true, InitExpr::Value(Value::I64(0)));
+    let total_counter =
+        m.globals
+            .add_local(ValType::I64, true, false, ConstExpr::Value(Value::I64(0)));
     let log_size = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let page_size = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let is_init = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(1)));
     let is_entry = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let opt_init = if is_partial_tracing {
         Some(is_init)
     } else {

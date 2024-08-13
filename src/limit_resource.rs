@@ -14,8 +14,8 @@ struct CyclesAdd {
     cycles_add: FunctionId,
     old_cycles_add128: FunctionId,
     new_cycles_add128: FunctionId,
-    //old_cycles_burn128: FunctionId,
-    //new_cycles_burn128: FunctionId,
+    old_cycles_burn128: FunctionId,
+    new_cycles_burn128: FunctionId,
 }
 #[derive(Copy, Clone)]
 struct StableGrow {
@@ -49,13 +49,13 @@ impl VisitorMut for Replacer {
                     }
                     .into();
                     return;
-                } /* else if *func == ids.old_cycles_burn128 {
-                      *instr = Call {
-                          func: ids.new_cycles_burn128,
-                      }
-                      .into();
-                      return;
-                  }*/
+                } else if *func == ids.old_cycles_burn128 {
+                    *instr = Call {
+                        func: ids.new_cycles_burn128,
+                    }
+                    .into();
+                    return;
+                }
             }
             if let Some(ids) = &self.stable_grow {
                 if *func == ids.old_grow {
@@ -91,15 +91,15 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
     let cycles_add = if has_cycles_add && config.remove_cycles_add {
         let cycles_add = get_ic_func_id(m, "call_cycles_add");
         let old_cycles_add128 = get_ic_func_id(m, "call_cycles_add128");
-        //let old_cycles_burn128 = get_ic_func_id(m, "cycles_burn128");
+        let old_cycles_burn128 = get_ic_func_id(m, "cycles_burn128");
         let new_cycles_add128 = make_cycles_add128(m);
-        //let new_cycles_burn128 = make_cycles_burn128(m);
+        let new_cycles_burn128 = make_cycles_burn128(m);
         Some(CyclesAdd {
             cycles_add,
             old_cycles_add128,
             new_cycles_add128,
-            //old_cycles_burn128,
-            //new_cycles_burn128,
+            old_cycles_burn128,
+            new_cycles_burn128,
         })
     } else {
         None
@@ -139,9 +139,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
         if let Some(ids) = &cycles_add {
-            if id == ids.new_cycles_add128
-            /*|| id == ids.new_cycles_burn128*/
-            {
+            if id == ids.new_cycles_add128 || id == ids.new_cycles_burn128 {
                 return;
             }
         }
@@ -179,7 +177,6 @@ fn make_cycles_add128(m: &mut Module) -> FunctionId {
         .drop();
     builder.finish(vec![high, low], &mut m.funcs)
 }
-/*
 fn make_cycles_burn128(m: &mut Module) -> FunctionId {
     let mut builder = FunctionBuilder::new(
         &mut m.types,
@@ -198,7 +195,7 @@ fn make_cycles_burn128(m: &mut Module) -> FunctionId {
         .drop()
         .drop();
     builder.finish(vec![high, low, dst], &mut m.funcs)
-}*/
+}
 fn make_grow_func(m: &mut Module, limit: i32) -> FunctionId {
     let size = get_ic_func_id(m, "stable_size");
     let grow = get_ic_func_id(m, "stable_grow");
@@ -278,6 +275,12 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "stop_canister",
         "start_canister",
         "delete_canister",
+        "list_canister_snapshots",
+        "take_canister_snapshot",
+        "load_canister_snapshot",
+        "delete_canister_snapshot",
+        // These functions doesn't require controller permissions, but needs cycles
+        "http_request",
     ];
 
     let mut builder = FunctionBuilder::new(

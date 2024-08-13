@@ -51,8 +51,6 @@ jobs:
             asset_name: ic-wasm-macos
           - os: macos-12
             asset_name: ic-wasm-macos
-          #- os: macos-11
-          #  asset_name: ic-wasm-macos
     steps:
       - name: Get executable
         id: download

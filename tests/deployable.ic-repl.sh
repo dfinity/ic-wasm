@@ -65,7 +65,7 @@ function classes(wasm) {
   call S.get(42);
   assert _ == opt "text2";
   read_state("canister", S, "metadata/candid:args");
-  assert _ == blob "()";
+  assert _ == "()";
   read_state("canister", S, "metadata/motoko:compiler");
   assert _ == blob "0.6.26";
   S

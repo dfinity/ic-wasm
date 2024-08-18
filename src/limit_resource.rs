@@ -259,6 +259,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
     // Scratch variables
     let no_redirect = m.locals.add(ValType::I32);
+    let is_rename = m.locals.add(ValType::I32);
     let mut memory_backup = Vec::new();
     for _ in 0..redirect_id.len() {
         memory_backup.push(m.locals.add(ValType::I32));
@@ -280,7 +281,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "load_canister_snapshot",
         "delete_canister_snapshot",
         // These functions doesn't require controller permissions, but needs cycles
-        "http_request",
+        "http_request",  // Will be renamed to "_ttp_request", because the name conflicts with the http serving endpoint.
     ];
 
     let mut builder = FunctionBuilder::new(
@@ -342,6 +343,11 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                             .br_if(name_check_id);
                     }
                     // Function names were equal, so skip all remaining checks and redirect
+                    if func_name == "http_request" {
+                        name_check.i32_const(1).local_set(is_rename);
+                    } else {
+                        name_check.i32_const(0).local_set(is_rename);
+                    }
                     name_check.i32_const(0).local_set(no_redirect).br(checks_id);
                 });
             }
@@ -397,7 +403,20 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                             },
                         );
                 }
-
+                block.local_get(is_rename).if_else(
+                    None,
+                    |then| {
+                        then.local_get(name_src).i32_const('_' as i32).store(
+                            memory,
+                            StoreKind::I32_8 { atomic: false },
+                            MemArg {
+                                offset: 0,
+                                align: 1,
+                            },
+                        );
+                    },
+                    |_| {},
+                );
                 block
                     .i32_const(0)
                     .i32_const(redirect_id.len() as i32)

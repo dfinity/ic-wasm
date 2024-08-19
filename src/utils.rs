@@ -7,7 +7,7 @@ use walrus::*;
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
-pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8, 0];
+pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();

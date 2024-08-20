@@ -9,8 +9,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      DFX_VERSION: 0.14.2
-      IC_REPL_VERSION: 0.4.0
+      DFX_VERSION: 0.22.0
+      IC_REPL_VERSION: 0.7.4
     steps:
       - uses: actions/checkout@v2
       - name: Install dfx

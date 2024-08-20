@@ -14,8 +14,8 @@ struct CyclesAdd {
     cycles_add: FunctionId,
     old_cycles_add128: FunctionId,
     new_cycles_add128: FunctionId,
-    //old_cycles_burn128: FunctionId,
-    //new_cycles_burn128: FunctionId,
+    old_cycles_burn128: FunctionId,
+    new_cycles_burn128: FunctionId,
 }
 #[derive(Copy, Clone)]
 struct StableGrow {
@@ -49,13 +49,13 @@ impl VisitorMut for Replacer {
                     }
                     .into();
                     return;
-                } /* else if *func == ids.old_cycles_burn128 {
-                      *instr = Call {
-                          func: ids.new_cycles_burn128,
-                      }
-                      .into();
-                      return;
-                  }*/
+                } else if *func == ids.old_cycles_burn128 {
+                    *instr = Call {
+                        func: ids.new_cycles_burn128,
+                    }
+                    .into();
+                    return;
+                }
             }
             if let Some(ids) = &self.stable_grow {
                 if *func == ids.old_grow {
@@ -91,15 +91,15 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
     let cycles_add = if has_cycles_add && config.remove_cycles_add {
         let cycles_add = get_ic_func_id(m, "call_cycles_add");
         let old_cycles_add128 = get_ic_func_id(m, "call_cycles_add128");
-        //let old_cycles_burn128 = get_ic_func_id(m, "cycles_burn128");
+        let old_cycles_burn128 = get_ic_func_id(m, "cycles_burn128");
         let new_cycles_add128 = make_cycles_add128(m);
-        //let new_cycles_burn128 = make_cycles_burn128(m);
+        let new_cycles_burn128 = make_cycles_burn128(m);
         Some(CyclesAdd {
             cycles_add,
             old_cycles_add128,
             new_cycles_add128,
-            //old_cycles_burn128,
-            //new_cycles_burn128,
+            old_cycles_burn128,
+            new_cycles_burn128,
         })
     } else {
         None
@@ -139,9 +139,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
         if let Some(ids) = &cycles_add {
-            if id == ids.new_cycles_add128
-            /*|| id == ids.new_cycles_burn128*/
-            {
+            if id == ids.new_cycles_add128 || id == ids.new_cycles_burn128 {
                 return;
             }
         }
@@ -179,7 +177,6 @@ fn make_cycles_add128(m: &mut Module) -> FunctionId {
         .drop();
     builder.finish(vec![high, low], &mut m.funcs)
 }
-/*
 fn make_cycles_burn128(m: &mut Module) -> FunctionId {
     let mut builder = FunctionBuilder::new(
         &mut m.types,
@@ -198,7 +195,7 @@ fn make_cycles_burn128(m: &mut Module) -> FunctionId {
         .drop()
         .drop();
     builder.finish(vec![high, low, dst], &mut m.funcs)
-}*/
+}
 fn make_grow_func(m: &mut Module, limit: i32) -> FunctionId {
     let size = get_ic_func_id(m, "stable_size");
     let grow = get_ic_func_id(m, "stable_grow");
@@ -262,6 +259,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
 
     // Scratch variables
     let no_redirect = m.locals.add(ValType::I32);
+    let is_rename = m.locals.add(ValType::I32);
     let mut memory_backup = Vec::new();
     for _ in 0..redirect_id.len() {
         memory_backup.push(m.locals.add(ValType::I32));
@@ -278,6 +276,12 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "stop_canister",
         "start_canister",
         "delete_canister",
+        "list_canister_snapshots",
+        "take_canister_snapshot",
+        "load_canister_snapshot",
+        "delete_canister_snapshot",
+        // These functions doesn't require controller permissions, but needs cycles
+        "http_request", // Will be renamed to "_ttp_request", because the name conflicts with the http serving endpoint.
     ];
 
     let mut builder = FunctionBuilder::new(
@@ -339,6 +343,11 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                             .br_if(name_check_id);
                     }
                     // Function names were equal, so skip all remaining checks and redirect
+                    if func_name == "http_request" {
+                        name_check.i32_const(1).local_set(is_rename);
+                    } else {
+                        name_check.i32_const(0).local_set(is_rename);
+                    }
                     name_check.i32_const(0).local_set(no_redirect).br(checks_id);
                 });
             }
@@ -394,7 +403,20 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                             },
                         );
                 }
-
+                block.local_get(is_rename).if_else(
+                    None,
+                    |then| {
+                        then.local_get(name_src).i32_const('_' as i32).store(
+                            memory,
+                            StoreKind::I32_8 { atomic: false },
+                            MemArg {
+                                offset: 0,
+                                align: 1,
+                            },
+                        );
+                    },
+                    |_| {},
+                );
                 block
                     .i32_const(0)
                     .i32_const(redirect_id.len() as i32)

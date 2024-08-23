@@ -6,6 +6,7 @@ use crate::utils::*;
 pub struct Config {
     pub remove_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
+    pub limit_heap_memory_page: Option<u32>,
     pub playground_canister_id: Option<candid::Principal>,
 }
 
@@ -82,6 +83,10 @@ impl VisitorMut for Replacer {
 }
 
 pub fn limit_resource(m: &mut Module, config: &Config) {
+    if let Some(limit) = config.limit_heap_memory_page {
+        limit_heap_memory(m, limit);
+    }
+
     let has_cycles_add = m
         .imports
         .find("ic0", "call_cycles_add")
@@ -163,6 +168,18 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
             func.entry_block(),
         );
     });
+}
+
+fn limit_heap_memory(m: &mut Module, limit: u32) {
+    // mqulti-memory is disabled at compilation
+    if let Some(memory) = m.memories.iter_mut().next() {
+        // if initial value is already over our limit, we restrict the maximum to the initial value
+        if memory.initial >= limit as u64 {
+            memory.maximum = Some(memory.initial)
+        } else {
+            memory.maximum = Some(limit as u64)
+        }
+    }
 }
 
 fn make_cycles_add128(m: &mut Module) -> FunctionId {

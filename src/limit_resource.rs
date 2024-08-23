@@ -173,12 +173,11 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
 fn limit_heap_memory(m: &mut Module, limit: u32) {
     // mqulti-memory is disabled at compilation
     if let Some(memory) = m.memories.iter_mut().next() {
-        // if initial value is already over our limit, we restrict the maximum to the initial value
-        if memory.initial >= limit as u64 {
-            memory.maximum = Some(memory.initial)
-        } else {
-            memory.maximum = Some(limit as u64)
+        let limit = limit as u64;
+        if memory.initial > limit {
+            memory.initial = limit
         }
+        memory.maximum = Some(limit);
     }
 }
 

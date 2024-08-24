@@ -39,6 +39,9 @@ enum SubCommand {
         /// Remove cycles_add system API call
         #[clap(short, long)]
         remove_cycles_transfer: bool,
+        /// Allocate at most specified amount of memory pages for Wasm heap memory
+        #[clap(short('m'), long)]
+        limit_heap_memory_page: Option<u32>,
         /// Allocate at most specified amount of memory pages for stable memory
         #[clap(short, long)]
         limit_stable_memory_page: Option<u32>,
@@ -134,12 +137,14 @@ fn main() -> anyhow::Result<()> {
         }
         SubCommand::Resource {
             remove_cycles_transfer,
+            limit_heap_memory_page,
             limit_stable_memory_page,
             playground_backend_redirect,
         } => {
             use ic_wasm::limit_resource::{limit_resource, Config};
             let config = Config {
                 remove_cycles_add: *remove_cycles_transfer,
+                limit_heap_memory_page: *limit_heap_memory_page,
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,
             };

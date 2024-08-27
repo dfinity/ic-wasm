@@ -171,13 +171,14 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
 }
 
 fn limit_heap_memory(m: &mut Module, limit: u32) {
-    let memory_id = m.get_memory_id().expect("unable to get memory id");
-    let memory = m.memories.get_mut(memory_id);
-    let limit = limit as u64;
-    if memory.initial > limit {
-        memory.initial = limit
+    if let Ok(memory_id) = m.get_memory_id() {
+        let memory = m.memories.get_mut(memory_id);
+        let limit = limit as u64;
+        if memory.initial > limit {
+            memory.initial = limit
+        }
+        memory.maximum = Some(limit);
     }
-    memory.maximum = Some(limit);
 }
 
 fn make_cycles_add128(m: &mut Module) -> FunctionId {

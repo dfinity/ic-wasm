@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+
 use std::fs;
 use std::path::Path;
 
@@ -32,6 +33,21 @@ fn assert_wasm(expected: &str) {
             );
         }
     }
+}
+
+fn assert_functions_are_named() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let out = path.join("out.wasm");
+
+    let module = walrus::Module::from_file(out).unwrap();
+    let name_count = module.funcs.iter().filter(|f| f.name.is_some()).count();
+    let total = module.funcs.iter().count();
+    // Walrus doesn't give direct access to the name section, but as a proxy
+    // just check that moste functions have names.
+    assert!(
+        name_count > total / 2,
+        "Module has {total} functions but only {name_count} have names."
+    )
 }
 
 #[test]
@@ -351,4 +367,24 @@ icp:public whatever
 "#,
         )
         .success();
+}
+
+#[test]
+fn metadata_keep_name_section() {
+    for file in [
+        "motoko.wasm",
+        "classes.wasm",
+        "motoko-region.wasm",
+        "rust.wasm",
+    ] {
+        wasm_input(file, true)
+            .arg("metadata")
+            .arg("foo")
+            .arg("-d")
+            .arg("hello")
+            .arg("--keep-name-section")
+            .assert()
+            .success();
+        assert_functions_are_named();
+    }
 }

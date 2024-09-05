@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.8.4] - 2024-09-05
+
+* Add `keep_name_section` option to the `metadata` subcommand.
+
 ## [0.8.3] - 2024-08-27
 
 * Fix memory id in limit_resource.

@@ -6,24 +6,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-## [0.8.1]
+## [0.8.3] - 2024-08-27
 
-* Redirect canister snapshot calls in `limit_resource` module
+* Fix memory id in limit_resource.
 
-## [0.8.0]
+## [0.8.2] - 2024-08-27
+
+* Add support for limiting Wasm heap memory.
+
+## [0.8.1] - 2024-08-20
+
+* Redirect canister snapshot calls in `limit_resource` module.
+
+## [0.8.0] - 2024-07-09
 
 * Upgrade dependency walrus.
   * This enables ic-wasm to process memory64 Wasm modules.
 
-## [0.7.3]
+## [0.7.3] - 2024-06-27
 
 * Enable WebAssembly SIMD in `optimize` subcommand.
 
-## [0.7.2]
+## [0.7.2] - 2024-04-06
 
 * Bump dependency for libflate
 
-## [0.7.1]
+## [0.7.1] - 2024-03-20
 
 * `utils::parse_wasm` and `utils::parse_wasm_file` can take both gzipped and original Wasm inputs.
 

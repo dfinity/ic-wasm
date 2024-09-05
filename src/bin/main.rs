@@ -33,6 +33,8 @@ enum SubCommand {
         /// Visibility of metadata
         #[clap(short, long, value_parser = ["public", "private"], default_value = "private")]
         visibility: String,
+        #[clap(short, long)]
+        keep_name_section: bool,
     },
     /// Limit resource usage
     Resource {
@@ -92,6 +94,9 @@ fn main() -> anyhow::Result<()> {
         SubCommand::Shrink { keep_name_section } => keep_name_section,
         #[cfg(feature = "wasm-opt")]
         SubCommand::Optimize {
+            keep_name_section, ..
+        } => keep_name_section,
+        SubCommand::Metadata {
             keep_name_section, ..
         } => keep_name_section,
         _ => false,
@@ -155,6 +160,7 @@ fn main() -> anyhow::Result<()> {
             data,
             file,
             visibility,
+            keep_name_section: _,
         } => {
             use ic_wasm::metadata::*;
             if let Some(name) = name {

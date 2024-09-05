@@ -298,6 +298,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "delete_canister_snapshot",
         // These functions doesn't require controller permissions, but needs cycles
         "http_request", // Will be renamed to "_ttp_request", because the name conflicts with the http serving endpoint.
+        "_ttp_request", // need to redirect renamed function as well, because the second time we see this function, it's already renamed in memory
     ];
 
     let mut builder = FunctionBuilder::new(

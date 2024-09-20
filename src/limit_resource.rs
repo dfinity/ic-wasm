@@ -182,24 +182,32 @@ fn limit_heap_memory(m: &mut Module, limit: u32) {
             // In that case, we don't restrict the heap memory limit as it could
             // have undefined behaviour.
 
-            if m.data.iter().all(|data| {
-                let offset = match data.kind {
-                    DataKind::Passive => {
-                        return true;
-                    }
-                    DataKind::Active { memory: _, offset } => {
-                        match offset {
-                            ConstExpr::Value(Value::I32(offset)) => offset as u64,
-                            ConstExpr::Value(Value::I64(offset)) => offset as u64,
-                            _ => {
-                                // It wouldn't pass IC wasm validation
-                                return false;
+            if m.data
+                .iter()
+                .filter_map(|data| {
+                    match data.kind {
+                        DataKind::Passive => None,
+                        DataKind::Active {
+                            memory: data_memory_id,
+                            offset,
+                        } => {
+                            if data_memory_id == memory_id {
+                                match offset {
+                                    ConstExpr::Value(Value::I32(offset)) => Some(offset as u64),
+                                    ConstExpr::Value(Value::I64(offset)) => Some(offset as u64),
+                                    _ => {
+                                        // It wouldn't pass IC wasm validation
+                                        None
+                                    }
+                                }
+                            } else {
+                                None
                             }
                         }
                     }
-                };
-                offset < limit * 65536
-            }) {
+                })
+                .all(|offset| offset < limit * 65536)
+            {
                 memory.initial = limit;
             } else {
                 eprintln!("Unable to restrict Wasm heap memory to {} pages", limit);

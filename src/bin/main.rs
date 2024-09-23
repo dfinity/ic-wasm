@@ -33,6 +33,9 @@ enum SubCommand {
         /// Visibility of metadata
         #[clap(short, long, value_parser = ["public", "private"], default_value = "private")]
         visibility: String,
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
         #[clap(short, long)]
         keep_name_section: bool,
     },
@@ -59,6 +62,9 @@ enum SubCommand {
     },
     /// Remove unused functions and debug info
     Shrink {
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
         #[clap(short, long)]
         keep_name_section: bool,
     },
@@ -71,6 +77,9 @@ enum SubCommand {
         inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
         always_inline_max_function_size: Option<u32>,
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
         #[clap(short, long)]
         keep_name_section: bool,
     },

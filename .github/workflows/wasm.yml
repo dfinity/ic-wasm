@@ -12,7 +12,7 @@ jobs:
       DFX_VERSION: 0.22.0
       IC_REPL_VERSION: 0.7.4
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install dfx
         uses: dfinity/setup-dfx@main
         with:

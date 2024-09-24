@@ -20,17 +20,11 @@ jobs:
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos
     steps:
-      - uses: actions/checkout@v2
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: actions/checkout@v4
       - name: Build
         run: cargo build --release --locked
       - name: 'Upload assets'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.artifact_name }}
@@ -54,7 +48,7 @@ jobs:
     steps:
       - name: Get executable
         id: download
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
       - name: Executable runs
@@ -79,7 +73,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Get executable
-        uses: actions/download-artifact@v4.1.7
+        uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
       - name: Upload binaries to release

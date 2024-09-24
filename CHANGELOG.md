@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.8.6] - 2024-09-24
+
+* Add data section check when limiting Wasm heap memory.
+
 ## [0.8.5] - 2024-09-05
 
 * Fix http_request redirect.

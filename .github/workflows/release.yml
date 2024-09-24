@@ -21,12 +21,6 @@ jobs:
             asset_name: ic-wasm-macos
     steps:
       - uses: actions/checkout@v4
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
       - name: Build
         run: cargo build --release --locked
       - name: 'Upload assets'

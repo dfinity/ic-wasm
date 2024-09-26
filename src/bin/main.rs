@@ -90,7 +90,7 @@ enum SubCommand {
         trace_only: Option<Vec<String>>,
         /// If the canister preallocates a stable memory region, specify the starting page. Required if you want to profile upgrades, or the canister uses stable memory
         #[clap(short, long)]
-        start_page: Option<i32>,
+        start_page: Option<i64>,
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,

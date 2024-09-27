@@ -90,7 +90,7 @@ enum SubCommand {
         trace_only: Option<Vec<String>>,
         /// If the canister preallocates a stable memory region, specify the starting page. Required if you want to profile upgrades, or the canister uses stable memory
         #[clap(short, long)]
-        start_page: Option<i64>,
+        start_page: Option<i32>,
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,
@@ -144,7 +144,7 @@ fn main() -> anyhow::Result<()> {
             use ic_wasm::instrumentation::{instrument, Config};
             let config = Config {
                 trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
-                start_address: start_page.map(|page| page * 65536),
+                start_address: start_page.map(|page| i64::from(page) * 65536),
                 page_limit: *page_limit,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;

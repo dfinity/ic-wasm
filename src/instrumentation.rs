@@ -50,9 +50,11 @@ impl Config {
         self.start_address.unwrap_or(0)
     }
     pub fn page_limit(&self) -> i64 {
-        self.page_limit
-            .map(|x| x - 1)
-            .unwrap_or(DEFAULT_PAGE_LIMIT - 1) as i64 // minus 1 because of metadata
+        i64::from(
+            self.page_limit
+                .map(|x| x - 1)
+                .unwrap_or(DEFAULT_PAGE_LIMIT - 1),
+        ) // minus 1 because of metadata
     }
 }
 
@@ -468,7 +470,8 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
             .binop(BinaryOp::I32Mul)
             .i32_const(METADATA_SIZE)
             .binop(BinaryOp::I32Sub)
-            .unop(UnaryOp::I64ExtendUI32);
+            // SI because it can be negative
+            .unop(UnaryOp::I64ExtendSI32);
     }
     builder
         .func_body()

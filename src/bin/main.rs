@@ -144,7 +144,7 @@ fn main() -> anyhow::Result<()> {
             use ic_wasm::instrumentation::{instrument, Config};
             let config = Config {
                 trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
-                start_address: start_page.map(|page| page * 65536),
+                start_address: start_page.map(|page| i64::from(page) * 65536),
                 page_limit: *page_limit,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;

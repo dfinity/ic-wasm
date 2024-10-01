@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.8.6"
+version = "0.9.0"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -20,7 +20,7 @@ required-features = ["exe"]
 [dependencies]
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
-walrus = "0.21.1" 
+walrus = "0.22.0" 
 candid = "0.10"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"

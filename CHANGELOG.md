@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.9.0] - 2024-10-01
+
+* (breaking) Use 64bit API for stable memory in profiling and bump walrus
+
 ## [0.8.6] - 2024-09-24
 
 * Add data section check when limiting Wasm heap memory.

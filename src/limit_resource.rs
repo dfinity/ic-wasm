@@ -1,3 +1,4 @@
+use candid::Principal;
 use walrus::ir::*;
 use walrus::*;
 
@@ -295,6 +296,58 @@ fn make_grow64_func(m: &mut Module, limit: i64) -> FunctionId {
         );
     builder.finish(vec![requested], &mut m.funcs)
 }
+fn check_list(
+    memory: MemoryId,
+    checks: &mut InstrSeqBuilder,
+    no_redirect: LocalId,
+    size: LocalId,
+    src: LocalId,
+    is_rename: Option<LocalId>,
+    list: &Vec<&[u8]>,
+) {
+    let checks_id = checks.id();
+    for bytes in list {
+        checks.block(None, |list_check| {
+            let list_check_id = list_check.id();
+            // Check the length
+            list_check
+                .local_get(size)
+                .i32_const(bytes.len() as i32)
+                .binop(BinaryOp::I32Ne)
+                .br_if(list_check_id);
+            // Load bytes at src onto the stack
+            for i in 0..bytes.len() {
+                list_check.local_get(src).load(
+                    memory,
+                    LoadKind::I32_8 {
+                        kind: ExtendedLoad::SignExtend,
+                    },
+                    MemArg {
+                        offset: i as u32,
+                        align: 1,
+                    },
+                );
+            }
+            for byte in bytes.iter().rev() {
+                list_check
+                    .i32_const(*byte as i32)
+                    .binop(BinaryOp::I32Ne)
+                    .br_if(list_check_id);
+            }
+            // names were equal, so skip all remaining checks and redirect
+            if let Some(is_rename) = is_rename {
+                if bytes == b"http_request" {
+                    list_check.i32_const(1).local_set(is_rename);
+                } else {
+                    list_check.i32_const(0).local_set(is_rename);
+                }
+            }
+            list_check.i32_const(0).local_set(no_redirect).br(checks_id);
+        });
+        // None matched
+        checks.i32_const(1).local_set(no_redirect).br(checks_id);
+    }
+}
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     // Specify the same args as `call_new` so that WASM will correctly check mismatching args
     let callee_src = m.locals.add(ValType::I32);
@@ -316,6 +369,10 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     for _ in 0..redirect_id.len() {
         memory_backup.push(m.locals.add(ValType::I32));
     }
+    let redirect_canisters = [
+        Principal::from_slice(&[]),
+        Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
+    ];
 
     // All management canister functions that require controller permissions
     // The following wasm code assumes that this list is non-empty
@@ -333,6 +390,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "load_canister_snapshot",
         "delete_canister_snapshot",
         // These functions doesn't require controller permissions, but needs cycles
+        "sign_with_ecdsa",
         "http_request", // Will be renamed to "_ttp_request", because the name conflicts with the http serving endpoint.
         "_ttp_request", // need to redirect renamed function as well, because the second time we see this function, it's already renamed in memory
     ];
@@ -355,58 +413,32 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     builder
         .func_body()
         .block(None, |checks| {
-            let checks_id = checks.id();
-
-            // Check that callee address is empty
-            checks
-                .local_get(callee_size)
-                .i32_const(0)
-                .binop(BinaryOp::I32Ne)
-                .local_tee(no_redirect)
-                .br_if(checks_id);
-
-            // Check if the function name is any of the ones to be redirected
-            for func_name in controller_function_names {
-                checks.block(None, |name_check| {
-                    let name_check_id = name_check.id();
-                    name_check
-                        // Check that name_size is the same length as the function name
-                        .local_get(name_size)
-                        .i32_const(func_name.len() as i32)
-                        .binop(BinaryOp::I32Ne)
-                        .br_if(name_check_id);
-
-                    // Load the string at name_src onto the stack and compare it to the function name
-                    for i in 0..func_name.len() {
-                        name_check.local_get(name_src).load(
-                            memory,
-                            LoadKind::I32_8 {
-                                kind: ExtendedLoad::SignExtend,
-                            },
-                            MemArg {
-                                offset: i as u32,
-                                align: 1,
-                            },
-                        );
-                    }
-                    for c in func_name.chars().rev() {
-                        name_check
-                            .i32_const(c as i32)
-                            .binop(BinaryOp::I32Ne)
-                            .br_if(name_check_id);
-                    }
-                    // Function names were equal, so skip all remaining checks and redirect
-                    if func_name == "http_request" {
-                        name_check.i32_const(1).local_set(is_rename);
-                    } else {
-                        name_check.i32_const(0).local_set(is_rename);
-                    }
-                    name_check.i32_const(0).local_set(no_redirect).br(checks_id);
-                });
-            }
-
-            // None of the function names matched
-            checks.i32_const(1).local_set(no_redirect);
+            // Check that callee address is empty or EVM
+            check_list(
+                memory,
+                checks,
+                no_redirect,
+                callee_size,
+                callee_src,
+                None,
+                &redirect_canisters
+                    .iter()
+                    .map(|p| p.as_slice())
+                    .collect::<Vec<_>>(),
+            );
+            // Callee address matches, check method name is in the list
+            check_list(
+                memory,
+                checks,
+                no_redirect,
+                name_size,
+                name_src,
+                Some(is_rename),
+                &controller_function_names
+                    .iter()
+                    .map(|s| s.as_bytes())
+                    .collect::<Vec<_>>(),
+            );
         })
         .local_get(no_redirect)
         .if_else(

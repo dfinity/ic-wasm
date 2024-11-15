@@ -423,7 +423,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     builder
         .func_body()
         .block(None, |checks| {
-            // Check that callee address is empty or EVM
+            // Check if callee address is from redirect_canisters
             check_list(
                 memory,
                 checks,

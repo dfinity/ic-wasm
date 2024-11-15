@@ -374,8 +374,9 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
     ];
 
-    // All management canister functions that require controller permissions
-    // The following wasm code assumes that this list is non-empty
+    // All functions that require controller permissions or cycles.
+    // For simplicity, We mingle all canister methods in a single list.
+    // Method names shouldn't overlap.
     let controller_function_names = [
         "create_canister",
         "update_settings",
@@ -393,6 +394,15 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
         "sign_with_ecdsa",
         "http_request", // Will be renamed to "_ttp_request", because the name conflicts with the http serving endpoint.
         "_ttp_request", // need to redirect renamed function as well, because the second time we see this function, it's already renamed in memory
+        // methods from evm canister
+        "eth_call",
+        "eth_feeHistory",
+        "eth_getBlockByNumber",
+        "eth_getLogs",
+        "eth_getTransactionCount",
+        "eth_getTransactionReceipt",
+        "eth_sendRawTransaction",
+        "request",
     ];
 
     let mut builder = FunctionBuilder::new(

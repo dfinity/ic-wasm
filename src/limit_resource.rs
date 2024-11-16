@@ -344,9 +344,9 @@ fn check_list(
             }
             list_check.i32_const(0).local_set(no_redirect).br(checks_id);
         });
-        // None matched
-        checks.i32_const(1).local_set(no_redirect);
     }
+    // None matched
+    checks.i32_const(1).local_set(no_redirect);
 }
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     // Specify the same args as `call_new` so that WASM will correctly check mismatching args

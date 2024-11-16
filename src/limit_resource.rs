@@ -345,7 +345,7 @@ fn check_list(
             list_check.i32_const(0).local_set(no_redirect).br(checks_id);
         });
         // None matched
-        checks.i32_const(1).local_set(no_redirect).br(checks_id);
+        checks.i32_const(1).local_set(no_redirect);
     }
 }
 fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
@@ -423,32 +423,45 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     builder
         .func_body()
         .block(None, |checks| {
+            let checks_id = checks.id();
             // Check if callee address is from redirect_canisters
-            check_list(
-                memory,
-                checks,
-                no_redirect,
-                callee_size,
-                callee_src,
-                None,
-                &redirect_canisters
-                    .iter()
-                    .map(|p| p.as_slice())
-                    .collect::<Vec<_>>(),
-            );
-            // Callee address matches, check method name is in the list
-            check_list(
-                memory,
-                checks,
-                no_redirect,
-                name_size,
-                name_src,
-                Some(is_rename),
-                &controller_function_names
-                    .iter()
-                    .map(|s| s.as_bytes())
-                    .collect::<Vec<_>>(),
-            );
+            checks
+                .block(None, |id_check| {
+                    check_list(
+                        memory,
+                        id_check,
+                        no_redirect,
+                        callee_size,
+                        callee_src,
+                        None,
+                        &redirect_canisters
+                            .iter()
+                            .map(|p| p.as_slice())
+                            .collect::<Vec<_>>(),
+                    );
+                })
+                .local_get(no_redirect)
+                .if_else(
+                    None,
+                    |then| {
+                        then.br(checks_id);
+                    },
+                    |else_| {
+                        // Callee address matches, check method name is in the list
+                        check_list(
+                            memory,
+                            else_,
+                            no_redirect,
+                            name_size,
+                            name_src,
+                            Some(is_rename),
+                            &controller_function_names
+                                .iter()
+                                .map(|s| s.as_bytes())
+                                .collect::<Vec<_>>(),
+                        )
+                    },
+                );
         })
         .local_get(no_redirect)
         .if_else(

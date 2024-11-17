@@ -359,6 +359,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     let arg7 = m.locals.add(ValType::I32);
     let arg8 = m.locals.add(ValType::I32);
     let call_new = get_ic_func_id(m, "call_new");
+    let trap = get_ic_func_id(m, "trap");
 
     let memory = get_memory_id(m);
 
@@ -441,27 +442,20 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                     );
                 })
                 .local_get(no_redirect)
-                .if_else(
-                    None,
-                    |then| {
-                        then.br(checks_id);
-                    },
-                    |else_| {
-                        // Callee address matches, check method name is in the list
-                        check_list(
-                            memory,
-                            else_,
-                            no_redirect,
-                            name_size,
-                            name_src,
-                            Some(is_rename),
-                            &controller_function_names
-                                .iter()
-                                .map(|s| s.as_bytes())
-                                .collect::<Vec<_>>(),
-                        )
-                    },
-                );
+                .br_if(checks_id);
+            // Callee address matches, check method name is in the list
+            check_list(
+                memory,
+                checks,
+                no_redirect,
+                name_size,
+                name_src,
+                Some(is_rename),
+                &controller_function_names
+                    .iter()
+                    .map(|s| s.as_bytes())
+                    .collect::<Vec<_>>(),
+            );
         })
         .local_get(no_redirect)
         .if_else(

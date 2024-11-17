@@ -213,6 +213,13 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("classes-nop-redirect.wasm");
+    wasm_input("evm.wasm", true)
+        .arg("resource")
+        .arg("--playground-backend-redirect")
+        .arg(test_canister_id)
+        .assert()
+        .success();
+    assert_wasm("evm-redirect.wasm");
 }
 
 #[test]

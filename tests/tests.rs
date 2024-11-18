@@ -123,7 +123,6 @@ fn shrink() {
         .success();
     assert_wasm("classes-shrink.wasm");
 }
-
 #[test]
 fn optimize() {
     let expected_metadata = r#"icp:public candid:service

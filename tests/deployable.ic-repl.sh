@@ -98,10 +98,12 @@ function check_profiling(S, cycles, len) {
 };
 function evm_redirect(wasm) {
   let S = install(wasm);
-  fail call S.requestCost();
-  assert _ ~= "7hfb6-caaaa-aaaar-qadga-cai not found";
   fail call S.request();
   assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
+  fail call S.requestCost();
+  assert _ ~= "7hfb6-caaaa-aaaar-qadga-cai not found";
+  fail call S.non_evm_request();
+  assert _ ~= "cpmcr-yeaaa-aaaaa-qaala-cai not found";
   S
 };
 

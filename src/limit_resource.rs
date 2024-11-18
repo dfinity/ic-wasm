@@ -320,7 +320,7 @@ fn check_list(
                 list_check.local_get(src).load(
                     memory,
                     LoadKind::I32_8 {
-                        kind: ExtendedLoad::SignExtend,
+                        kind: ExtendedLoad::ZeroExtend,
                     },
                     MemArg {
                         offset: i as u32,
@@ -359,7 +359,6 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
     let arg7 = m.locals.add(ValType::I32);
     let arg8 = m.locals.add(ValType::I32);
     let call_new = get_ic_func_id(m, "call_new");
-    let trap = get_ic_func_id(m, "trap");
 
     let memory = get_memory_id(m);
 
@@ -481,7 +480,7 @@ fn make_redirect_call_new(m: &mut Module, redirect_id: &[u8]) -> FunctionId {
                         .load(
                             memory,
                             LoadKind::I32_8 {
-                                kind: ExtendedLoad::SignExtend,
+                                kind: ExtendedLoad::ZeroExtend,
                             },
                             MemArg {
                                 offset: 0,

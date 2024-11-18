@@ -123,7 +123,6 @@ fn shrink() {
         .success();
     assert_wasm("classes-shrink.wasm");
 }
-
 #[test]
 fn optimize() {
     let expected_metadata = r#"icp:public candid:service
@@ -213,6 +212,13 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("classes-nop-redirect.wasm");
+    wasm_input("evm.wasm", true)
+        .arg("resource")
+        .arg("--playground-backend-redirect")
+        .arg(test_canister_id)
+        .assert()
+        .success();
+    assert_wasm("evm-redirect.wasm");
 }
 
 #[test]

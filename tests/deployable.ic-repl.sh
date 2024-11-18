@@ -96,6 +96,18 @@ function check_profiling(S, cycles, len) {
   assert _[0].size() == (sub(len,1) : nat);
   null
 };
+function evm_redirect(wasm) {
+  let S = install(wasm);
+  fail call S.request();
+  assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
+  fail call S.requestCost();
+  assert _ ~= "7hfb6-caaaa-aaaar-qadga-cai not found";
+  fail call S.non_evm_request();
+  assert _ ~= "cpmcr-yeaaa-aaaaa-qaala-cai not found";
+  S
+};
+
+evm_redirect(file("ok/evm-redirect.wasm"));
 
 let S = counter(file("ok/motoko-instrument.wasm"));
 check_profiling(S, 21571, 78);

@@ -157,7 +157,7 @@ fn main() -> anyhow::Result<()> {
         } => {
             use ic_wasm::limit_resource::{limit_resource, Config};
             let config = Config {
-                remove_cycles_transfer: *remove_cycles_transfer,
+                remove_cycles_add: *remove_cycles_transfer,
                 limit_heap_memory_page: *limit_heap_memory_page,
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,

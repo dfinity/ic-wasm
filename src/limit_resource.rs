@@ -5,14 +5,14 @@ use walrus::*;
 use crate::utils::*;
 
 pub struct Config {
-    pub remove_cycles_add: bool,
+    pub remove_cycles_transfer: bool,
     pub limit_stable_memory_page: Option<u32>,
     pub limit_heap_memory_page: Option<u32>,
     pub playground_canister_id: Option<candid::Principal>,
 }
 
 #[derive(Copy, Clone)]
-struct CyclesAdd {
+struct CyclesAPI {
     cycles_add: FunctionId,
     old_cycles_add128: FunctionId,
     new_cycles_add128: FunctionId,
@@ -34,14 +34,14 @@ struct CallNew {
 }
 
 struct Replacer {
-    cycles_add: Option<CyclesAdd>,
+    cycles_api: Option<CyclesAPI>,
     stable_grow: Option<StableGrow>,
     call_new: Option<CallNew>,
 }
 impl VisitorMut for Replacer {
     fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
         if let Instr::Call(walrus::ir::Call { func }) = instr {
-            if let Some(ids) = &self.cycles_add {
+            if let Some(ids) = &self.cycles_api {
                 if *func == ids.cycles_add {
                     *instr = Drop {}.into();
                     return;
@@ -94,13 +94,13 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         .or_else(|| m.imports.find("ic0", "call_cycles_add128"))
         .or_else(|| m.imports.find("ic0", "cycles_burn128"))
         .is_some();
-    let cycles_add = if has_cycles_add && config.remove_cycles_add {
+    let cycles_api = if has_cycles_add && config.remove_cycles_transfer {
         let cycles_add = get_ic_func_id(m, "call_cycles_add");
         let old_cycles_add128 = get_ic_func_id(m, "call_cycles_add128");
         let old_cycles_burn128 = get_ic_func_id(m, "cycles_burn128");
         let new_cycles_add128 = make_cycles_add128(m);
         let new_cycles_burn128 = make_cycles_burn128(m);
-        Some(CyclesAdd {
+        Some(CyclesAPI {
             cycles_add,
             old_cycles_add128,
             new_cycles_add128,
@@ -144,7 +144,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         });
 
     m.funcs.iter_local_mut().for_each(|(id, func)| {
-        if let Some(ids) = &cycles_add {
+        if let Some(ids) = &cycles_api {
             if id == ids.new_cycles_add128 || id == ids.new_cycles_burn128 {
                 return;
             }
@@ -161,7 +161,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         }
         dfs_pre_order_mut(
             &mut Replacer {
-                cycles_add,
+                cycles_api,
                 stable_grow,
                 call_new,
             },

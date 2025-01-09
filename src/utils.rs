@@ -4,10 +4,23 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
+use wasm_opt::Feature;
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
 pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
+
+// The feature set should be align with IC `wasmtime` validation config:
+// https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
+pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
+    Feature::MutableGlobals,
+    Feature::TruncSat,
+    Feature::Simd,
+    Feature::BulkMemory,
+    Feature::SignExt,
+    Feature::ReferenceTypes,
+    Feature::Memory64,
+];
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();

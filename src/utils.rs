@@ -5,6 +5,7 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
 use wasm_opt::Feature;
+use wasmparser::{Validator, WasmFeatures};
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
@@ -12,15 +13,25 @@ pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 
 // The feature set should be align with IC `wasmtime` validation config:
 // https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
-pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
-    Feature::MutableGlobals,
-    Feature::TruncSat,
-    Feature::Simd,
-    Feature::BulkMemory,
-    Feature::SignExt,
-    Feature::ReferenceTypes,
-    Feature::Memory64,
+// Since we use both wasm_opt::Feature and wasmparse::WasmFeature, we have to define both.
+#[rustfmt::skip]
+pub const IC_ENABLED_WASM_FEATURES: [(Feature, WasmFeatures); 7] = [
+    (Feature::MutableGlobals, WasmFeatures::MUTABLE_GLOBAL),
+    (Feature::TruncSat,       WasmFeatures::SATURATING_FLOAT_TO_INT),
+    (Feature::Simd,           WasmFeatures::SIMD),
+    (Feature::BulkMemory,     WasmFeatures::BULK_MEMORY),
+    (Feature::SignExt,        WasmFeatures::SIGN_EXTENSION),
+    (Feature::ReferenceTypes, WasmFeatures::REFERENCE_TYPES),
+    (Feature::Memory64,       WasmFeatures::MEMORY64),
 ];
+
+pub fn make_validator_with_features() -> Validator {
+    let features = IC_ENABLED_WASM_FEATURES
+        .iter()
+        .cloned()
+        .fold(WasmFeatures::empty(), |x, (_, y)| x.union(y));
+    Validator::new_with_features(features)
+}
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();

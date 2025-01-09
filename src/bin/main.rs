@@ -1,4 +1,5 @@
 use clap::{crate_authors, crate_version, Parser};
+use ic_wasm::utils::make_validator_with_features;
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -202,6 +203,12 @@ fn main() -> anyhow::Result<()> {
             }
         }
     };
+    // validate new module
+    let mut validator = make_validator_with_features();
+    if let Err(e) = validator.validate_all(&m.emit_wasm()) {
+        println!("WARNING: The output of ic-wasm failed to validate. Please report this via github issue or on https://forum.dfinity.org/");
+        println!("{e}");
+    }
     if let Some(output) = opts.output {
         m.emit_wasm_file(output)?;
     }

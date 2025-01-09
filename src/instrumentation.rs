@@ -36,23 +36,25 @@ struct Variables {
 
 pub struct Config {
     pub trace_only_funcs: Vec<String>,
-    pub start_address: Option<i32>,
+    pub start_address: Option<i64>,
     pub page_limit: Option<i32>,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
         self.start_address.is_some()
     }
-    pub fn log_start_address(&self) -> i32 {
-        self.start_address.unwrap_or(0) + METADATA_SIZE
+    pub fn log_start_address(&self) -> i64 {
+        self.start_address.unwrap_or(0) + METADATA_SIZE as i64
     }
-    pub fn metadata_start_address(&self) -> i32 {
+    pub fn metadata_start_address(&self) -> i64 {
         self.start_address.unwrap_or(0)
     }
-    pub fn page_limit(&self) -> i32 {
-        self.page_limit
-            .map(|x| x - 1)
-            .unwrap_or(DEFAULT_PAGE_LIMIT - 1) // minus 1 because of metadata
+    pub fn page_limit(&self) -> i64 {
+        i64::from(
+            self.page_limit
+                .map(|x| x - 1)
+                .unwrap_or(DEFAULT_PAGE_LIMIT - 1),
+        ) // minus 1 because of metadata
     }
 }
 
@@ -69,21 +71,21 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     }
     let is_partial_tracing = !trace_only_ids.is_empty();
     let func_cost = FunctionCost::new(m);
-    let total_counter = m
-        .globals
-        .add_local(ValType::I64, true, InitExpr::Value(Value::I64(0)));
+    let total_counter =
+        m.globals
+            .add_local(ValType::I64, true, false, ConstExpr::Value(Value::I64(0)));
     let log_size = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let page_size = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let is_init = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(1)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(1)));
     let is_entry = m
         .globals
-        .add_local(ValType::I32, true, InitExpr::Value(Value::I32(0)));
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let opt_init = if is_partial_tracing {
         Some(is_init)
     } else {
@@ -120,7 +122,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
             && id != dynamic_counter_func
             && id != dynamic_counter64_func
         {
-            let is_partial_tracing = trace_only_ids.get(&id).is_some();
+            let is_partial_tracing = trace_only_ids.contains(&id);
             inject_profiling_prints(&m.types, printer, id, func, is_partial_tracing, &vars);
         }
     }
@@ -440,26 +442,26 @@ fn make_dynamic_counter64(
     builder.finish(vec![size], &mut m.funcs)
 }
 fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> FunctionId {
-    let writer = get_ic_func_id(m, "stable_write");
-    let grow = get_ic_func_id(m, "stable_grow");
+    let writer = get_ic_func_id(m, "stable64_write");
+    let grow = get_ic_func_id(m, "stable64_grow");
     let mut builder = FunctionBuilder::new(
         &mut m.types,
-        &[ValType::I32, ValType::I32, ValType::I32],
+        &[ValType::I64, ValType::I64, ValType::I64],
         &[],
     );
     let start_address = config.log_start_address();
     let size_limit = config.page_limit() * 65536;
     let is_preallocated = config.is_preallocated();
-    let offset = m.locals.add(ValType::I32);
-    let src = m.locals.add(ValType::I32);
-    let size = m.locals.add(ValType::I32);
+    let offset = m.locals.add(ValType::I64);
+    let src = m.locals.add(ValType::I64);
+    let size = m.locals.add(ValType::I64);
     builder
         .func_body()
         .local_get(offset)
         .local_get(size)
-        .binop(BinaryOp::I32Add);
+        .binop(BinaryOp::I64Add);
     if is_preallocated {
-        builder.func_body().i32_const(size_limit);
+        builder.func_body().i64_const(size_limit);
     } else {
         builder
             .func_body()
@@ -467,11 +469,13 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
             .i32_const(65536)
             .binop(BinaryOp::I32Mul)
             .i32_const(METADATA_SIZE)
-            .binop(BinaryOp::I32Sub);
+            .binop(BinaryOp::I32Sub)
+            // SI because it can be negative
+            .unop(UnaryOp::I64ExtendSI32);
     }
     builder
         .func_body()
-        .binop(BinaryOp::I32GtS)
+        .binop(BinaryOp::I64GtS)
         .if_else(
             None,
             |then| {
@@ -489,7 +493,7 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
                             },
                             |else_| {
                                 else_
-                                    .i32_const(1)
+                                    .i64_const(1)
                                     .call(grow)
                                     .drop()
                                     .global_get(vars.page_size)
@@ -502,9 +506,9 @@ fn make_stable_writer(m: &mut Module, vars: &Variables, config: &Config) -> Func
             },
             |_| {},
         )
-        .i32_const(start_address)
+        .i64_const(start_address)
         .local_get(offset)
-        .binop(BinaryOp::I32Add)
+        .binop(BinaryOp::I64Add)
         .local_get(src)
         .local_get(size)
         .call(writer)
@@ -544,10 +548,11 @@ fn make_printer(m: &mut Module, vars: &Variables, writer: FunctionId) -> Functio
                 .global_get(vars.total_counter)
                 .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
                 .global_get(vars.log_size)
-                .i32_const(LOG_ITEM_SIZE)
-                .binop(BinaryOp::I32Mul)
-                .i32_const(0)
-                .i32_const(LOG_ITEM_SIZE)
+                .unop(UnaryOp::I64ExtendUI32)
+                .i64_const(LOG_ITEM_SIZE as i64)
+                .binop(BinaryOp::I64Mul)
+                .i64_const(0)
+                .i64_const(LOG_ITEM_SIZE as i64)
                 .call(writer)
                 // restore memory
                 .i32_const(0)
@@ -617,7 +622,7 @@ fn inject_init(m: &mut Module, is_init: GlobalId) {
     builder.i32_const(0).global_set(is_init);
 }
 fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
-    let writer = get_ic_func_id(m, "stable_write");
+    let writer = get_ic_func_id(m, "stable64_write");
     let memory = get_memory_id(m);
     let a = m.locals.add(ValType::I64);
     let b = m.locals.add(ValType::I64);
@@ -651,9 +656,9 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .i32_const(20)
         .global_get(vars.is_entry)
         .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
-        .i32_const(config.metadata_start_address())
-        .i32_const(0)
-        .i32_const(METADATA_SIZE)
+        .i64_const(config.metadata_start_address())
+        .i64_const(0)
+        .i64_const(METADATA_SIZE as i64)
         .call(writer)
         // restore memory
         .i32_const(0)
@@ -667,7 +672,7 @@ fn inject_pre_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 });
 }
 fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
-    let reader = get_ic_func_id(m, "stable_read");
+    let reader = get_ic_func_id(m, "stable64_read");
     let memory = get_memory_id(m);
     let a = m.locals.add(ValType::I64);
     let b = m.locals.add(ValType::I64);
@@ -686,9 +691,9 @@ fn inject_post_upgrade(m: &mut Module, vars: &Variables, config: &Config) {
         Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
         LocalSet { local: c }.into(),
         // load from stable memory
-        Const { value: Value::I32(0) }.into(),
-        Const { value: Value::I32(config.metadata_start_address()) }.into(),
-        Const { value: Value::I32(METADATA_SIZE) }.into(),
+        Const { value: Value::I64(0) }.into(),
+        Const { value: Value::I64(config.metadata_start_address()) }.into(),
+        Const { value: Value::I64(METADATA_SIZE as i64) }.into(),
         Call { func: reader }.into(),
         Const { value: Value::I32(0) }.into(),
         Load { memory, kind: LoadKind::I64 { atomic: false }, arg: MemArg { offset: 0, align: 8 } }.into(),
@@ -725,7 +730,7 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
     let reply_data = get_ic_func_id(m, "msg_reply_data_append");
     let reply = get_ic_func_id(m, "msg_reply");
     let trap = get_ic_func_id(m, "trap");
-    let reader = get_ic_func_id(m, "stable_read");
+    let reader = get_ic_func_id(m, "stable64_read");
     let idx = m.locals.add(ValType::I32);
     let len = m.locals.add(ValType::I32);
     let next_idx = m.locals.add(ValType::I32);
@@ -808,15 +813,17 @@ fn make_stable_getter(m: &mut Module, vars: &Variables, leb: FunctionId, config:
         .i32_const(5)
         .call(reply_data)
         // read stable logs
-        .i32_const(0)
-        .i32_const(config.log_start_address())
+        .i64_const(0)
+        .i64_const(config.log_start_address())
         .local_get(idx)
-        .i32_const(LOG_ITEM_SIZE)
-        .binop(BinaryOp::I32Mul)
-        .binop(BinaryOp::I32Add)
+        .unop(UnaryOp::I64ExtendUI32)
+        .i64_const(LOG_ITEM_SIZE as i64)
+        .binop(BinaryOp::I64Mul)
+        .binop(BinaryOp::I64Add)
         .local_get(len)
-        .i32_const(LOG_ITEM_SIZE)
-        .binop(BinaryOp::I32Mul)
+        .unop(UnaryOp::I64ExtendUI32)
+        .i64_const(LOG_ITEM_SIZE as i64)
+        .binop(BinaryOp::I64Mul)
         .call(reader)
         .i32_const(0)
         .local_get(len)

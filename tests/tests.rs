@@ -1,4 +1,5 @@
 use assert_cmd::Command;
+
 use std::fs;
 use std::path::Path;
 
@@ -34,6 +35,21 @@ fn assert_wasm(expected: &str) {
     }
 }
 
+fn assert_functions_are_named() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let out = path.join("out.wasm");
+
+    let module = walrus::Module::from_file(out).unwrap();
+    let name_count = module.funcs.iter().filter(|f| f.name.is_some()).count();
+    let total = module.funcs.iter().count();
+    // Walrus doesn't give direct access to the name section, but as a proxy
+    // just check that moste functions have names.
+    assert!(
+        name_count > total / 2,
+        "Module has {total} functions but only {name_count} have names."
+    )
+}
+
 #[test]
 fn instrumentation() {
     wasm_input("motoko.wasm", true)
@@ -56,6 +72,11 @@ fn instrumentation() {
         .success();
     assert_wasm("motoko-region-instrument.wasm");
     wasm_input("wat.wasm", true)
+        .arg("instrument")
+        .assert()
+        .success();
+    assert_wasm("wat-instrument.wasm");
+    wasm_input("wat.wasm.gz", true)
         .arg("instrument")
         .assert()
         .success();
@@ -86,6 +107,11 @@ fn shrink() {
         .assert()
         .success();
     assert_wasm("wat-shrink.wasm");
+    wasm_input("wat.wasm.gz", true)
+        .arg("shrink")
+        .assert()
+        .success();
+    assert_wasm("wat-shrink.wasm");
     wasm_input("rust.wasm", true)
         .arg("shrink")
         .assert()
@@ -97,7 +123,6 @@ fn shrink() {
         .success();
     assert_wasm("classes-shrink.wasm");
 }
-
 #[test]
 fn optimize() {
     let expected_metadata = r#"icp:public candid:service
@@ -147,6 +172,14 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("wat-limit.wasm");
+    wasm_input("wat.wasm.gz", true)
+        .arg("resource")
+        .arg("--remove-cycles-transfer")
+        .arg("--limit-stable-memory-page")
+        .arg("32")
+        .assert()
+        .success();
+    assert_wasm("wat-limit.wasm");
     wasm_input("rust.wasm", true)
         .arg("resource")
         .arg("--remove-cycles-transfer")
@@ -179,6 +212,13 @@ fn resource() {
         .assert()
         .success();
     assert_wasm("classes-nop-redirect.wasm");
+    wasm_input("evm.wasm", true)
+        .arg("resource")
+        .arg("--playground-backend-redirect")
+        .arg(test_canister_id)
+        .assert()
+        .success();
+    assert_wasm("evm-redirect.wasm");
 }
 
 #[test]
@@ -209,6 +249,11 @@ Imported IC0 System API: [
 Custom sections with size: []
 "#;
     wasm_input("wat.wasm", false)
+        .arg("info")
+        .assert()
+        .stdout(expected)
+        .success();
+    wasm_input("wat.wasm.gz", false)
         .arg("info")
         .assert()
         .stdout(expected)
@@ -251,6 +296,12 @@ fn json_info() {
 }
 "#;
     wasm_input("wat.wasm", false)
+        .arg("info")
+        .arg("--json")
+        .assert()
+        .stdout(expected)
+        .success();
+    wasm_input("wat.wasm.gz", false)
         .arg("info")
         .arg("--json")
         .assert()
@@ -322,4 +373,24 @@ icp:public whatever
 "#,
         )
         .success();
+}
+
+#[test]
+fn metadata_keep_name_section() {
+    for file in [
+        "motoko.wasm",
+        "classes.wasm",
+        "motoko-region.wasm",
+        "rust.wasm",
+    ] {
+        wasm_input(file, true)
+            .arg("metadata")
+            .arg("foo")
+            .arg("-d")
+            .arg("hello")
+            .arg("--keep-name-section")
+            .assert()
+            .success();
+        assert_functions_are_named();
+    }
 }

@@ -33,12 +33,20 @@ enum SubCommand {
         /// Visibility of metadata
         #[clap(short, long, value_parser = ["public", "private"], default_value = "private")]
         visibility: String,
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
+        #[clap(short, long)]
+        keep_name_section: bool,
     },
     /// Limit resource usage
     Resource {
         /// Remove cycles_add system API call
         #[clap(short, long)]
         remove_cycles_transfer: bool,
+        /// Allocate at most specified amount of memory pages for Wasm heap memory
+        #[clap(short('m'), long)]
+        limit_heap_memory_page: Option<u32>,
         /// Allocate at most specified amount of memory pages for stable memory
         #[clap(short, long)]
         limit_stable_memory_page: Option<u32>,
@@ -54,6 +62,9 @@ enum SubCommand {
     },
     /// Remove unused functions and debug info
     Shrink {
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
         #[clap(short, long)]
         keep_name_section: bool,
     },
@@ -66,6 +77,9 @@ enum SubCommand {
         inline_functions_with_loops: bool,
         #[clap(long("always-inline-max-function-size"))]
         always_inline_max_function_size: Option<u32>,
+        /// Preserve the `name` section in the generated Wasm. This is needed to
+        /// display the names of functions, locals, etc. in backtraces or
+        /// debuggers.
         #[clap(short, long)]
         keep_name_section: bool,
     },
@@ -89,6 +103,9 @@ fn main() -> anyhow::Result<()> {
         SubCommand::Shrink { keep_name_section } => keep_name_section,
         #[cfg(feature = "wasm-opt")]
         SubCommand::Optimize {
+            keep_name_section, ..
+        } => keep_name_section,
+        SubCommand::Metadata {
             keep_name_section, ..
         } => keep_name_section,
         _ => false,
@@ -127,19 +144,21 @@ fn main() -> anyhow::Result<()> {
             use ic_wasm::instrumentation::{instrument, Config};
             let config = Config {
                 trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
-                start_address: start_page.map(|page| page * 65536),
+                start_address: start_page.map(|page| i64::from(page) * 65536),
                 page_limit: *page_limit,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }
         SubCommand::Resource {
             remove_cycles_transfer,
+            limit_heap_memory_page,
             limit_stable_memory_page,
             playground_backend_redirect,
         } => {
             use ic_wasm::limit_resource::{limit_resource, Config};
             let config = Config {
                 remove_cycles_add: *remove_cycles_transfer,
+                limit_heap_memory_page: *limit_heap_memory_page,
                 limit_stable_memory_page: *limit_stable_memory_page,
                 playground_canister_id: *playground_backend_redirect,
             };
@@ -150,6 +169,7 @@ fn main() -> anyhow::Result<()> {
             data,
             file,
             visibility,
+            keep_name_section: _,
         } => {
             use ic_wasm::metadata::*;
             if let Some(name) = name {

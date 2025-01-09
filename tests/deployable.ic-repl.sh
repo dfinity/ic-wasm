@@ -64,9 +64,9 @@ function classes(wasm) {
   call S.put(42, "text2");
   call S.get(42);
   assert _ == opt "text2";
-  metadata(S, "metadata/candid:args");
-  assert _ == blob "()";
-  metadata(S, "metadata/motoko:compiler");
+  read_state("canister", S, "metadata/candid:args");
+  assert _ == "()";
+  read_state("canister", S, "metadata/motoko:compiler");
   assert _ == blob "0.6.26";
   S
 };
@@ -96,6 +96,18 @@ function check_profiling(S, cycles, len) {
   assert _[0].size() == (sub(len,1) : nat);
   null
 };
+function evm_redirect(wasm) {
+  let S = install(wasm);
+  fail call S.request();
+  assert _ ~= "zz73r-nyaaa-aabbb-aaaca-cai not found";
+  fail call S.requestCost();
+  assert _ ~= "7hfb6-caaaa-aaaar-qadga-cai not found";
+  fail call S.non_evm_request();
+  assert _ ~= "cpmcr-yeaaa-aaaaa-qaala-cai not found";
+  S
+};
+
+evm_redirect(file("ok/evm-redirect.wasm"));
 
 let S = counter(file("ok/motoko-instrument.wasm"));
 check_profiling(S, 21571, 78);

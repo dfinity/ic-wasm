@@ -9,10 +9,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     env:
-      DFX_VERSION: 0.14.2
-      IC_REPL_VERSION: 0.4.0
+      DFX_VERSION: 0.23.0
+      IC_REPL_VERSION: 0.7.5
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install dfx
         uses: dfinity/setup-dfx@main
         with:
@@ -29,7 +29,7 @@ jobs:
           dfx start --background
       - name: Test
         run: |
-          ic-repl tests/deployable.ic-repl.sh
+          ic-repl tests/deployable.ic-repl.sh -v
       - name: stop dfx
         run: |
           echo "dfx stop"

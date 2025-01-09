@@ -223,6 +223,7 @@ fn make_stable64_grow(m: &mut Module, replacer: &mut Replacer, limit: i64) {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_list(
     memory: MemoryId,
     checks: &mut InstrSeqBuilder,
@@ -231,23 +232,38 @@ fn check_list(
     src: LocalId,
     is_rename: Option<LocalId>,
     list: &Vec<&[u8]>,
+    wasm64: bool,
 ) {
     let checks_id = checks.id();
     for bytes in list {
         checks.block(None, |list_check| {
             let list_check_id = list_check.id();
             // Check the length
-            list_check
-                .local_get(size)
-                .i32_const(bytes.len() as i32)
-                .binop(BinaryOp::I32Ne)
-                .br_if(list_check_id);
+            list_check.local_get(size);
+            match wasm64 {
+                true => {
+                    list_check
+                        .i64_const(bytes.len() as i64)
+                        .binop(BinaryOp::I64Ne);
+                }
+                false => {
+                    list_check
+                        .i32_const(bytes.len() as i32)
+                        .binop(BinaryOp::I32Ne);
+                }
+            }
+            list_check.br_if(list_check_id);
             // Load bytes at src onto the stack
             for i in 0..bytes.len() {
                 list_check.local_get(src).load(
                     memory,
-                    LoadKind::I32_8 {
-                        kind: ExtendedLoad::ZeroExtend,
+                    match wasm64 {
+                        true => LoadKind::I64_8 {
+                            kind: ExtendedLoad::ZeroExtend,
+                        },
+                        false => LoadKind::I32_8 {
+                            kind: ExtendedLoad::ZeroExtend,
+                        },
                     },
                     MemArg {
                         offset: i as u32,
@@ -256,10 +272,15 @@ fn check_list(
                 );
             }
             for byte in bytes.iter().rev() {
-                list_check
-                    .i32_const(*byte as i32)
-                    .binop(BinaryOp::I32Ne)
-                    .br_if(list_check_id);
+                match wasm64 {
+                    true => {
+                        list_check.i64_const(*byte as i64).binop(BinaryOp::I64Ne);
+                    }
+                    false => {
+                        list_check.i32_const(*byte as i32).binop(BinaryOp::I32Ne);
+                    }
+                }
+                list_check.br_if(list_check_id);
             }
             // names were equal, so skip all remaining checks and redirect
             if let Some(is_rename) = is_rename {
@@ -307,7 +328,7 @@ fn make_redirect_call_new(
         let is_rename = m.locals.add(ValType::I32);
         let mut memory_backup = Vec::new();
         for _ in 0..redirect_id.len() {
-            memory_backup.push(m.locals.add(ValType::I32));
+            memory_backup.push(m.locals.add(pointer_type));
         }
         let redirect_canisters = [
             Principal::from_slice(&[]),
@@ -378,6 +399,7 @@ fn make_redirect_call_new(
                                 .iter()
                                 .map(|p| p.as_slice())
                                 .collect::<Vec<_>>(),
+                            wasm64,
                         );
                     })
                     .local_get(no_redirect)
@@ -394,6 +416,7 @@ fn make_redirect_call_new(
                         .iter()
                         .map(|s| s.as_bytes())
                         .collect::<Vec<_>>(),
+                    wasm64,
                 );
             })
             .local_get(no_redirect)
@@ -415,52 +438,107 @@ fn make_redirect_call_new(
                 |block| {
                     // Save current memory starting from address 0 into local variables
                     for (address, backup_var) in memory_backup.iter().enumerate() {
-                        block
-                            .i32_const(address as i32)
-                            .load(
-                                memory,
-                                LoadKind::I32_8 {
-                                    kind: ExtendedLoad::ZeroExtend,
-                                },
-                                MemArg {
-                                    offset: 0,
-                                    align: 1,
-                                },
-                            )
-                            .local_set(*backup_var);
+                        match wasm64 {
+                            true => {
+                                block
+                                    .i64_const(address as i64)
+                                    .load(
+                                        memory,
+                                        LoadKind::I64_8 {
+                                            kind: ExtendedLoad::ZeroExtend,
+                                        },
+                                        MemArg {
+                                            offset: 0,
+                                            align: 1,
+                                        },
+                                    )
+                                    .local_set(*backup_var);
+                            }
+                            false => {
+                                block
+                                    .i32_const(address as i32)
+                                    .load(
+                                        memory,
+                                        LoadKind::I32_8 {
+                                            kind: ExtendedLoad::ZeroExtend,
+                                        },
+                                        MemArg {
+                                            offset: 0,
+                                            align: 1,
+                                        },
+                                    )
+                                    .local_set(*backup_var);
+                            }
+                        }
                     }
 
                     // Write the canister id into memory at address 0
                     for (address, byte) in redirect_id.iter().enumerate() {
-                        block
-                            .i32_const(address as i32)
-                            .i32_const(*byte as i32)
-                            .store(
-                                memory,
-                                StoreKind::I32_8 { atomic: false },
-                                MemArg {
-                                    offset: 0,
-                                    align: 1,
-                                },
-                            );
+                        match wasm64 {
+                            true => {
+                                block
+                                    .i64_const(address as i64)
+                                    .i64_const(*byte as i64)
+                                    .store(
+                                        memory,
+                                        StoreKind::I64_8 { atomic: false },
+                                        MemArg {
+                                            offset: 0,
+                                            align: 1,
+                                        },
+                                    );
+                            }
+                            false => {
+                                block
+                                    .i32_const(address as i32)
+                                    .i32_const(*byte as i32)
+                                    .store(
+                                        memory,
+                                        StoreKind::I32_8 { atomic: false },
+                                        MemArg {
+                                            offset: 0,
+                                            align: 1,
+                                        },
+                                    );
+                            }
+                        }
                     }
                     block.local_get(is_rename).if_else(
                         None,
-                        |then| {
-                            then.local_get(name_src).i32_const('_' as i32).store(
-                                memory,
-                                StoreKind::I32_8 { atomic: false },
-                                MemArg {
-                                    offset: 0,
-                                    align: 1,
-                                },
-                            );
+                        |then| match wasm64 {
+                            true => {
+                                then.local_get(name_src).i64_const('_' as i64).store(
+                                    memory,
+                                    StoreKind::I64_8 { atomic: false },
+                                    MemArg {
+                                        offset: 0,
+                                        align: 1,
+                                    },
+                                );
+                            }
+                            false => {
+                                then.local_get(name_src).i32_const('_' as i32).store(
+                                    memory,
+                                    StoreKind::I32_8 { atomic: false },
+                                    MemArg {
+                                        offset: 0,
+                                        align: 1,
+                                    },
+                                );
+                            }
                         },
                         |_| {},
                     );
+                    match wasm64 {
+                        true => {
+                            block.i64_const(0).i64_const(redirect_id.len() as i64);
+                        }
+                        false => {
+                            block.i32_const(0).i32_const(redirect_id.len() as i32);
+                        }
+                    }
+
                     block
-                        .i32_const(0)
-                        .i32_const(redirect_id.len() as i32)
                         .local_get(name_src)
                         .local_get(name_size)
                         .local_get(arg5)
@@ -471,14 +549,28 @@ fn make_redirect_call_new(
 
                     // Restore old memory
                     for (address, byte) in memory_backup.iter().enumerate() {
-                        block.i32_const(address as i32).local_get(*byte).store(
-                            memory,
-                            StoreKind::I32_8 { atomic: false },
-                            MemArg {
-                                offset: 0,
-                                align: 1,
-                            },
-                        );
+                        match wasm64 {
+                            true => {
+                                block.i64_const(address as i64).local_get(*byte).store(
+                                    memory,
+                                    StoreKind::I64_8 { atomic: false },
+                                    MemArg {
+                                        offset: 0,
+                                        align: 1,
+                                    },
+                                );
+                            }
+                            false => {
+                                block.i32_const(address as i32).local_get(*byte).store(
+                                    memory,
+                                    StoreKind::I32_8 { atomic: false },
+                                    MemArg {
+                                        offset: 0,
+                                        align: 1,
+                                    },
+                                );
+                            }
+                        }
                     }
                 },
             );

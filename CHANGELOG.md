@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.9.2] - 2024-01-09
+
+* Fix: limit_resource works with wasm64.
+
+## [0.9.1] - 2024-11-18
+
+* Add redirect for evm canister.
+
 ## [0.9.0] - 2024-10-01
 
 * (breaking) Use 64bit API for stable memory in profiling and bump walrus

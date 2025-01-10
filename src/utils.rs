@@ -4,10 +4,62 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
+use wasm_opt::Feature;
+use wasmparser::{Validator, WasmFeaturesInflated};
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
 pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
+
+// The feature set should be align with IC `wasmtime` validation config:
+// https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
+// Since we use both wasm_opt::Feature and wasmparse::WasmFeature, we have to define the config/features for both.
+pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
+    Feature::MutableGlobals,
+    Feature::TruncSat,
+    Feature::Simd,
+    Feature::BulkMemory,
+    Feature::SignExt,
+    Feature::ReferenceTypes,
+    Feature::Memory64,
+];
+
+pub const IC_ENABLED_WASM_FEATURES_INFLATED: WasmFeaturesInflated = WasmFeaturesInflated {
+    mutable_global: true,
+    saturating_float_to_int: true,
+    sign_extension: true,
+    reference_types: true,
+    multi_value: true,
+    bulk_memory: true,
+    simd: true,
+    relaxed_simd: false,
+    threads: true,
+    shared_everything_threads: true,
+    tail_call: false,
+    floats: true,
+    multi_memory: true,
+    exceptions: true,
+    memory64: true,
+    extended_const: true,
+    component_model: true,
+    function_references: false,
+    memory_control: true,
+    gc: false,
+    custom_page_sizes: true,
+    component_model_values: true,
+    component_model_nested_names: true,
+    component_model_more_flags: true,
+    component_model_multiple_returns: true,
+    legacy_exceptions: true,
+    gc_types: true,
+    stack_switching: true,
+    wide_arithmetic: false,
+    component_model_async: true,
+};
+
+pub fn make_validator_with_features() -> Validator {
+    Validator::new_with_features(IC_ENABLED_WASM_FEATURES_INFLATED.into())
+}
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {
     let mut config = walrus::ModuleConfig::new();

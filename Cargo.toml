@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.9.2"
+version = "0.9.3"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"
@@ -20,11 +20,12 @@ required-features = ["exe"]
 [dependencies]
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
-walrus = "0.22.0" 
+walrus = "0.22.0"
 candid = "0.10"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
 libflate = "2.0"
+wasmparser = "0.223.0"
 
 wasm-opt = { version = "0.116.0", optional = true }
 tempfile = { version = "3.5.0", optional = true }
@@ -44,4 +45,4 @@ assert_cmd = "2"
 
 [package.metadata.binstall]
 pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
-pkg-fmt = "tgz" # archive-suffix = .tar.gz
+pkg-fmt = "tgz"                                                                          # archive-suffix = .tar.gz

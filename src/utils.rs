@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
 use wasm_opt::Feature;
-use wasmparser::{Validator, WasmFeatures};
+use wasmparser::{Validator, WasmFeatures, WasmFeaturesInflated};
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
@@ -25,12 +25,41 @@ pub const IC_ENABLED_WASM_FEATURES: [(Feature, WasmFeatures); 7] = [
     (Feature::Memory64,       WasmFeatures::MEMORY64),
 ];
 
+pub const IC_ENABLED_WASM_FEATURES_INFLATED: WasmFeaturesInflated = WasmFeaturesInflated {
+    mutable_global: true,
+    saturating_float_to_int: true,
+    sign_extension: true,
+    reference_types: true,
+    multi_value: true,
+    bulk_memory: true,
+    simd: true,
+    relaxed_simd: false,
+    threads: true,
+    shared_everything_threads: true,
+    tail_call: false,
+    floats: true,
+    multi_memory: true,
+    exceptions: true,
+    memory64: true,
+    extended_const: true,
+    component_model: true,
+    function_references: false,
+    memory_control: true,
+    gc: false,
+    custom_page_sizes: true,
+    component_model_values: true,
+    component_model_nested_names: true,
+    component_model_more_flags: true,
+    component_model_multiple_returns: true,
+    legacy_exceptions: true,
+    gc_types: true,
+    stack_switching: true,
+    wide_arithmetic: false,
+    component_model_async: true,
+};
+
 pub fn make_validator_with_features() -> Validator {
-    let features = IC_ENABLED_WASM_FEATURES
-        .iter()
-        .cloned()
-        .fold(WasmFeatures::empty(), |x, (_, y)| x.union(y));
-    Validator::new_with_features(features)
+    Validator::new_with_features(IC_ENABLED_WASM_FEATURES_INFLATED.into())
 }
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {

@@ -91,7 +91,7 @@ pub fn optimize(
         optimizations.always_inline_max_size(*max_size);
     }
 
-    for (feature, _) in IC_ENABLED_WASM_FEATURES {
+    for feature in IC_ENABLED_WASM_FEATURES {
         optimizations.enable_feature(feature);
     }
     optimizations.run(temp_file.path(), temp_file.path())?;

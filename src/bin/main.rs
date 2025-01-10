@@ -204,13 +204,14 @@ fn main() -> anyhow::Result<()> {
         }
     };
     // validate new module
+    let module_bytes = m.emit_wasm();
     let mut validator = make_validator_with_features();
-    if let Err(e) = validator.validate_all(&m.emit_wasm()) {
+    if let Err(e) = validator.validate_all(&module_bytes) {
         println!("WARNING: The output of ic-wasm failed to validate. Please report this via github issue or on https://forum.dfinity.org/");
-        println!("{e}");
+        eprintln!("{e}");
     }
     if let Some(output) = opts.output {
-        m.emit_wasm_file(output)?;
+        std::fs::write(output, module_bytes).expect("failed to write wasm module");
     }
     Ok(())
 }

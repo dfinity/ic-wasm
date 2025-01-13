@@ -31,12 +31,15 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools musl-dev clang lld libc++-dev libc++abi-dev
+          sudo apt-get install -y musl-tools musl-dev clang lld llvm libc++-dev libc++abi-dev
           sudo ln -s /usr/bin/clang++ /usr/bin/musl-g++
+          # Ensure LLVM tools are in PATH and properly named
+          sudo ln -s $(which llvm-ar-14 2>/dev/null || which llvm-ar-13 2>/dev/null || which llvm-ar-12 2>/dev/null || which llvm-ar) /usr/local/bin/llvm-ar || true
+          sudo ln -s $(which llvm-ranlib-14 2>/dev/null || which llvm-ranlib-13 2>/dev/null || which llvm-ranlib-12 2>/dev/null || which llvm-ranlib) /usr/local/bin/llvm-ranlib || true
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
-          echo "AR=llvm-ar" >> $GITHUB_ENV
-          echo "RANLIB=llvm-ranlib" >> $GITHUB_ENV
+          echo "AR=/usr/local/bin/llvm-ar" >> $GITHUB_ENV
+          echo "RANLIB=/usr/local/bin/llvm-ranlib" >> $GITHUB_ENV
           echo "CFLAGS=-fPIC -D_FORTIFY_SOURCE=0" >> $GITHUB_ENV
           echo "CXXFLAGS=-fPIC -stdlib=libc++ -D_FORTIFY_SOURCE=0" >> $GITHUB_ENV
           echo "LDFLAGS=-fuse-ld=lld -stdlib=libc++ -static" >> $GITHUB_ENV

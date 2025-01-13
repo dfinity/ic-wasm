@@ -11,14 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
-            name: linux64
-            artifact_name: target/release/ic-wasm
-            asset_name: ic-wasm-linux64
-          - os: macos-13
-            name: macos
-            artifact_name: target/release/ic-wasm
-            asset_name: ic-wasm-macos
+#          - os: ubuntu-20.04
+#            name: linux64
+#            artifact_name: target/release/ic-wasm
+#            asset_name: ic-wasm-linux64
+#          - os: macos-13
+#            name: macos
+#            artifact_name: target/release/ic-wasm
+#            asset_name: ic-wasm-macos
           - os: ubuntu-latest
             name: linux-musl
             artifact_name: ic-wasm

@@ -31,6 +31,7 @@ jobs:
           rustup target add x86_64-unknown-linux-musl
           sudo apt-get update
           sudo apt-get install -y build-essential g++ musl-tools musl g++-multilib musl-dev
+          sudo ln -s /bin/g++ /bin/musl-g++
       - name: Build
         run: |
           if [[ "${{ matrix.name }}" == "linux-mmusl" ]]; then

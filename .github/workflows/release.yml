@@ -11,14 +11,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: ubuntu-20.04
-          #   name: linux64
-          #   artifact_name: target/release/ic-wasm
-          #   asset_name: ic-wasm-linux64
-          # - os: macos-13
-          #   name: macos
-          #   artifact_name: target/release/ic-wasm
-          #   asset_name: ic-wasm-macos
+          - os: ubuntu-20.04
+            name: linux64
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-linux64
+          - os: macos-13
+            name: macos
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-macos
           - os: ubuntu-latest
             name: linux-musl
             artifact_name: ic-wasm
@@ -27,9 +27,9 @@ jobs:
       - uses: actions/checkout@v4
 
       # Regular build for non-MUSL targets
-      # - name: Build (non-MUSL)
-      #   if: matrix.name != 'linux-musl'
-      #   run: cargo build --release --locked
+      - name: Build (non-MUSL)
+        if: matrix.name != 'linux-musl'
+        run: cargo build --release --locked
 
       # Native MUSL build using Alpine Docker
       - name: Build (MUSL)
@@ -61,16 +61,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - os: ubuntu-22.04
-          #   asset_name: ic-wasm-linux64
-          # - os: ubuntu-20.04
-          #   asset_name: ic-wasm-linux64
+          - os: ubuntu-22.04
+            asset_name: ic-wasm-linux64
+          - os: ubuntu-20.04
+            asset_name: ic-wasm-linux64
           - os: ubuntu-latest
             asset_name: ic-wasm-linux-musl
-          # - os: macos-13
-          #   asset_name: ic-wasm-macos
-          # - os: macos-14
-          #   asset_name: ic-wasm-macos
+          - os: macos-13
+            asset_name: ic-wasm-macos
+          - os: macos-14
+            asset_name: ic-wasm-macos
     steps:
       - name: Get executable
         id: download
@@ -86,11 +86,11 @@ jobs:
             /test/ic-wasm --version
           '
 
-      # - name: Test non-MUSL binary
-      #   if: matrix.asset_name != 'ic-wasm-linux-musl'
-      #   run: |
-      #     chmod +x ic-wasm
-      #     ./ic-wasm --version
+      - name: Test non-MUSL binary
+        if: matrix.asset_name != 'ic-wasm-linux-musl'
+        run: |
+          chmod +x ic-wasm
+          ./ic-wasm --version
 
   publish:
     needs: test
@@ -99,12 +99,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - asset_name: ic-wasm-linux64
-          #   binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
+          - asset_name: ic-wasm-linux64
+            binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
           - asset_name: ic-wasm-linux-musl
             binstall_name: ic-wasm-x86_64-unknown-linux-musl.tar.gz
-          # - asset_name: ic-wasm-macos
-          #   binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
+          - asset_name: ic-wasm-macos
+            binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
     runs-on: ubuntu-latest
     steps:
       - name: Get executable

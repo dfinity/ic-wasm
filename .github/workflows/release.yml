@@ -31,18 +31,38 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools musl-dev clang lld llvm libc++-dev libc++abi-dev
+          sudo apt-get install -y musl-tools musl-dev clang lld llvm cmake ninja-build
+          
+          # Build static libc++ for MUSL
+          git clone --depth 1 --branch release/16.x https://github.com/llvm/llvm-project.git
+          cd llvm-project
+          mkdir build && cd build
+          cmake -G Ninja ../runtimes \
+            -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_FLAGS="-fPIC" \
+            -DCMAKE_CXX_FLAGS="-fPIC" \
+            -DLIBCXX_HAS_MUSL_LIBC=ON \
+            -DLIBCXX_ENABLE_STATIC=ON \
+            -DLIBCXX_ENABLE_SHARED=OFF \
+            -DLIBCXXABI_ENABLE_STATIC=ON \
+            -DLIBCXXABI_ENABLE_SHARED=OFF \
+            -DLIBCXX_CXX_ABI=libcxxabi \
+            -DLIBCXX_USE_COMPILER_RT=ON \
+            -DCMAKE_INSTALL_PREFIX=/usr/local/musl
+          ninja cxx cxxabi
+          sudo ninja install-cxx install-cxxabi
+          cd ../..
+          
+          # Setup compiler environment
           sudo ln -s /usr/bin/clang++ /usr/bin/musl-g++
-          # Ensure LLVM tools are in PATH and properly named
-          sudo ln -s $(which llvm-ar-14 2>/dev/null || which llvm-ar-13 2>/dev/null || which llvm-ar-12 2>/dev/null || which llvm-ar) /usr/local/bin/llvm-ar || true
-          sudo ln -s $(which llvm-ranlib-14 2>/dev/null || which llvm-ranlib-13 2>/dev/null || which llvm-ranlib-12 2>/dev/null || which llvm-ranlib) /usr/local/bin/llvm-ranlib || true
           echo "CC=clang" >> $GITHUB_ENV
           echo "CXX=clang++" >> $GITHUB_ENV
-          echo "AR=/usr/local/bin/llvm-ar" >> $GITHUB_ENV
-          echo "RANLIB=/usr/local/bin/llvm-ranlib" >> $GITHUB_ENV
-          echo "CFLAGS=-fPIC -D_FORTIFY_SOURCE=0" >> $GITHUB_ENV
-          echo "CXXFLAGS=-fPIC -stdlib=libc++ -static -D_FORTIFY_SOURCE=0" >> $GITHUB_ENV
-          echo "LDFLAGS=-fuse-ld=lld -stdlib=libc++ -static -Wl,-z,notext" >> $GITHUB_ENV
+          echo "CFLAGS=-fPIC" >> $GITHUB_ENV
+          echo "CXXFLAGS=-fPIC -stdlib=libc++ -static -I/usr/local/musl/include/c++/v1" >> $GITHUB_ENV
+          echo "LDFLAGS=-fuse-ld=lld -nostdinc++ -nostdlib++ -L/usr/local/musl/lib -lc++ -lc++abi -static" >> $GITHUB_ENV
           # Environment variables for wasm-opt build
           echo "CXXSTDLIB=c++" >> $GITHUB_ENV
           echo "TARGET_TRIPLE=x86_64-unknown-linux-musl" >> $GITHUB_ENV
@@ -66,7 +86,7 @@ jobs:
       - name: Build
         run: |
           if [ "${{ matrix.target }}" != "" ]; then
-            RUSTFLAGS="-C target-feature=+crt-static -C linker=clang -C link-arg=-fuse-ld=lld -C link-arg=-static -C link-arg=-stdlib=libc++ -C link-arg=-Wl,-z,notext" cargo build --release --locked --target ${{ matrix.target }}
+            RUSTFLAGS="-C target-feature=+crt-static -C linker=clang -C link-arg=-fuse-ld=lld -C link-arg=-nostdinc++ -C link-arg=-nostdlib++ -C link-arg=-L/usr/local/musl/lib -C link-arg=-lc++ -C link-arg=-lc++abi -C link-arg=-static" cargo build --release --locked --target ${{ matrix.target }}
           else
             cargo build --release --locked
           fi

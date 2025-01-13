@@ -31,19 +31,27 @@ jobs:
         if: matrix.target == 'x86_64-unknown-linux-musl'
         run: |
           sudo apt-get update
-          sudo apt-get install -y musl-tools musl-dev gcc-multilib g++-multilib
-          sudo ln -s /usr/bin/g++ /usr/bin/musl-g++
-          echo "CXXFLAGS=-static -static-libgcc -static-libstdc++" >> $GITHUB_ENV
-          echo "LDFLAGS=-static -static-libgcc -static-libstdc++" >> $GITHUB_ENV
+          sudo apt-get install -y musl-tools musl-dev clang
+          sudo ln -s /usr/bin/clang++ /usr/bin/musl-g++
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+          echo "CFLAGS=-D_FORTIFY_SOURCE=0" >> $GITHUB_ENV
+          echo "CXXFLAGS=-D_FORTIFY_SOURCE=0 -stdlib=libc++ -static" >> $GITHUB_ENV
+          echo "LDFLAGS=-static -stdlib=libc++" >> $GITHUB_ENV
       
       - name: Install Rust target
         if: matrix.target != ''
         run: rustup target add ${{ matrix.target }}
       
+      - name: Install libc++
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get install -y libc++-dev libc++abi-dev
+
       - name: Build
         run: |
           if [ "${{ matrix.target }}" != "" ]; then
-            RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --locked --target ${{ matrix.target }}
+            RUSTFLAGS="-C target-feature=+crt-static -C linker=clang" cargo build --release --locked --target ${{ matrix.target }}
           else
             cargo build --release --locked
           fi

@@ -37,7 +37,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src -w /src rust:alpine sh -c '
             # Install build dependencies
-            apk add --no-cache musl-dev build-base
+            apk add --no-cache musl-dev clang binutils
 
             # Build the project
             cargo build --release --locked

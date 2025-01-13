@@ -37,7 +37,7 @@ jobs:
         run: |
           docker run --rm -v $(pwd):/src -w /src rust:alpine sh -c '
             # Install build dependencies
-            apk add --no-cache musl-dev clang build-base
+            apk add --no-cache musl-dev clang binutils
 
             # Build the project
             cargo build --release --locked
@@ -61,16 +61,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
-            asset_name: ic-wasm-linux64
+#          - os: ubuntu-20.04
+#            asset_name: ic-wasm-linux64
+#          - os: ubuntu-22.04
+#            asset_name: ic-wasm-linux64
           - os: ubuntu-20.04
-            asset_name: ic-wasm-linux64
-          - os: ubuntu-latest
             asset_name: ic-wasm-linux-musl
-          - os: macos-13
-            asset_name: ic-wasm-macos
-          - os: macos-14
-            asset_name: ic-wasm-macos
+          - os: ubuntu-22.04
+            asset_name: ic-wasm-linux-musl
+#          - os: macos-13
+#            asset_name: ic-wasm-macos
+#          - os: macos-14
+#            asset_name: ic-wasm-macos
     steps:
       - name: Get executable
         id: download

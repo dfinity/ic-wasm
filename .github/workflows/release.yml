@@ -19,10 +19,25 @@ jobs:
             name: macos
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos
+          - os: ubuntu-20.04
+            name: linux-mmusl
+            artifact_name: target/x86_64-unknown-linux-musl/release/ic-wasm
+            asset_name: ic-wasm-linux-musl
     steps:
       - uses: actions/checkout@v4
+      - name: Install dependencies for musl (if needed)
+        if: ${{ matrix.name == 'linux-mmusl' }}
+        run: |
+          rustup target add x86_64-unknown-linux-musl
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
       - name: Build
-        run: cargo build --release --locked
+        run: |
+          if [[ "${{ matrix.name }}" == "linux-mmusl" ]]; then
+            cargo build --release --locked --target x86_64-unknown-linux-musl
+          else
+            cargo build --release --locked
+          fi
       - name: 'Upload assets'
         uses: actions/upload-artifact@v4
         with:
@@ -70,6 +85,8 @@ jobs:
             binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
           - asset_name: ic-wasm-macos
             binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
+          - asset_name: ic-wasm-linux-musl
+            binstall_name: ic-wasm-x86_64-unknown-linux-musl.tar.gz
     runs-on: ubuntu-latest
     steps:
       - name: Get executable

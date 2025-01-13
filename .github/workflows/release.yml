@@ -11,18 +11,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-#          - os: ubuntu-20.04
-#            name: linux64
-#            artifact_name: target/release/ic-wasm
-#            asset_name: ic-wasm-linux64
-#          - os: macos-13
-#            name: macos
-#            artifact_name: target/release/ic-wasm
-#            asset_name: ic-wasm-macos
-          - os: ubuntu-latest
+          - os: ubuntu-20.04
+            name: linux64
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-linux64
+          - os: ubuntu-20.04
             name: linux-musl
-            artifact_name: ic-wasm
+            artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux-musl
+          - os: macos-13
+            name: macos
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-macos
     steps:
       - uses: actions/checkout@v4
 
@@ -41,9 +41,6 @@ jobs:
 
             # Build the project
             cargo build --release --locked
-
-            # Copy the binary out
-            cp target/release/ic-wasm ./ic-wasm
           '
 
       - name: 'Upload assets'
@@ -61,18 +58,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-#          - os: ubuntu-20.04
-#            asset_name: ic-wasm-linux64
-#          - os: ubuntu-22.04
-#            asset_name: ic-wasm-linux64
+          - os: ubuntu-22.04
+            asset_name: ic-wasm-linux64
           - os: ubuntu-20.04
-            asset_name: ic-wasm-linux-musl
+            asset_name: ic-wasm-linux64
           - os: ubuntu-22.04
             asset_name: ic-wasm-linux-musl
-#          - os: macos-13
-#            asset_name: ic-wasm-macos
-#          - os: macos-14
-#            asset_name: ic-wasm-macos
+          - os: ubuntu-20.04
+            asset_name: ic-wasm-linux-musl
+          - os: macos-13
+            asset_name: ic-wasm-macos
+          - os: macos-14
+            asset_name: ic-wasm-macos
     steps:
       - name: Get executable
         id: download
@@ -101,12 +98,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-#          - asset_name: ic-wasm-linux64
-#            binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
+          - asset_name: ic-wasm-linux64
+            binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
           - asset_name: ic-wasm-linux-musl
             binstall_name: ic-wasm-x86_64-unknown-linux-musl.tar.gz
-#          - asset_name: ic-wasm-macos
-#            binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
+          - asset_name: ic-wasm-macos
+            binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
     runs-on: ubuntu-latest
     steps:
       - name: Get executable

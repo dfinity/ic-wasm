@@ -15,20 +15,41 @@ jobs:
             name: linux64
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux64
+          - os: ubuntu-20.04
+            name: linux-musl
+            artifact_name: target/release/ic-wasm
+            asset_name: ic-wasm-linux-musl
           - os: macos-13
             name: macos
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos
     steps:
       - uses: actions/checkout@v4
-      - name: Build
+
+      # Regular build for non-MUSL targets
+      - name: Build (non-MUSL)
+        if: matrix.name != 'linux-musl'
         run: cargo build --release --locked
+
+      # Native MUSL build using Alpine Docker
+      - name: Build (MUSL)
+        if: matrix.name == 'linux-musl'
+        run: |
+          docker run --rm -v $(pwd):/src -w /src rust:alpine sh -c '
+            # Install build dependencies
+            apk add --no-cache musl-dev binutils g++
+
+            # Build the project
+            cargo build --release --locked
+          '
+
       - name: 'Upload assets'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
           path: ${{ matrix.artifact_name }}
           retention-days: 3
+
   test:
     needs: build
     name: Test for ${{ matrix.os }}
@@ -41,6 +62,10 @@ jobs:
             asset_name: ic-wasm-linux64
           - os: ubuntu-20.04
             asset_name: ic-wasm-linux64
+          - os: ubuntu-22.04
+            asset_name: ic-wasm-linux-musl
+          - os: ubuntu-20.04
+            asset_name: ic-wasm-linux-musl
           - os: macos-13
             asset_name: ic-wasm-macos
           - os: macos-14
@@ -51,10 +76,21 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
-      - name: Executable runs
+
+      - name: Test MUSL binary in Alpine
+        if: matrix.asset_name == 'ic-wasm-linux-musl'
+        run: |
+          docker run --rm -v $(pwd):/test alpine:latest sh -c '
+            chmod +x /test/ic-wasm
+            /test/ic-wasm --version
+          '
+
+      - name: Test non-MUSL binary
+        if: matrix.asset_name != 'ic-wasm-linux-musl'
         run: |
           chmod +x ic-wasm
           ./ic-wasm --version
+
   publish:
     needs: test
     name: Publish ${{ matrix.asset_name }}
@@ -62,12 +98,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Note:
-          # - `asset_name` is the traditional name for these releases.  It is simple to understand and keeping it preserves backwards compatibility.
-          # - `binstall_name` is the name used by `cargo binstall`.  `binstall` installs a binary, if available for the given target, else builds from source.
-          #   Building from source is time-consuming, hence the preference for `cargo binstall` over `cargo install` that always builds from source.
           - asset_name: ic-wasm-linux64
             binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
+          - asset_name: ic-wasm-linux-musl
+            binstall_name: ic-wasm-x86_64-unknown-linux-musl.tar.gz
           - asset_name: ic-wasm-macos
             binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
     runs-on: ubuntu-latest
@@ -76,6 +110,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ${{ matrix.asset_name }}
+
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
@@ -83,10 +118,12 @@ jobs:
           file: ic-wasm
           asset_name: ${{ matrix.asset_name }}
           tag: ${{ github.ref }}
+
       - name: Bundle for binstall
         run: |
           chmod +x ic-wasm
           tar -cvzf ${{ matrix.binstall_name }} ic-wasm
+
       - name: Upload binstall binaries to release
         uses: svenstaro/upload-release-action@v2
         with:

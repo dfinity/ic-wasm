@@ -6,11 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-## [0.9.3] - 2024-01-10
+## [0.9.4] - 2025-01-27
+
+* Allow `sign_with_schnorr` in `limit_resource`.
+
+## [0.9.3] - 2025-01-10
 
 * Validate the manipulated module before emitting it and give a warning if that fails.
 
-## [0.9.2] - 2024-01-09
+## [0.9.2] - 2025-01-09
 
 * Fix: limit_resource works with wasm64.
 

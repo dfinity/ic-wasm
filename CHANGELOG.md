@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.9.5] - 2025-01-28
+
+* Fix compilation without default features.
+
 ## [0.9.4] - 2025-01-27
 
 * Allow `sign_with_schnorr` in `limit_resource`.

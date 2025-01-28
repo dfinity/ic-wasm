@@ -22,6 +22,7 @@ jobs:
           wget https://github.com/chenyan2002/ic-repl/releases/download/$IC_REPL_VERSION/ic-repl-linux64
           cp ./ic-repl-linux64 /usr/local/bin/ic-repl
           chmod a+x /usr/local/bin/ic-repl
+          rustup target add wasm32-unknown-unknown
       - name: Check compilation without default features for wasm32-unknown-unknown target (needed for playground)
         run: |
           cargo build --no-default-features --target wasm32-unknown-unknown

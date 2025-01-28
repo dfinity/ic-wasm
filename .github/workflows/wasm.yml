@@ -23,7 +23,7 @@ jobs:
           cp ./ic-repl-linux64 /usr/local/bin/ic-repl
           chmod a+x /usr/local/bin/ic-repl
           rustup target add wasm32-unknown-unknown
-      - name: Check compilation without default features for wasm32-unknown-unknown target (needed for playground)
+      - name: Check compilation without default features for wasm32-unknown-unknown target (needed for motoko-playground)
         run: |
           cargo build --no-default-features --target wasm32-unknown-unknown
       - name: Start replica

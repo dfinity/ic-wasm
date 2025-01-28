@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
+#[cfg(feature = "wasm-opt")]
 use wasm_opt::Feature;
 use wasmparser::{Validator, WasmFeaturesInflated};
 
@@ -14,6 +15,7 @@ pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 // The feature set should be align with IC `wasmtime` validation config:
 // https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
 // Since we use both wasm_opt::Feature and wasmparse::WasmFeature, we have to define the config/features for both.
+#[cfg(feature = "wasm-opt")]
 pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
     Feature::MutableGlobals,
     Feature::TruncSat,

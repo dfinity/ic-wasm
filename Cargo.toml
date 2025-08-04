@@ -21,7 +21,9 @@ required-features = ["exe"]
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
 candid = "0.10"
+candid_parser = "0.2.1"
 libflate = "2.0"
+parse-display = "0.10.0"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
 walrus = "0.22.0"

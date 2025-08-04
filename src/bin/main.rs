@@ -1,4 +1,5 @@
 use clap::{crate_authors, crate_version, Parser};
+use ic_wasm::check_endpoints::{check_endpoints, CanisterEndpoint};
 use ic_wasm::utils::make_validator_with_features;
 use std::path::PathBuf;
 
@@ -96,6 +97,16 @@ enum SubCommand {
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,
+    },
+    /// Check canister endpoints against provided Candid interface
+    CheckEndpoints {
+        /// Candid interface file
+        #[clap(short, long)]
+        candid: PathBuf,
+        /// Optionally specify hidden endpoints, i.e., endpoints that are exposed by the canister but
+        /// not present in the Candid interface file.
+        #[arg(long)]
+        hidden: Vec<CanisterEndpoint>,
     },
 }
 
@@ -208,6 +219,9 @@ fn main() -> anyhow::Result<()> {
                 }
                 return Ok(());
             }
+        }
+        SubCommand::CheckEndpoints { candid, hidden } => {
+            return check_endpoints(&m, candid, hidden);
         }
     };
     // validate new module

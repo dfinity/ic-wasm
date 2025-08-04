@@ -394,3 +394,21 @@ fn metadata_keep_name_section() {
         assert_functions_are_named();
     }
 }
+
+#[test]
+fn check_endpoints() {
+    wasm_input("wat.wasm", false)
+        .arg("check-endpoints")
+        .arg("--candid")
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
+        .assert()
+        .stdout("Canister WASM and Candid interface match!")
+        .success();
+    wasm_input("wat.wasm.gz", false)
+        .arg("check-endpoints")
+        .arg("--candid")
+        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
+        .assert()
+        .stdout("Canister WASM and Candid interface match!")
+        .success();
+}

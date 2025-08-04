@@ -1,3 +1,4 @@
+pub mod check_endpoints;
 pub mod info;
 pub mod instrumentation;
 pub mod limit_resource;

@@ -1,4 +1,5 @@
 use clap::{crate_authors, crate_version, Parser};
+#[cfg(feature = "check-endpoints")]
 use ic_wasm::check_endpoints::{check_endpoints, CanisterEndpoint};
 use ic_wasm::utils::make_validator_with_features;
 use std::path::PathBuf;
@@ -99,6 +100,7 @@ enum SubCommand {
         page_limit: Option<i32>,
     },
     /// Check canister endpoints against provided Candid interface
+    #[cfg(feature = "check-endpoints")]
     CheckEndpoints {
         /// Candid interface file
         #[clap(short, long)]

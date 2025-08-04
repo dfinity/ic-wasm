@@ -1,3 +1,4 @@
+#[cfg(feature = "check-endpoints")]
 pub mod check_endpoints;
 pub mod info;
 pub mod instrumentation;

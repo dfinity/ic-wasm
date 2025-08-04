@@ -46,11 +46,11 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 pub fn check_endpoints(
     module: &Module,
     candid_path: impl Into<PathBuf>,
-    hidden_endpoints: &Vec<CanisterEndpoint>,
+    hidden_endpoints: &[CanisterEndpoint],
 ) -> anyhow::Result<()> {
     let wasm_endpoints = get_exported_methods(module)
         .iter()
-        .map(|method| CanisterEndpoint::try_from(method))
+        .map(CanisterEndpoint::try_from)
         .collect::<Result<BTreeSet<CanisterEndpoint>, _>>()?;
 
     let candid_endpoints = CandidParser::new(candid_path).parse()?;

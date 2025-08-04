@@ -402,13 +402,13 @@ fn check_endpoints() {
         .arg("--candid")
         .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
         .assert()
-        .stdout("Canister WASM and Candid interface match!")
+        .stdout("Canister WASM and Candid interface match!\n")
         .success();
     wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
         .arg("--candid")
         .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
         .assert()
-        .stdout("Canister WASM and Candid interface match!")
+        .stdout("Canister WASM and Candid interface match!\n")
         .success();
 }

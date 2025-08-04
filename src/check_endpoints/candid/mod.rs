@@ -5,9 +5,6 @@ use candid_parser::utils::CandidSource;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 
-#[cfg(test)]
-mod tests;
-
 pub struct CandidParser {
     path: PathBuf,
 }

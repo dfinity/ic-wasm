@@ -12,27 +12,14 @@ categories = ["wasm"]
 keywords = ["internet-computer", "canister", "dfinity"]
 include = ["src", "Cargo.toml", "LICENSE", "README.md"]
 
+[package.metadata.binstall]
+pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
+pkg-fmt = "tgz"                                                                          # archive-suffix = .tar.gz
+
 [[bin]]
 name = "ic-wasm"
 path = "src/bin/main.rs"
 required-features = ["exe"]
-
-[dependencies]
-# Major version bump of walrus should result in a major version bump of ic-wasm.
-# Because we expose walrus types in ic-wasm public API.
-walrus = "0.22.0"
-candid = "0.10"
-rustc-demangle = "0.1"
-thiserror = "1.0.35"
-libflate = "2.0"
-wasmparser = "0.223.0"
-
-wasm-opt = { version = "0.116.0", optional = true }
-tempfile = { version = "3.5.0", optional = true }
-anyhow = { version = "1.0.34", optional = true }
-clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
-serde = { version = "1.0", optional = true }
-serde_json = { version = "1.0", optional = true }
 
 [features]
 default = ["exe", "wasm-opt"]
@@ -40,9 +27,22 @@ exe = ["anyhow", "clap", "serde"]
 wasm-opt = ["dep:wasm-opt", "tempfile"]
 serde = ["dep:serde", "dep:serde_json"]
 
+[dependencies]
+anyhow = { version = "1.0.34", optional = true }
+candid = "0.10"
+clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
+libflate = "2.0"
+rustc-demangle = "0.1"
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+tempfile = { version = "3.5.0", optional = true }
+thiserror = "1.0.35"
+# Major version bump of walrus should result in a major version bump of ic-wasm.
+# Because we expose walrus types in ic-wasm public API.
+walrus = "0.22.0"
+
+wasm-opt = { version = "0.116.0", optional = true }
+wasmparser = "0.223.0"
+
 [dev-dependencies]
 assert_cmd = "2"
-
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
-pkg-fmt = "tgz"                                                                          # archive-suffix = .tar.gz

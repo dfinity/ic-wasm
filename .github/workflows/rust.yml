@@ -28,3 +28,5 @@ jobs:
       run: cargo clippy --tests -- -D clippy::all
     - name: doc
       run: cargo doc
+    - name: cargo sort
+      run: cargo sort

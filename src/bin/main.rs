@@ -220,6 +220,7 @@ fn main() -> anyhow::Result<()> {
                 return Ok(());
             }
         }
+        #[cfg(feature = "check-endpoints")]
         SubCommand::CheckEndpoints { candid, hidden } => {
             return check_endpoints(&m, candid, hidden);
         }

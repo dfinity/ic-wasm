@@ -21,25 +21,26 @@ required-features = ["exe"]
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
 candid = "0.10"
-candid_parser = "0.2.1"
 libflate = "2.0"
-parse-display = "0.10.0"
 rustc-demangle = "0.1"
 thiserror = "1.0.35"
 walrus = "0.22.0"
 wasmparser = "0.223.0"
 
 anyhow = { version = "1.0.34", optional = true }
+candid_parser = { version = "0.2.1", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
+parse-display = { version = "0.10.0", optional = true }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 tempfile = { version = "3.5.0", optional = true }
 wasm-opt = { version = "0.116.0", optional = true }
 
 [features]
-default = ["exe", "wasm-opt"]
-exe = ["anyhow", "clap", "serde"]
-wasm-opt = ["dep:wasm-opt", "tempfile"]
+check-endpoints = ["dep:anyhow", "dep:candid_parser", "dep:parse-display"]
+default = ["check-endpoints", "exe", "wasm-opt"]
+exe = ["dep:anyhow", "dep:clap", "dep:serde"]
+wasm-opt = ["dep:wasm-opt", "dep:tempfile"]
 serde = ["dep:serde", "dep:serde_json"]
 
 [dev-dependencies]

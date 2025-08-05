@@ -1,6 +1,0 @@
-service : () -> {
-    get : (key: text) -> (text) query;
-    inc : (owner: opt principal) -> (nat);
-    set : (key: text, value: text) -> ();
-}
-

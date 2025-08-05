@@ -1,7 +1,9 @@
 use assert_cmd::Command;
 
 use std::fs;
+use std::io::Write;
 use std::path::Path;
+use tempfile::NamedTempFile;
 
 fn wasm_input(wasm: &str, output: bool) -> Command {
     let mut cmd = Command::cargo_bin("ic-wasm").unwrap();
@@ -400,15 +402,64 @@ fn check_endpoints() {
     wasm_input("wat.wasm", false)
         .arg("check-endpoints")
         .arg("--candid")
-        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
+        .arg(
+            create_tempfile(
+                r#"
+service : () -> {
+    get : (key: text) -> (text) query;
+    inc : (owner: opt principal) -> (nat);
+    set : (key: text, value: text) -> ();
+}
+"#,
+            )
+            .path(),
+        )
         .assert()
         .stdout("Canister WASM and Candid interface match!\n")
         .success();
     wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
         .arg("--candid")
-        .arg(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/valid.did"))
+        .arg(
+            create_tempfile(
+                r#"
+service : () -> {
+    get : (key: text) -> (text) query;
+    inc : (owner: opt principal) -> (nat);
+}
+"#,
+            )
+            .path(),
+        )
+        .arg("--hidden")
+        .arg("update:set")
         .assert()
         .stdout("Canister WASM and Candid interface match!\n")
         .success();
+    wasm_input("wat.wasm.gz", false)
+        .arg("check-endpoints")
+        .arg("--candid")
+        .arg(
+            create_tempfile(
+                r#"
+service : () -> {
+    inc : (owner: opt principal) -> (nat);
+}
+"#,
+            )
+            .path(),
+        )
+        .arg("--hidden")
+        .arg("update:set")
+        .arg("--hidden")
+        .arg("query:get")
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+}
+
+fn create_tempfile(content: &str) -> NamedTempFile {
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    write!(temp_file, "{content}").expect("Failed to write temp file content");
+    temp_file
 }

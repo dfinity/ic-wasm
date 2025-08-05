@@ -118,7 +118,7 @@ fn main() -> anyhow::Result<()> {
             if *json {
                 let json = serde_json::to_string_pretty(&wasm_info)
                     .expect("Failed to express the Wasm information as JSON.");
-                println!("{}", json);
+                println!("{json}");
             } else {
                 print!("{wasm_info}");
             }

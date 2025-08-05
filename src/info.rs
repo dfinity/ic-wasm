@@ -96,7 +96,7 @@ impl From<&Module> for LanguageSpecificInfo {
         if is_motoko_canister(m) {
             let mut embedded_wasm = Vec::new();
             for (data_id, embedded_module) in get_motoko_wasm_data_sections(m) {
-                embedded_wasm.push((format!("{:?}", data_id), WasmInfo::from(&embedded_module)));
+                embedded_wasm.push((format!("{data_id:?}"), WasmInfo::from(&embedded_module)));
             }
             return LanguageSpecificInfo::Motoko { embedded_wasm };
         }
@@ -165,7 +165,7 @@ impl fmt::Display for LanguageSpecificInfo {
                 writeln!(f, "This is a Motoko canister")?;
                 for (_, wasm_info) in embedded_wasm {
                     writeln!(f, "--- Start decoding an embedded Wasm ---")?;
-                    write!(f, "{}", wasm_info)?;
+                    write!(f, "{wasm_info}")?;
                     writeln!(f, "--- End of decoding ---")?;
                 }
                 writeln!(f)

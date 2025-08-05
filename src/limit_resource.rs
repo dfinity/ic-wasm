@@ -106,7 +106,7 @@ fn limit_heap_memory(m: &mut Module, limit: u32) {
             {
                 memory.initial = limit;
             } else {
-                panic!("Unable to restrict Wasm heap memory to {} pages", limit);
+                panic!("Unable to restrict Wasm heap memory to {limit} pages");
             }
         }
         memory.maximum = Some(limit);

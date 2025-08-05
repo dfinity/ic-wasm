@@ -127,6 +127,7 @@ fn main() -> anyhow::Result<()> {
         }
         #[cfg(not(feature = "serde"))]
         SubCommand::Info => {
+            let wasm_info = ic_wasm::info::WasmInfo::from(&m);
             print!("{wasm_info}");
         }
         SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),

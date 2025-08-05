@@ -77,7 +77,7 @@ pub fn check_endpoints(
     });
 
     if !missing_endpoints.is_empty() || !unexpected_endpoints.is_empty() {
-        Err(anyhow!("Canister WASM and Candid interface do not match"))
+        Err(anyhow!("Canister WASM and Candid interface do not match!"))
     } else {
         println!("Canister WASM and Candid interface match!");
         Ok(())

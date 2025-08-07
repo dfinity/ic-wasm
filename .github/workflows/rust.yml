@@ -18,6 +18,21 @@ jobs:
           ~/.cargo/git
           target
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/*.rs', '**/Cargo.toml') }}
+    - name: Cache cargo binaries
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/bin
+        key: cargo-bin-${{ runner.os }}-v1
+    - name: Install cargo-sort if needed
+      run: |
+        if ! command -v cargo-sort &> /dev/null; then
+          echo "Installing cargo-sort..."
+          cargo install cargo-sort
+        else
+          echo "cargo-sort already installed from cache."
+        fi
+    - name: cargo sort
+      run: cargo sort --check
     - name: Build
       run: cargo build --features "serde"
     - name: Run tests

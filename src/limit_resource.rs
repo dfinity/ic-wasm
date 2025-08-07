@@ -746,8 +746,9 @@ fn make_filter_call_new(
                     })
                     .local_get(not_allowed_canister)
                     .br_if(checks_id); // we already know that callee is not allowed => no need to check further
-                                       // Callee is an allowed canister => check if method name is not forbidden
-                                       // no match (i.e., method name not in `forbidden_function_names`) => `allow_cycles` set to 1
+
+                // Callee is an allowed canister => check if method name is not forbidden
+                // no match (i.e., method name not in `forbidden_function_names`) => `allow_cycles` set to 1
                 check_list(
                     memory,
                     checks,

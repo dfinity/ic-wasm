@@ -170,7 +170,7 @@ fn make_filter_cycles_add(
                 then.local_get(amount).drop(); // no-op
             },
             |otherwise| {
-                otherwise.local_get(amount).call(old_cycles_add); // call ic0.call_cycles_add
+                otherwise.local_get(amount).call(old_cycles_add); // call `ic0.call_cycles_add`
             },
         );
         let new_cycles_add = builder.finish(vec![amount], &mut m.funcs);
@@ -214,7 +214,7 @@ fn make_filter_cycles_add128(m: &mut Module, replacer: &mut Replacer, global_id:
                 otherwise
                     .local_get(high)
                     .local_get(low)
-                    .call(old_cycles_add128); // call ic0.call_cycles_add128
+                    .call(old_cycles_add128); // call `ic0.call_cycles_add128`
             },
         );
         let new_cycles_add128 = builder.finish(vec![high, low], &mut m.funcs);
@@ -767,11 +767,11 @@ fn make_filter_call_new(
             .if_else(
                 None,
                 |block| {
-                    // set global to 0 => allow ic0.call_cycles_add[128]
+                    // set global to 0 => allow `ic0.call_cycles_add[128]`
                     block.i32_const(0).global_set(global_id);
                 },
                 |block| {
-                    // set global to 1 => filter ic0.call_cycles_add[128]
+                    // set global to 1 => filter `ic0.call_cycles_add[128]`
                     block.i32_const(1).global_set(global_id);
                 },
             )

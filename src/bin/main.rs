@@ -42,10 +42,10 @@ enum SubCommand {
     },
     /// Limit resource usage
     Resource {
-        /// Remove ic0.call_cycles_add[128] system API calls
+        /// Remove `ic0.call_cycles_add[128]` system API calls
         #[clap(short, long)]
         remove_cycles_transfer: bool,
-        /// Filter ic0.call_cycles_add[128] system API calls
+        /// Filter `ic0.call_cycles_add[128]` system API calls
         #[clap(short, long, conflicts_with_all = &["remove_cycles_transfer", "playground_backend_redirect"])]
         filter_cycles_transfer: bool,
         /// Allocate at most specified amount of memory pages for Wasm heap memory

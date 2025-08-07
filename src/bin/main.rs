@@ -59,6 +59,7 @@ enum SubCommand {
     Info {
         /// Format the output as JSON
         #[clap(short, long)]
+        #[cfg(feature = "serde")]
         json: bool,
     },
     /// Remove unused functions and debug info
@@ -113,15 +114,21 @@ fn main() -> anyhow::Result<()> {
     };
     let mut m = ic_wasm::utils::parse_wasm_file(opts.input, keep_name_section)?;
     match &opts.subcommand {
+        #[cfg(feature = "serde")]
         SubCommand::Info { json } => {
             let wasm_info = ic_wasm::info::WasmInfo::from(&m);
             if *json {
                 let json = serde_json::to_string_pretty(&wasm_info)
                     .expect("Failed to express the Wasm information as JSON.");
-                println!("{}", json);
+                println!("{json}");
             } else {
                 print!("{wasm_info}");
             }
+        }
+        #[cfg(not(feature = "serde"))]
+        SubCommand::Info => {
+            let wasm_info = ic_wasm::info::WasmInfo::from(&m);
+            print!("{wasm_info}");
         }
         SubCommand::Shrink { .. } => ic_wasm::shrink::shrink(&mut m),
         #[cfg(feature = "wasm-opt")]

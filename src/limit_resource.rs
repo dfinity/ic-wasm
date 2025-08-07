@@ -219,7 +219,7 @@ fn make_filter_cycles_add128(m: &mut Module, replacer: &mut Replacer, global_id:
 }
 
 fn make_cycles_burn128(m: &mut Module, replacer: &mut Replacer, wasm64: bool) {
-    if let Some(older_cycles_burn128) = get_ic_func_id(m, "call_cycles_burn128") {
+    if let Some(older_cycles_burn128) = get_ic_func_id(m, "cycles_burn128") {
         let dst_type = match wasm64 {
             true => ValType::I64,
             false => ValType::I32,

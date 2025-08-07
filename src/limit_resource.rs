@@ -699,40 +699,9 @@ fn make_filter_call_new(
 
         // Scratch variables
         let filter_cycles = m.locals.add(ValType::I32);
-        let redirect_canisters = [
+        let allowed_canisters = [
             Principal::from_slice(&[]),
             Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
-        ];
-
-        // All functions that require controller permissions or cycles.
-        // For simplicity, We mingle all canister methods in a single list.
-        // Method names shouldn't overlap.
-        let controller_function_names = [
-            "create_canister",
-            "update_settings",
-            "install_code",
-            "uninstall_code",
-            "canister_status",
-            "stop_canister",
-            "start_canister",
-            "delete_canister",
-            "list_canister_snapshots",
-            "take_canister_snapshot",
-            "load_canister_snapshot",
-            "delete_canister_snapshot",
-            // These functions doesn't require controller permissions, but needs cycles
-            "sign_with_ecdsa",
-            "sign_with_schnorr",
-            "http_request",
-            // methods from evm canister
-            "eth_call",
-            "eth_feeHistory",
-            "eth_getBlockByNumber",
-            "eth_getLogs",
-            "eth_getTransactionCount",
-            "eth_getTransactionReceipt",
-            "eth_sendRawTransaction",
-            "request",
         ];
 
         let mut builder = FunctionBuilder::new(
@@ -752,38 +721,18 @@ fn make_filter_call_new(
 
         builder
             .func_body()
-            .block(None, |checks| {
-                let checks_id = checks.id();
-                // Check if callee address is from redirect_canisters
-                checks
-                    .block(None, |id_check| {
-                        check_list(
-                            memory,
-                            id_check,
-                            filter_cycles,
-                            callee_size,
-                            callee_src,
-                            None,
-                            &redirect_canisters
-                                .iter()
-                                .map(|p| p.as_slice())
-                                .collect::<Vec<_>>(),
-                            wasm64,
-                        );
-                    })
-                    .local_get(filter_cycles)
-                    .br_if(checks_id);
-                // Callee address matches, check method name is in the list
+            // Check if callee is an allowed canister
+            .block(None, |id_check| {
                 check_list(
                     memory,
-                    checks,
+                    id_check,
                     filter_cycles,
-                    name_size,
-                    name_src,
+                    callee_size,
+                    callee_src,
                     None,
-                    &controller_function_names
+                    &allowed_canisters
                         .iter()
-                        .map(|s| s.as_bytes())
+                        .map(|p| p.as_slice())
                         .collect::<Vec<_>>(),
                     wasm64,
                 );
@@ -794,32 +743,21 @@ fn make_filter_call_new(
                 |block| {
                     // set global to 1 => filter ic0.call_cycles_add[128]
                     block.i32_const(1).global_set(global_id);
-                    block
-                        .local_get(callee_src)
-                        .local_get(callee_size)
-                        .local_get(name_src)
-                        .local_get(name_size)
-                        .local_get(arg5)
-                        .local_get(arg6)
-                        .local_get(arg7)
-                        .local_get(arg8)
-                        .call(old_call_new);
                 },
                 |block| {
                     // set global to 0 => allow ic0.call_cycles_add[128]
                     block.i32_const(0).global_set(global_id);
-                    block
-                        .local_get(callee_src)
-                        .local_get(callee_size)
-                        .local_get(name_src)
-                        .local_get(name_size)
-                        .local_get(arg5)
-                        .local_get(arg6)
-                        .local_get(arg7)
-                        .local_get(arg8)
-                        .call(old_call_new);
                 },
-            );
+            )
+            .local_get(callee_src)
+            .local_get(callee_size)
+            .local_get(name_src)
+            .local_get(name_size)
+            .local_get(arg5)
+            .local_get(arg6)
+            .local_get(arg7)
+            .local_get(arg8)
+            .call(old_call_new);
         let new_call_new = builder.finish(
             vec![
                 callee_src,

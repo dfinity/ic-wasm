@@ -698,11 +698,14 @@ fn make_filter_call_new(
             .expect("Canister Wasm module should have only one memory");
 
         // Scratch variables
-        let filter_cycles = m.locals.add(ValType::I32);
+        let not_allowed_canister = m.locals.add(ValType::I32);
+        let allow_cycles = m.locals.add(ValType::I32);
+
         let allowed_canisters = [
             Principal::from_slice(&[]),
             Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
         ];
+        let forbidden_function_names = ["deposit_cycles"];
 
         let mut builder = FunctionBuilder::new(
             &mut m.types,
@@ -721,32 +724,54 @@ fn make_filter_call_new(
 
         builder
             .func_body()
-            // Check if callee is an allowed canister
-            .block(None, |id_check| {
+            .block(None, |checks| {
+                let checks_id = checks.id();
+                // Check if callee is an allowed canister
+                checks
+                    .block(None, |id_check| {
+                        // no match (i.e., callee not in `allowed_canisters`) => `not_allowed_canister` set to 1
+                        check_list(
+                            memory,
+                            id_check,
+                            not_allowed_canister,
+                            callee_size,
+                            callee_src,
+                            None,
+                            &allowed_canisters
+                                .iter()
+                                .map(|p| p.as_slice())
+                                .collect::<Vec<_>>(),
+                            wasm64,
+                        );
+                    })
+                    .local_get(not_allowed_canister)
+                    .br_if(checks_id); // we already know that callee is not allowed => no need to check further
+                                       // Callee is an allowed canister => check if method name is not forbidden
+                                       // no match (i.e., method name not in `forbidden_function_names`) => `allow_cycles` set to 1
                 check_list(
                     memory,
-                    id_check,
-                    filter_cycles,
-                    callee_size,
-                    callee_src,
+                    checks,
+                    allow_cycles,
+                    name_size,
+                    name_src,
                     None,
-                    &allowed_canisters
+                    &forbidden_function_names
                         .iter()
-                        .map(|p| p.as_slice())
+                        .map(|s| s.as_bytes())
                         .collect::<Vec<_>>(),
                     wasm64,
                 );
             })
-            .local_get(filter_cycles)
+            .local_get(allow_cycles)
             .if_else(
                 None,
                 |block| {
-                    // set global to 1 => filter ic0.call_cycles_add[128]
-                    block.i32_const(1).global_set(global_id);
-                },
-                |block| {
                     // set global to 0 => allow ic0.call_cycles_add[128]
                     block.i32_const(0).global_set(global_id);
+                },
+                |block| {
+                    // set global to 1 => filter ic0.call_cycles_add[128]
+                    block.i32_const(1).global_set(global_id);
                 },
             )
             .local_get(callee_src)

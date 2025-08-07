@@ -56,7 +56,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         let global_id = m.globals.add_local(
             ValType::I32,
             true,  // mutable
-            false, // shared
+            false, // shared (not supported yet)
             ConstExpr::Value(Value::I32(0)),
         );
         // Instrument `ic0.call_cycles_add[128]` to respect the value of the private global.

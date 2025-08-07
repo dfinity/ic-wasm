@@ -705,7 +705,7 @@ fn make_filter_call_new(
             Principal::from_slice(&[]),
             Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
         ];
-        let forbidden_function_names = ["deposit_cycles"];
+        let forbidden_function_names = ["create_canister", "deposit_cycles"];
 
         let mut builder = FunctionBuilder::new(
             &mut m.types,

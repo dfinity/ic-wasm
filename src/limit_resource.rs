@@ -50,17 +50,21 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
     }
 
     if config.filter_cycles_add {
-        // Add a mutable i32 global set to 1 in ic0.call_new
-        // if subsequent calls to ic0.call_cycles_add[128] should be filtered (i.e., turned into no-op).
+        // Create a private global set in every invokation of `ic0.call_new` to
+        // - 0 if subsequent calls to `ic0.call_cycles_add[128]` are allowed;
+        // - 1 if subsequent calls to `ic0.call_cycles_add[128]` should be filtered (i.e., turned into no-op).
         let global_id = m.globals.add_local(
             ValType::I32,
             true,  // mutable
             false, // shared
             ConstExpr::Value(Value::I32(0)),
         );
+        // Instrument `ic0.call_cycles_add[128]` to respect the value of the private global.
         make_filter_cycles_add(m, &mut replacer, wasm64, global_id);
         make_filter_cycles_add128(m, &mut replacer, global_id);
+        // Calls to `ic0.cycles_burn128` are always filtered (i.e., turned into no-op).
         make_cycles_burn128(m, &mut replacer, wasm64);
+        // Instrument `ic0.call_new` to set the private global.
         make_filter_call_new(m, &mut replacer, wasm64, global_id);
     }
 
@@ -163,7 +167,7 @@ fn make_filter_cycles_add(
         func.if_else(
             None,
             |then| {
-                then.local_get(amount).drop();
+                then.local_get(amount).drop(); // no-op
             },
             |otherwise| {
                 otherwise.local_get(amount).call(old_cycles_add); // call ic0.call_cycles_add
@@ -204,7 +208,7 @@ fn make_filter_cycles_add128(m: &mut Module, replacer: &mut Replacer, global_id:
         func.if_else(
             None,
             |then| {
-                then.local_get(high).local_get(low).drop().drop();
+                then.local_get(high).local_get(low).drop().drop(); // no-op
             },
             |otherwise| {
                 otherwise
@@ -694,7 +698,7 @@ fn make_filter_call_new(
             .expect("Canister Wasm module should have only one memory");
 
         // Scratch variables
-        let no_redirect = m.locals.add(ValType::I32);
+        let filter_cycles = m.locals.add(ValType::I32);
         let redirect_canisters = [
             Principal::from_slice(&[]),
             Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
@@ -756,7 +760,7 @@ fn make_filter_call_new(
                         check_list(
                             memory,
                             id_check,
-                            no_redirect,
+                            filter_cycles,
                             callee_size,
                             callee_src,
                             None,
@@ -767,13 +771,13 @@ fn make_filter_call_new(
                             wasm64,
                         );
                     })
-                    .local_get(no_redirect)
+                    .local_get(filter_cycles)
                     .br_if(checks_id);
                 // Callee address matches, check method name is in the list
                 check_list(
                     memory,
                     checks,
-                    no_redirect,
+                    filter_cycles,
                     name_size,
                     name_src,
                     None,
@@ -784,7 +788,7 @@ fn make_filter_call_new(
                     wasm64,
                 );
             })
-            .local_get(no_redirect)
+            .local_get(filter_cycles)
             .if_else(
                 None,
                 |block| {

@@ -701,6 +701,9 @@ fn make_filter_call_new(
         let not_allowed_canister = m.locals.add(ValType::I32);
         let allow_cycles = m.locals.add(ValType::I32);
 
+        // Cycles transfer is only allowed if
+        // - the callee is the management canister or `7hfb6-caaaa-aaaar-qadga-cai` (EVM RPC Canister);
+        // - *and* the method name is *neither* `create_canister` *nor* `deposit_cycles`.
         let allowed_canisters = [
             Principal::from_slice(&[]),
             Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),

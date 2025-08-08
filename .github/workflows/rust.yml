@@ -10,6 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Install cargo-sort if needed
+      run: |
+        if ! command -v cargo-sort &> /dev/null; then
+        echo "Installing cargo-sort..."
+        cargo install cargo-sort
+        else
+        echo "cargo-sort already installed from cache."
+        fi
+    - name: cargo sort
+      run: cargo sort --check
     - name: Build
       run: cargo build
     - name: Run tests

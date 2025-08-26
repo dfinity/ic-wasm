@@ -15,6 +15,8 @@ pub enum CanisterEndpoint {
     Update(String),
     #[display("query:{0}")]
     Query(String),
+    #[display("composite_query:{0}")]
+    CompositeQuery(String),
 }
 
 impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
@@ -23,6 +25,7 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
         const CANISTER_QUERY_PREFIX: &str = "canister_query ";
         const CANISTER_UPDATE_PREFIX: &str = "canister_update ";
+        const CANISTER_COMPOSITE_QUERY_PREFIX: &str = "canister_composite_query ";
 
         method
             .name
@@ -33,6 +36,12 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
                     .name
                     .strip_prefix(CANISTER_UPDATE_PREFIX)
                     .map(|u| CanisterEndpoint::Update(u.to_string()))
+            })
+            .or_else(|| {
+                method
+                    .name
+                    .strip_prefix(CANISTER_COMPOSITE_QUERY_PREFIX)
+                    .map(|u| CanisterEndpoint::CompositeQuery(u.to_string()))
             })
             .ok_or_else(|| {
                 anyhow!(

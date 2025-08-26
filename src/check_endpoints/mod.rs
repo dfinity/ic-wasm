@@ -64,12 +64,21 @@ pub fn check_endpoints(
 
     let candid_endpoints = CandidParser::new(candid_path).parse()?;
 
-    let missing_endpoints = candid_endpoints
+    let missing_candid_endpoints = candid_endpoints
         .difference(&wasm_endpoints)
         .collect::<BTreeSet<_>>();
-    missing_endpoints.iter().for_each(|endpoint| {
+    missing_candid_endpoints.iter().for_each(|endpoint| {
         eprintln!(
-            "ERROR: The following endpoint is missing from the WASM exports section: {endpoint}"
+            "ERROR: The following Candid endpoint is missing from the WASM exports section: {endpoint}"
+        );
+    });
+
+    let missing_hidden_endpoints = BTreeSet::from(hidden_endpoints)
+        .difference(&wasm_endpoints)
+        .collect::<BTreeSet<_>>();
+    missing_hidden_endpoints.iter().for_each(|endpoint| {
+        eprintln!(
+            "ERROR: The following hidden endpoint is missing from the WASM exports section: {endpoint}"
         );
     });
 
@@ -85,7 +94,7 @@ pub fn check_endpoints(
         );
     });
 
-    if !missing_endpoints.is_empty() || !unexpected_endpoints.is_empty() {
+    if !missing_candid_endpoints.is_empty() || !missing_hidden_endpoints.is_empty() || !unexpected_endpoints.is_empty() {
         Err(anyhow!("Canister WASM and Candid interface do not match!"))
     } else {
         println!("Canister WASM and Candid interface match!");

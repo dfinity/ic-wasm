@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - "*"
+  pull_request:
+
 jobs:
   build:
     name: Build for ${{ matrix.name }}
@@ -104,6 +106,8 @@ jobs:
           ./ic-wasm --version
 
   publish:
+    # Check if the workflow was triggered by a tag
+    if: startsWith(github.ref, 'refs/tags/')
     needs: test
     name: Publish ${{ matrix.asset_name }}
     strategy:

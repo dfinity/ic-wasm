@@ -9,17 +9,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # The runner images are chosen to be one major version behind the latest.
+      # The macOS runner should be x86_64 so that the binary can run on both Intel and Apple Silicon Macs.
+      # For example, as of Sep 2025
+      # - The latest Ubuntu is 24.04, so we use ubuntu-22.04
+      # - The latest macOS is 15, so we use macos-14-large
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             name: linux64
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux64
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             name: linux-musl
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-linux-musl
-          - os: macos-13
+          - os: macos-14-large # x86_64 build that can run on both Intel and Apple Silicon Macs
             name: macos
             artifact_name: target/release/ic-wasm
             asset_name: ic-wasm-macos
@@ -56,17 +61,24 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # The binaries built in the `build` job are tested on:
+      # - Ubuntu: latest and one major version behind latest.
+      # - macOS: latest and one major version behind latest. Both x86_64 and arm64 runner images.
       matrix:
         include:
-          - os: ubuntu-22.04
-            asset_name: ic-wasm-linux64
-          - os: ubuntu-20.04
+          - os: ubuntu-latest
             asset_name: ic-wasm-linux64
           - os: ubuntu-22.04
+            asset_name: ic-wasm-linux64
+          - os: ubuntu-latest
             asset_name: ic-wasm-linux-musl
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             asset_name: ic-wasm-linux-musl
-          - os: macos-13
+          - os: macos-latest-large
+            asset_name: ic-wasm-macos
+          - os: macos-latest
+            asset_name: ic-wasm-macos
+          - os: macos-14-large
             asset_name: ic-wasm-macos
           - os: macos-14
             asset_name: ic-wasm-macos

@@ -2,7 +2,7 @@ name: Release
 on:
   push:
     tags:
-      - '*'
+      - "*"
 jobs:
   build:
     name: Build for ${{ matrix.name }}
@@ -48,7 +48,7 @@ jobs:
             cargo build --release --locked
           '
 
-      - name: 'Upload assets'
+      - name: "Upload assets"
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.asset_name }}

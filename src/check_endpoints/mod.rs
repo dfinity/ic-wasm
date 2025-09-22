@@ -78,7 +78,10 @@ pub fn check_endpoints(
         );
     });
 
-    let missing_hidden_endpoints = BTreeSet::from(hidden_endpoints)
+    let missing_hidden_endpoints = hidden_endpoints
+        .iter()
+        .cloned()
+        .collect::<BTreeSet<_>>()
         .difference(&wasm_endpoints)
         .collect::<BTreeSet<_>>();
     missing_hidden_endpoints.iter().for_each(|endpoint| {

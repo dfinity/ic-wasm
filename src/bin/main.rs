@@ -104,7 +104,7 @@ enum SubCommand {
     CheckEndpoints {
         /// Candid interface file
         #[clap(short, long)]
-        candid: PathBuf,
+        candid: Option<PathBuf>,
         /// Optionally specify hidden endpoints, i.e., endpoints that are exposed by the canister but
         /// not present in the Candid interface file.
         #[arg(long)]
@@ -224,7 +224,7 @@ fn main() -> anyhow::Result<()> {
         }
         #[cfg(feature = "check-endpoints")]
         SubCommand::CheckEndpoints { candid, hidden } => {
-            return check_endpoints(&m, candid, hidden);
+            return check_endpoints(&m, candid.as_ref(), hidden);
         }
     };
     // validate new module

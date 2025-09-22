@@ -1,21 +1,44 @@
 use crate::check_endpoints::CanisterEndpoint;
-use anyhow::{Error, Result};
+use anyhow::{format_err, Error, Result};
 use candid::types::{FuncMode, Function, TypeInner};
 use candid_parser::utils::CandidSource;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
+use std::str;
+use walrus::{IdsToIndices, Module};
 
-pub struct CandidParser {
-    path: PathBuf,
+pub struct CandidParser<'a> {
+    source: CandidSource<'a>,
 }
 
-impl CandidParser {
-    pub fn new(path: impl Into<PathBuf>) -> Self {
-        Self { path: path.into() }
+impl From<CandidSource<'_>> for CandidParser<'_> {
+    fn from(source: CandidSource) -> Self {
+        Self { source }
+    }
+}
+
+impl CandidParser<'_> {
+    pub fn from_candid_file(path: impl Into<PathBuf>) -> Self {
+        Self::from(CandidSource::File(&path.into()))
+    }
+
+    pub fn try_from_wasm(module: &Module) -> Result<Option<Self>> {
+        module
+            .customs
+            .iter()
+            .filter(|(_, s)| s.name() == "icp:public candid:service")
+            .next()
+            .map(|(_, s)| {
+                let candid = str::from_utf8(&s.data(&IdsToIndices::default())).map_err(|e| {
+                    format_err!("Cannot interpret WASM custom section as text: {e:?}")
+                })?;
+                Ok(Self::from(CandidSource::Text(candid)))
+            })
+            .transpose()
     }
 
     pub fn parse(&self) -> Result<BTreeSet<CanisterEndpoint>> {
-        let (_, maybe_actor) = CandidSource::File(&self.path).load()?;
+        let (_, maybe_actor) = self.source.load()?;
 
         let maybe_class =
             maybe_actor.ok_or_else(|| Error::msg("Top-level actor definition not found"))?;

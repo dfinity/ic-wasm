@@ -54,7 +54,7 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
 pub fn check_endpoints(
     module: &Module,
-    candid_path: impl Into<PathBuf>,
+    candid_path: Option<impl Into<PathBuf>>,
     hidden_endpoints: &[CanisterEndpoint],
 ) -> anyhow::Result<()> {
     let wasm_endpoints = get_exported_methods(module)
@@ -62,7 +62,12 @@ pub fn check_endpoints(
         .map(CanisterEndpoint::try_from)
         .collect::<Result<BTreeSet<CanisterEndpoint>, _>>()?;
 
-    let candid_endpoints = CandidParser::new(candid_path).parse()?;
+    let candid_endpoints = CandidParser::try_from_wasm(module)?
+        .or_else(|| candid_path.map(CandidParser::from_candid_file))
+        .ok_or_else(anyhow!(
+            "Candid interface not specified in WASM file and Candid file not provided"
+        ))?
+        .parse()?;
 
     let missing_candid_endpoints = candid_endpoints
         .difference(&wasm_endpoints)
@@ -94,7 +99,10 @@ pub fn check_endpoints(
         );
     });
 
-    if !missing_candid_endpoints.is_empty() || !missing_hidden_endpoints.is_empty() || !unexpected_endpoints.is_empty() {
+    if !missing_candid_endpoints.is_empty()
+        || !missing_hidden_endpoints.is_empty()
+        || !unexpected_endpoints.is_empty()
+    {
         Err(anyhow!("Canister WASM and Candid interface do not match!"))
     } else {
         println!("Canister WASM and Candid interface match!");

@@ -399,60 +399,82 @@ fn metadata_keep_name_section() {
 
 #[test]
 fn check_endpoints() {
-    wasm_input("wat.wasm", false)
+    // Candid interface is NOT embedded in wat.wasm
+    const CANDID_WITH_MISSING_ENDPOINTS: &str = r#"
+    service : () -> {
+        inc : (owner: opt principal) -> (nat);
+    }
+    "#;
+    wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
-        .arg("--candid")
-        .arg(
-            create_tempfile(
-                r#"
-service : () -> {
-    get : (key: text) -> (text) query;
-    inc : (owner: opt principal) -> (nat);
-    set : (key: text, value: text) -> ();
-}
-"#,
-            )
-            .path(),
-        )
         .assert()
-        .stdout("Canister WASM and Candid interface match!\n")
-        .success();
+        .stderr("Error: Candid interface not specified in WASM file and Candid file not provided\n")
+        .failure();
     wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
         .arg("--candid")
-        .arg(
-            create_tempfile(
-                r#"
-service : () -> {
-    get : (key: text) -> (text) query;
-    inc : (owner: opt principal) -> (nat);
-}
-"#,
-            )
-            .path(),
-        )
-        .arg("--hidden")
-        .arg("update:set")
+        .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
         .assert()
-        .stdout("Canister WASM and Candid interface match!\n")
-        .success();
+        .stderr("ERROR: The following endpoint is unexpected in the WASM exports section: update:set\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: query:get\n\
+        Error: Canister WASM and Candid interface do not match!\n",
+        )
+        .failure();
     wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
-        .arg("--candid")
-        .arg(
-            create_tempfile(
-                r#"
-service : () -> {
-    inc : (owner: opt principal) -> (nat);
-}
-"#,
-            )
-            .path(),
-        )
         .arg("--hidden")
         .arg("update:set")
         .arg("--hidden")
         .arg("query:get")
+        .arg("--candid")
+        .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+    // Candid interface is embedded in rust.wasm and motoko.wasm
+    wasm_input("rust.wasm", false)
+        .arg("check-endpoints")
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+    wasm_input("rust.wasm", false)
+        .arg("check-endpoints")
+        .arg("--hidden")
+        .arg("update:dec")
+        .assert()
+        .stderr("ERROR: The following hidden endpoint is missing from the WASM exports section: update:dec\n\
+        Error: Canister WASM and Candid interface do not match!\n")
+        .failure();
+    wasm_input("motoko.wasm", false)
+        .arg("check-endpoints")
+        .assert()
+        .stderr(
+            "ERROR: The following endpoint is unexpected in the WASM exports section: update:__motoko_async_helper\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: query:__get_candid_interface_tmp_hack\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: query:__motoko_stable_var_info\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_global_timer\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_init\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_post_upgrade\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_pre_upgrade\n\
+        Error: Canister WASM and Candid interface do not match!\n",
+        )
+        .failure();
+    wasm_input("motoko.wasm", false)
+        .arg("check-endpoints")
+        .arg("--hidden")
+        .arg("update:__motoko_async_helper")
+        .arg("--hidden")
+        .arg("query:__get_candid_interface_tmp_hack")
+        .arg("--hidden")
+        .arg("query:__motoko_stable_var_info")
+        .arg("--hidden")
+        .arg("canister_global_timer")
+        .arg("--hidden")
+        .arg("canister_init")
+        .arg("--hidden")
+        .arg("canister_post_upgrade")
+        .arg("--hidden")
+        .arg("canister_pre_upgrade")
         .assert()
         .stdout("Canister WASM and Candid interface match!\n")
         .success();

@@ -229,7 +229,7 @@ fn main() -> anyhow::Result<()> {
         }
         #[cfg(feature = "check-endpoints")]
         SubCommand::CheckEndpoints { candid, hidden } => {
-            return check_endpoints(&m, candid.as_ref(), hidden);
+            return check_endpoints(&m, candid.as_deref(), hidden);
         }
     };
     // validate new module

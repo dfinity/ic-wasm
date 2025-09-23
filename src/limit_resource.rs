@@ -5,6 +5,7 @@ use walrus::*;
 
 pub struct Config {
     pub remove_cycles_add: bool,
+    pub filter_cycles_add: bool,
     pub limit_stable_memory_page: Option<u32>,
     pub limit_heap_memory_page: Option<u32>,
     pub playground_canister_id: Option<candid::Principal>,
@@ -46,6 +47,25 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         make_cycles_add(m, &mut replacer, wasm64);
         make_cycles_add128(m, &mut replacer);
         make_cycles_burn128(m, &mut replacer, wasm64);
+    }
+
+    if config.filter_cycles_add {
+        // Create a private global set in every invokation of `ic0.call_new` to
+        // - 0 if subsequent calls to `ic0.call_cycles_add[128]` are allowed;
+        // - 1 if subsequent calls to `ic0.call_cycles_add[128]` should be filtered (i.e., turned into no-op).
+        let global_id = m.globals.add_local(
+            ValType::I32,
+            true,  // mutable
+            false, // shared (not supported yet)
+            ConstExpr::Value(Value::I32(0)),
+        );
+        // Instrument `ic0.call_cycles_add[128]` to respect the value of the private global.
+        make_filter_cycles_add(m, &mut replacer, wasm64, global_id);
+        make_filter_cycles_add128(m, &mut replacer, global_id);
+        // Calls to `ic0.cycles_burn128` are always filtered (i.e., turned into no-op).
+        make_cycles_burn128(m, &mut replacer, wasm64);
+        // Instrument `ic0.call_new` to set the private global.
+        make_filter_call_new(m, &mut replacer, wasm64, global_id);
     }
 
     if let Some(limit) = config.limit_stable_memory_page {
@@ -126,6 +146,38 @@ fn make_cycles_add(m: &mut Module, replacer: &mut Replacer, wasm64: bool) {
     }
 }
 
+fn make_filter_cycles_add(
+    m: &mut Module,
+    replacer: &mut Replacer,
+    wasm64: bool,
+    global_id: GlobalId,
+) {
+    if let Some(old_cycles_add) = get_ic_func_id(m, "call_cycles_add") {
+        if wasm64 {
+            panic!("Wasm64 module should not call `call_cycles_add`");
+        }
+        let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64], &[]);
+        let amount = m.locals.add(ValType::I64);
+        let mut func = builder.func_body();
+        // Compare to zero
+        func.global_get(global_id);
+        func.i32_const(0);
+        func.binop(BinaryOp::I32Ne);
+        // If block
+        func.if_else(
+            None,
+            |then| {
+                then.local_get(amount).drop(); // no-op
+            },
+            |otherwise| {
+                otherwise.local_get(amount).call(old_cycles_add); // call `ic0.call_cycles_add`
+            },
+        );
+        let new_cycles_add = builder.finish(vec![amount], &mut m.funcs);
+        replacer.add(old_cycles_add, new_cycles_add);
+    }
+}
+
 fn make_cycles_add128(m: &mut Module, replacer: &mut Replacer) {
     if let Some(old_cycles_add128) = get_ic_func_id(m, "call_cycles_add128") {
         let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64, ValType::I64], &[]);
@@ -142,8 +194,36 @@ fn make_cycles_add128(m: &mut Module, replacer: &mut Replacer) {
     }
 }
 
+fn make_filter_cycles_add128(m: &mut Module, replacer: &mut Replacer, global_id: GlobalId) {
+    if let Some(old_cycles_add128) = get_ic_func_id(m, "call_cycles_add128") {
+        let mut builder = FunctionBuilder::new(&mut m.types, &[ValType::I64, ValType::I64], &[]);
+        let high = m.locals.add(ValType::I64);
+        let low = m.locals.add(ValType::I64);
+        let mut func = builder.func_body();
+        // Compare to zero
+        func.global_get(global_id);
+        func.i32_const(0);
+        func.binop(BinaryOp::I32Ne);
+        // If block
+        func.if_else(
+            None,
+            |then| {
+                then.local_get(high).local_get(low).drop().drop(); // no-op
+            },
+            |otherwise| {
+                otherwise
+                    .local_get(high)
+                    .local_get(low)
+                    .call(old_cycles_add128); // call `ic0.call_cycles_add128`
+            },
+        );
+        let new_cycles_add128 = builder.finish(vec![high, low], &mut m.funcs);
+        replacer.add(old_cycles_add128, new_cycles_add128);
+    }
+}
+
 fn make_cycles_burn128(m: &mut Module, replacer: &mut Replacer, wasm64: bool) {
-    if let Some(older_cycles_burn128) = get_ic_func_id(m, "call_cycles_burn128") {
+    if let Some(older_cycles_burn128) = get_ic_func_id(m, "cycles_burn128") {
         let dst_type = match wasm64 {
             true => ValType::I64,
             false => ValType::I32,
@@ -575,6 +655,138 @@ fn make_redirect_call_new(
                     }
                 },
             );
+        let new_call_new = builder.finish(
+            vec![
+                callee_src,
+                callee_size,
+                name_src,
+                name_size,
+                arg5,
+                arg6,
+                arg7,
+                arg8,
+            ],
+            &mut m.funcs,
+        );
+        replacer.add(old_call_new, new_call_new);
+    }
+}
+
+fn make_filter_call_new(
+    m: &mut Module,
+    replacer: &mut Replacer,
+    wasm64: bool,
+    global_id: GlobalId,
+) {
+    if let Some(old_call_new) = get_ic_func_id(m, "call_new") {
+        let pointer_type = match wasm64 {
+            true => ValType::I64,
+            false => ValType::I32,
+        };
+        // Specify the same args as `call_new` so that WASM will correctly check mismatching args
+        let callee_src = m.locals.add(pointer_type);
+        let callee_size = m.locals.add(pointer_type);
+        let name_src = m.locals.add(pointer_type);
+        let name_size = m.locals.add(pointer_type);
+        let arg5 = m.locals.add(pointer_type);
+        let arg6 = m.locals.add(pointer_type);
+        let arg7 = m.locals.add(pointer_type);
+        let arg8 = m.locals.add(pointer_type);
+
+        let memory = m
+            .get_memory_id()
+            .expect("Canister Wasm module should have only one memory");
+
+        // Scratch variables
+        let not_allowed_canister = m.locals.add(ValType::I32);
+        let allow_cycles = m.locals.add(ValType::I32);
+
+        // Cycles transfer is only allowed if
+        // - the callee is the management canister or `7hfb6-caaaa-aaaar-qadga-cai` (EVM RPC Canister);
+        // - *and* the method name is *neither* `create_canister` *nor* `deposit_cycles`.
+        let allowed_canisters = [
+            Principal::from_slice(&[]),
+            Principal::from_text("7hfb6-caaaa-aaaar-qadga-cai").unwrap(),
+        ];
+        let forbidden_function_names = ["create_canister", "deposit_cycles"];
+
+        let mut builder = FunctionBuilder::new(
+            &mut m.types,
+            &[
+                pointer_type,
+                pointer_type,
+                pointer_type,
+                pointer_type,
+                pointer_type,
+                pointer_type,
+                pointer_type,
+                pointer_type,
+            ],
+            &[],
+        );
+
+        builder
+            .func_body()
+            .block(None, |checks| {
+                let checks_id = checks.id();
+                // Check if callee is an allowed canister
+                checks
+                    .block(None, |id_check| {
+                        // no match (i.e., callee not in `allowed_canisters`) => `not_allowed_canister` set to 1
+                        check_list(
+                            memory,
+                            id_check,
+                            not_allowed_canister,
+                            callee_size,
+                            callee_src,
+                            None,
+                            &allowed_canisters
+                                .iter()
+                                .map(|p| p.as_slice())
+                                .collect::<Vec<_>>(),
+                            wasm64,
+                        );
+                    })
+                    .local_get(not_allowed_canister)
+                    .br_if(checks_id); // we already know that callee is not allowed => no need to check further
+
+                // Callee is an allowed canister => check if method name is not forbidden
+                // no match (i.e., method name not in `forbidden_function_names`) => `allow_cycles` set to 1
+                check_list(
+                    memory,
+                    checks,
+                    allow_cycles,
+                    name_size,
+                    name_src,
+                    None,
+                    &forbidden_function_names
+                        .iter()
+                        .map(|s| s.as_bytes())
+                        .collect::<Vec<_>>(),
+                    wasm64,
+                );
+            })
+            .local_get(allow_cycles)
+            .if_else(
+                None,
+                |block| {
+                    // set global to 0 => allow `ic0.call_cycles_add[128]`
+                    block.i32_const(0).global_set(global_id);
+                },
+                |block| {
+                    // set global to 1 => filter `ic0.call_cycles_add[128]`
+                    block.i32_const(1).global_set(global_id);
+                },
+            )
+            .local_get(callee_src)
+            .local_get(callee_size)
+            .local_get(name_src)
+            .local_get(name_size)
+            .local_get(arg5)
+            .local_get(arg6)
+            .local_get(arg7)
+            .local_get(arg8)
+            .call(old_call_new);
         let new_call_new = builder.finish(
             vec![
                 callee_src,

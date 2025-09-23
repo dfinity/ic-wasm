@@ -1,6 +1,6 @@
 use clap::{crate_authors, crate_version, Parser};
 #[cfg(feature = "check-endpoints")]
-use ic_wasm::check_endpoints::{check_endpoints, CanisterEndpoint};
+use ic_wasm::check_endpoints::check_endpoints;
 use ic_wasm::utils::make_validator_with_features;
 use std::path::PathBuf;
 
@@ -105,13 +105,13 @@ enum SubCommand {
     /// Check canister endpoints against provided Candid interface
     #[cfg(feature = "check-endpoints")]
     CheckEndpoints {
-        /// Candid interface file
-        #[clap(short, long)]
+        /// Candid interface file.
+        #[clap(long)]
         candid: Option<PathBuf>,
         /// Optionally specify hidden endpoints, i.e., endpoints that are exposed by the canister but
         /// not present in the Candid interface file.
         #[arg(long)]
-        hidden: Vec<CanisterEndpoint>,
+        hidden: Option<PathBuf>,
     },
 }
 
@@ -229,7 +229,7 @@ fn main() -> anyhow::Result<()> {
         }
         #[cfg(feature = "check-endpoints")]
         SubCommand::CheckEndpoints { candid, hidden } => {
-            return check_endpoints(&m, candid.as_deref(), hidden);
+            return check_endpoints(&m, candid.as_deref(), hidden.as_deref());
         }
     };
     // validate new module

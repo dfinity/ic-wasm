@@ -1,12 +1,12 @@
 mod candid;
 
 pub use crate::check_endpoints::candid::CandidParser;
-use crate::info::ExportedMethodInfo;
-use crate::utils::get_exported_methods;
+use crate::{info::ExportedMethodInfo, utils::get_exported_methods};
 use anyhow::anyhow;
 use parse_display::{Display, FromStr};
-use std::collections::BTreeSet;
-use std::path::Path;
+use std::io::{BufRead, BufReader};
+use std::str::FromStr;
+use std::{collections::BTreeSet, path::Path};
 use walrus::Module;
 
 #[derive(Clone, Eq, Debug, Ord, PartialEq, PartialOrd, Display, FromStr)]
@@ -34,9 +34,15 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
         let mappings: &[(&str, fn(&str) -> CanisterEndpoint)] = &[
-            ("canister_query ", |s| CanisterEndpoint::Query(s.to_string())),
-            ("canister_update ", |s| CanisterEndpoint::Update(s.to_string())),
-            ("canister_composite_query ", |s| CanisterEndpoint::CompositeQuery(s.to_string())),
+            ("canister_query ", |s| {
+                CanisterEndpoint::Query(s.to_string())
+            }),
+            ("canister_update ", |s| {
+                CanisterEndpoint::Update(s.to_string())
+            }),
+            ("canister_composite_query ", |s| {
+                CanisterEndpoint::CompositeQuery(s.to_string())
+            }),
             ("canister_heartbeat", |_| CanisterEndpoint::Heartbeat),
             ("canister_global_timer", |_| CanisterEndpoint::GlobalTimer),
             ("canister_init", |_| CanisterEndpoint::Init),
@@ -60,7 +66,7 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 pub fn check_endpoints(
     module: &Module,
     candid_path: Option<&Path>,
-    hidden_endpoints: &[CanisterEndpoint],
+    hidden_path: Option<&Path>,
 ) -> anyhow::Result<()> {
     let wasm_endpoints = get_exported_methods(module)
         .iter()
@@ -83,7 +89,7 @@ pub fn check_endpoints(
         );
     });
 
-    let hidden_endpoints = hidden_endpoints.iter().cloned().collect::<BTreeSet<_>>();
+    let hidden_endpoints = read_hidden_endpoints(hidden_path)?;
     let missing_hidden_endpoints = hidden_endpoints
         .difference(&wasm_endpoints)
         .collect::<BTreeSet<_>>();
@@ -113,5 +119,27 @@ pub fn check_endpoints(
     } else {
         println!("Canister WASM and Candid interface match!");
         Ok(())
+    }
+}
+
+fn read_hidden_endpoints(maybe_path: Option<&Path>) -> anyhow::Result<BTreeSet<CanisterEndpoint>> {
+    if let Some(path) = maybe_path {
+        let file = std::fs::File::open(path)
+            .map_err(|e| anyhow!("Failed to read hidden endpoints file: {e:?}"))?;
+        let reader = BufReader::new(file);
+        let lines = reader
+            .lines()
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| anyhow!("Failed to read hidden endpoints file: {e:?}"))?;
+        let endpoints = lines
+            .iter()
+            .map(|line| line.trim())
+            .filter(|line| !line.is_empty())
+            .map(|line| CanisterEndpoint::from_str(line))
+            .collect::<Result<BTreeSet<_>, _>>()
+            .map_err(|e| anyhow!("Failed to parse hidden endpoints from file: {e:?}"))?;
+        Ok(endpoints)
+    } else {
+        Ok(BTreeSet::new())
     }
 }

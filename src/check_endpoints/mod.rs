@@ -17,15 +17,15 @@ pub enum CanisterEndpoint {
     Query(String),
     #[display("composite_query:{0}")]
     CompositeQuery(String),
-    #[display("canister_heartbeat")]
+    #[display("heartbeat")]
     Heartbeat,
-    #[display("canister_global_timer")]
+    #[display("global_timer")]
     GlobalTimer,
-    #[display("canister_init")]
+    #[display("init")]
     Init,
-    #[display("canister_post_upgrade")]
+    #[display("post_upgrade")]
     PostUpgrade,
-    #[display("canister_pre_upgrade")]
+    #[display("pre_upgrade")]
     PreUpgrade,
 }
 
@@ -33,14 +33,15 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
     type Error = anyhow::Error;
 
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
-        let mappings: &[(&str, fn(&str) -> CanisterEndpoint)] = &[
-            ("canister_query ", |s| {
+        type EndpointConstructor = fn(&str) -> CanisterEndpoint;
+        let mappings: &[(&str, EndpointConstructor)] = &[
+            ("canister_query", |s| {
                 CanisterEndpoint::Query(s.to_string())
             }),
-            ("canister_update ", |s| {
+            ("canister_update", |s| {
                 CanisterEndpoint::Update(s.to_string())
             }),
-            ("canister_composite_query ", |s| {
+            ("canister_composite_query", |s| {
                 CanisterEndpoint::CompositeQuery(s.to_string())
             }),
             ("canister_heartbeat", |_| CanisterEndpoint::Heartbeat),
@@ -50,9 +51,9 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
             ("canister_pre_upgrade", |_| CanisterEndpoint::PreUpgrade),
         ];
 
-        for (prefix, constructor) in mappings {
-            if let Some(rest) = method.name.strip_prefix(prefix) {
-                return Ok(constructor(rest));
+        for (candid_prefix, constructor) in mappings {
+            if let Some(rest) = method.name.strip_prefix(candid_prefix) {
+                return Ok(constructor(rest.trim()));
             }
         }
 
@@ -135,7 +136,7 @@ fn read_hidden_endpoints(maybe_path: Option<&Path>) -> anyhow::Result<BTreeSet<C
             .iter()
             .map(|line| line.trim())
             .filter(|line| !line.is_empty())
-            .map(|line| CanisterEndpoint::from_str(line))
+            .map(CanisterEndpoint::from_str)
             .collect::<Result<BTreeSet<_>, _>>()
             .map_err(|e| anyhow!("Failed to parse hidden endpoints from file: {e:?}"))?;
         Ok(endpoints)

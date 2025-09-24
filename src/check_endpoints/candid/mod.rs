@@ -27,14 +27,13 @@ impl<'a> CandidParser<'a> {
         module
             .customs
             .iter()
-            .filter(|(_, s)| s.name() == "icp:public candid:service")
-            .next()
+            .find(|(_, s)| s.name() == "icp:public candid:service")
             .map(|(_, s)| {
                 let bytes = match s.data(&IdsToIndices::default()) {
                     Cow::Borrowed(bytes) => bytes,
                     Cow::Owned(_) => unreachable!(),
                 };
-                let candid = str::from_utf8(&bytes).map_err(|e| {
+                let candid = str::from_utf8(bytes).map_err(|e| {
                     format_err!("Cannot interpret WASM custom section as text: {e:?}")
                 })?;
                 Ok(Self::from(CandidSource::Text(candid)))

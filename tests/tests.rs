@@ -469,10 +469,10 @@ fn check_endpoints() {
     update:__motoko_async_helper
     query:__get_candid_interface_tmp_hack
     query:__motoko_stable_var_info
-    canister_global_timer
-    canister_init
-    canister_post_upgrade
-    canister_pre_upgrade
+    global_timer
+    init
+    post_upgrade
+    pre_upgrade
     "#;
     wasm_input("motoko.wasm", false)
         .arg("check-endpoints")

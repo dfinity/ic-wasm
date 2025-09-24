@@ -35,9 +35,7 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
         type EndpointConstructor = fn(&str) -> CanisterEndpoint;
         let mappings: &[(&str, EndpointConstructor)] = &[
-            ("canister_query", |s| {
-                CanisterEndpoint::Query(s.to_string())
-            }),
+            ("canister_query", |s| CanisterEndpoint::Query(s.to_string())),
             ("canister_update", |s| {
                 CanisterEndpoint::Update(s.to_string())
             }),

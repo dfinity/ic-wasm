@@ -416,8 +416,8 @@ fn check_endpoints() {
         .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
         .assert()
         .stderr(
-            "ERROR: The following endpoint is unexpected in the WASM exports section: update:set\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: query:get\n\
+            "ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:set\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:get\n\
         Error: Canister WASM and Candid interface do not match!\n",
         )
         .failure();
@@ -448,16 +448,16 @@ fn check_endpoints() {
         .arg("--hidden")
         .arg(create_tempfile(HIDDEN_2).path())
         .assert()
-        .stderr("ERROR: The following hidden endpoint is missing from the WASM exports section: update:dec\n\
+        .stderr("ERROR: The following hidden endpoint is missing from the WASM exports section: canister_update:dec\n\
         Error: Canister WASM and Candid interface do not match!\n")
         .failure();
     wasm_input("motoko.wasm", false)
         .arg("check-endpoints")
         .assert()
         .stderr(
-            "ERROR: The following endpoint is unexpected in the WASM exports section: update:__motoko_async_helper\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: query:__get_candid_interface_tmp_hack\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: query:__motoko_stable_var_info\n\
+            "ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:__motoko_async_helper\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__get_candid_interface_tmp_hack\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__motoko_stable_var_info\n\
         ERROR: The following endpoint is unexpected in the WASM exports section: canister_global_timer\n\
         ERROR: The following endpoint is unexpected in the WASM exports section: canister_init\n\
         ERROR: The following endpoint is unexpected in the WASM exports section: canister_post_upgrade\n\

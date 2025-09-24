@@ -11,21 +11,21 @@ use walrus::Module;
 
 #[derive(Clone, Eq, Debug, Ord, PartialEq, PartialOrd, Display, FromStr)]
 pub enum CanisterEndpoint {
-    #[display("update:{0}")]
+    #[display("canister_update:{0}")]
     Update(String),
-    #[display("query:{0}")]
+    #[display("canister_query:{0}")]
     Query(String),
-    #[display("composite_query:{0}")]
+    #[display("canister_composite_query:{0}")]
     CompositeQuery(String),
-    #[display("heartbeat")]
+    #[display("canister_heartbeat")]
     Heartbeat,
-    #[display("global_timer")]
+    #[display("canister_global_timer")]
     GlobalTimer,
-    #[display("init")]
+    #[display("canister_init")]
     Init,
-    #[display("post_upgrade")]
+    #[display("canister_post_upgrade")]
     PostUpgrade,
-    #[display("pre_upgrade")]
+    #[display("canister_pre_upgrade")]
     PreUpgrade,
 }
 

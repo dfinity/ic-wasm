@@ -422,8 +422,8 @@ fn check_endpoints() {
         )
         .failure();
     const HIDDEN_1: &str = r#"
-    update:set
-    query:get
+    canister_update:set
+    canister_query:get
     "#;
     wasm_input("wat.wasm.gz", false)
         .arg("check-endpoints")
@@ -441,7 +441,7 @@ fn check_endpoints() {
         .stdout("Canister WASM and Candid interface match!\n")
         .success();
     const HIDDEN_2: &str = r#"
-    update:dec
+    canister_update:dec
     "#;
     wasm_input("rust.wasm", false)
         .arg("check-endpoints")
@@ -466,13 +466,13 @@ fn check_endpoints() {
         )
         .failure();
     const HIDDEN_3: &str = r#"
-    update:__motoko_async_helper
-    query:__get_candid_interface_tmp_hack
-    query:__motoko_stable_var_info
-    global_timer
-    init
-    post_upgrade
-    pre_upgrade
+    canister_update:__motoko_async_helper
+    canister_query:__get_candid_interface_tmp_hack
+    canister_query:__motoko_stable_var_info
+    canister_global_timer
+    canister_init
+    canister_post_upgrade
+    canister_pre_upgrade
     "#;
     wasm_input("motoko.wasm", false)
         .arg("check-endpoints")

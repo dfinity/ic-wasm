@@ -73,7 +73,7 @@ pub fn check_endpoints(
         .collect::<Result<BTreeSet<CanisterEndpoint>, _>>()?;
 
     let candid_endpoints = CandidParser::try_from_wasm(module)?
-        .or_else(|| candid_path.map(|path| CandidParser::from_candid_file(&path)))
+        .or_else(|| candid_path.map(CandidParser::from_candid_file))
         .ok_or(anyhow!(
             "Candid interface not specified in WASM file and Candid file not provided"
         ))?

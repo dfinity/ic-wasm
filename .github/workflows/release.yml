@@ -3,7 +3,6 @@ on:
   push:
     tags:
       - "*"
-  pull_request:
 
 jobs:
   build:
@@ -36,7 +35,7 @@ jobs:
       # Regular build for non-MUSL targets
       - name: Build (non-MUSL)
         if: matrix.name != 'linux-musl'
-        run: cargo build --release --locked
+        run: cargo build --release --all-features --locked
 
       # Native MUSL build using Alpine Docker
       - name: Build (MUSL)
@@ -47,7 +46,7 @@ jobs:
             apk add --no-cache musl-dev binutils g++
 
             # Build the project
-            cargo build --release --locked
+            cargo build --release --all-features --locked
           '
 
       - name: "Upload assets"
@@ -106,44 +105,44 @@ jobs:
           ./ic-wasm --version
 
   publish:
-    # Check if the workflow was triggered by a tag
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: test
-    name: Publish ${{ matrix.asset_name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - asset_name: ic-wasm-linux64
-            binstall_name: ic-wasm-x86_64-unknown-linux-gnu.tar.gz
-          - asset_name: ic-wasm-linux-musl
-            binstall_name: ic-wasm-x86_64-unknown-linux-musl.tar.gz
-          - asset_name: ic-wasm-macos
-            binstall_name: ic-wasm-x86_64-apple-darwin.tar.gz
+    name: GitHub Release
     runs-on: ubuntu-latest
+    needs: test
     steps:
-      - name: Get executable
+      - name: Get executables
         uses: actions/download-artifact@v4
-        with:
-          name: ${{ matrix.asset_name }}
+        # Download all artifacts, files will be at:
+        # ic-wasm-linux64/ic-wasm
+        # ic-wasm-linux-musl/ic-wasm
+        # ic-wasm-macos/ic-wasm
 
-      - name: Upload binaries to release
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ic-wasm
-          asset_name: ${{ matrix.asset_name }}
-          tag: ${{ github.ref }}
-
-      - name: Bundle for binstall
+      - name: Prepare artifacts
         run: |
-          chmod +x ic-wasm
-          tar -cvzf ${{ matrix.binstall_name }} ic-wasm
+          mkdir artifacts
 
-      - name: Upload binstall binaries to release
-        uses: svenstaro/upload-release-action@v2
+          pushd ic-wasm-linux64
+          chmod +x ic-wasm
+          tar -cvzf ic-wasm-x86_64-unknown-linux-gnu.tar.gz ic-wasm
+          mv ic-wasm ic-wasm-linux64
+          mv * ../artifacts
+          popd
+
+          pushd ic-wasm-linux-musl
+          chmod +x ic-wasm
+          tar -cvzf ic-wasm-x86_64-unknown-linux-musl.tar.gz ic-wasm
+          mv ic-wasm ic-wasm-linux-musl
+          mv * ../artifacts
+          popd
+
+          pushd ic-wasm-macos
+          chmod +x ic-wasm
+          tar -cvzf ic-wasm-x86_64-apple-darwin.tar.gz ic-wasm
+          mv ic-wasm ic-wasm-macos
+          mv * ../artifacts
+          popd
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ${{ matrix.binstall_name }}
-          asset_name: ${{ matrix.binstall_name }}
-          tag: ${{ github.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: artifacts/*

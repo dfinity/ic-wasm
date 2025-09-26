@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+* Add `check-endpoints` command to `ic-wasm`.
+
 ## [0.9.6] - 2025-09-17
 
 * Add option to filter cycles transfer.

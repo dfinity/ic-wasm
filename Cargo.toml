@@ -22,16 +22,19 @@ path = "src/bin/main.rs"
 required-features = ["exe"]
 
 [features]
-default = ["exe", "wasm-opt"]
-exe = ["anyhow", "clap", "serde"]
-wasm-opt = ["dep:wasm-opt", "tempfile"]
+check-endpoints = ["dep:anyhow", "dep:candid_parser", "dep:parse-display"]
+default = ["check-endpoints", "exe", "wasm-opt"]
+exe = ["dep:anyhow", "dep:clap", "dep:serde"]
+wasm-opt = ["dep:wasm-opt", "dep:tempfile"]
 serde = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 anyhow = { version = "1.0.34", optional = true }
 candid = "0.10"
+candid_parser = { version = "0.2.1", optional = true }
 clap = { version = "4.1", features = ["derive", "cargo"], optional = true }
 libflate = "2.0"
+parse-display = { version = "0.10.0", optional = true }
 rustc-demangle = "0.1"
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
@@ -40,7 +43,6 @@ thiserror = "1.0.35"
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
 walrus = "0.22.0"
-
 wasm-opt = { version = "0.116.0", optional = true }
 wasmparser = "0.223.0"
 

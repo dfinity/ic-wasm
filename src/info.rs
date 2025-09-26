@@ -1,6 +1,6 @@
 use std::fmt;
 use std::io::Write;
-use walrus::{ExportItem, Module};
+use walrus::Module;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -34,9 +34,10 @@ pub enum LanguageSpecificInfo {
 
 /// Information about an exported method.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug)]
 pub struct ExportedMethodInfo {
-    name: String,
-    internal_name: String,
+    pub name: String,
+    pub internal_name: String,
 }
 
 /// Statistics about a custom section.
@@ -62,17 +63,7 @@ impl From<&Module> for WasmInfo {
             number_of_functions: m.funcs.iter().count(),
             number_of_callbacks: m.elements.iter().count(),
             start_function: m.start.map(|id| get_func_name(m, id)),
-            exported_methods: m
-                .exports
-                .iter()
-                .filter_map(|e| match e.item {
-                    ExportItem::Function(id) => Some(ExportedMethodInfo {
-                        name: e.name.clone(),
-                        internal_name: get_func_name(m, id),
-                    }),
-                    _ => None,
-                })
-                .collect(),
+            exported_methods: get_exported_methods(m),
             imported_ic0_system_api: m
                 .imports
                 .iter()

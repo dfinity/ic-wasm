@@ -1,3 +1,4 @@
+use crate::info::ExportedMethodInfo;
 use crate::Error;
 use libflate::gzip;
 use std::borrow::Cow;
@@ -322,6 +323,19 @@ pub(crate) fn inject_top(builder: &mut InstrSeqBuilder<'_>, instrs: Vec<ir::Inst
     for instr in instrs.into_iter().rev() {
         builder.instr_at(0, instr);
     }
+}
+
+pub(crate) fn get_exported_methods(m: &Module) -> Vec<ExportedMethodInfo> {
+    m.exports
+        .iter()
+        .filter_map(|e| match e.item {
+            ExportItem::Function(id) => Some(ExportedMethodInfo {
+                name: e.name.clone(),
+                internal_name: get_func_name(m, id),
+            }),
+            _ => None,
+        })
+        .collect()
 }
 
 pub(crate) fn get_func_name(m: &Module, id: FunctionId) -> String {

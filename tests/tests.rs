@@ -1,7 +1,9 @@
 use assert_cmd::Command;
 
 use std::fs;
+use std::io::Write;
 use std::path::Path;
+use tempfile::NamedTempFile;
 
 fn wasm_input(wasm: &str, output: bool) -> Command {
     let mut cmd = Command::cargo_bin("ic-wasm").unwrap();
@@ -393,4 +395,96 @@ fn metadata_keep_name_section() {
             .success();
         assert_functions_are_named();
     }
+}
+
+#[test]
+fn check_endpoints() {
+    // Candid interface is NOT embedded in wat.wasm
+    const CANDID_WITH_MISSING_ENDPOINTS: &str = r#"
+    service : () -> {
+        inc : (owner: opt principal) -> (nat);
+    }
+    "#;
+    wasm_input("wat.wasm.gz", false)
+        .arg("check-endpoints")
+        .assert()
+        .stderr("Error: Candid interface not specified in WASM file and Candid file not provided\n")
+        .failure();
+    wasm_input("wat.wasm.gz", false)
+        .arg("check-endpoints")
+        .arg("--candid")
+        .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
+        .assert()
+        .stderr(
+            "ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:set\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:get\n\
+        Error: Canister WASM and Candid interface do not match!\n",
+        )
+        .failure();
+    const HIDDEN_1: &str = r#"
+    canister_update:set
+    canister_query:get
+    "#;
+    wasm_input("wat.wasm.gz", false)
+        .arg("check-endpoints")
+        .arg("--hidden")
+        .arg(create_tempfile(HIDDEN_1).path())
+        .arg("--candid")
+        .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+    // Candid interface is embedded in rust.wasm and motoko.wasm
+    wasm_input("rust.wasm", false)
+        .arg("check-endpoints")
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+    const HIDDEN_2: &str = r#"
+    canister_update:dec
+    "#;
+    wasm_input("rust.wasm", false)
+        .arg("check-endpoints")
+        .arg("--hidden")
+        .arg(create_tempfile(HIDDEN_2).path())
+        .assert()
+        .stderr("ERROR: The following hidden endpoint is missing from the WASM exports section: canister_update:dec\n\
+        Error: Canister WASM and Candid interface do not match!\n")
+        .failure();
+    wasm_input("motoko.wasm", false)
+        .arg("check-endpoints")
+        .assert()
+        .stderr(
+            "ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:__motoko_async_helper\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__get_candid_interface_tmp_hack\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__motoko_stable_var_info\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_global_timer\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_init\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_post_upgrade\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_pre_upgrade\n\
+        Error: Canister WASM and Candid interface do not match!\n",
+        )
+        .failure();
+    const HIDDEN_3: &str = r#"
+    canister_update:__motoko_async_helper
+    canister_query:__get_candid_interface_tmp_hack
+    canister_query:__motoko_stable_var_info
+    canister_global_timer
+    canister_init
+    canister_post_upgrade
+    canister_pre_upgrade
+    "#;
+    wasm_input("motoko.wasm", false)
+        .arg("check-endpoints")
+        .arg("--hidden")
+        .arg(create_tempfile(HIDDEN_3).path())
+        .assert()
+        .stdout("Canister WASM and Candid interface match!\n")
+        .success();
+}
+
+fn create_tempfile(content: &str) -> NamedTempFile {
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    write!(temp_file, "{content}").expect("Failed to write temp file content");
+    temp_file
 }

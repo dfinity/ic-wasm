@@ -35,7 +35,7 @@ jobs:
       # Regular build for non-MUSL targets
       - name: Build (non-MUSL)
         if: matrix.name != 'linux-musl'
-        run: cargo build --release --locked
+        run: cargo build --release --all-features --locked
 
       # Native MUSL build using Alpine Docker
       - name: Build (MUSL)
@@ -46,7 +46,7 @@ jobs:
             apk add --no-cache musl-dev binutils g++
 
             # Build the project
-            cargo build --release --locked
+            cargo build --release --all-features --locked
           '
 
       - name: "Upload assets"

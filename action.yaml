@@ -1,0 +1,52 @@
+name: "IC WASM CLI Action"
+description: "Runs ic-wasm CLI inside Docker"
+
+inputs:
+  version:
+    description: "ic-wasm release version (e.g. v0.6.1)"
+    required: false
+    default: latest
+  command:
+    description: "The ic-wasm command to run (e.g., check-endpoints)"
+    required: true
+  wasm:
+    description: "Path to the input WASM file"
+    required: true
+  candid:
+    description: "Optional Candid file (only for check-endpoints)"
+    required: false
+  hidden:
+    description: "Optional hidden endpoints file (only for check-endpoints)"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download ic-wasm binary
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION="${{ inputs.version }}"
+        if [ "$VERSION" = "latest" ]; then
+          RELEASE_URL="https://github.com/dfinity/ic-wasm/releases/latest/download/ic-wasm-linux64"
+        else
+          RELEASE_URL="https://github.com/dfinity/ic-wasm/releases/download/${VERSION}/ic-wasm-linux64"
+        fi
+        
+        echo "Downloading ic-wasm-linux64 from $RELEASE_URL"
+        curl -sSL "$RELEASE_URL" -o ic-wasm-linux64
+        chmod +x ic-wasm-linux64
+        echo "${GITHUB_WORKSPACE}" >> $GITHUB_PATH
+
+    - name: Run ic-wasm
+      shell: bash
+      run: |
+        CMD="ic-wasm-linux64 ${{ inputs.wasm }} ${{ inputs.command }}"
+        if [ -n "${{ inputs.candid }}" ]; then
+          CMD="$CMD --candid ${{ inputs.candid }}"
+        fi
+        if [ -n "${{ inputs.hidden }}" ]; then
+          CMD="$CMD --hidden ${{ inputs.hidden }}"
+        fi
+        echo "Running: $CMD"
+        $CMD

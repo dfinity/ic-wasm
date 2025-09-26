@@ -90,6 +90,34 @@ Limit resource usage, mainly used by Motoko Playground
 
 Usage: `ic-wasm <input.wasm> -o <output.wasm> resource --remove_cycles_transfer --limit_stable_memory_page 1024`
 
+### Check endpoints
+
+Verify the endpoints a canister’s WASM exports against its Candid interface. This tool is designed to ensure that all exported endpoints are intentional and match the Candid specification, helping to detect any accidental, unexpected or potentially malicious exports.
+
+Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]`
+
+- `--candid <file>` (optional) specifies a Candid file containing the canister's expected interface. If omitted, the Candid interface is assumed to be embedded in the WASM file.
+- `--hidden <file>` (optional) specifies a file listing endpoints that are intentionally exported by the canister but not present in the Candid interface. Each endpoint should be on a separate line, using one of the following formats:
+    - `canister_update:<endpoint name>`
+    - `canister_query:<endpoint name>`
+    - `canister_composite_query:<endpoint name>`
+    - `canister_heartbeat`
+    - `canister_global_timer`
+    - `canister_init`
+    - `canister_post_upgrade`
+    - `canister_pre_upgrade`
+
+**Example `hidden.txt`:**
+```text
+canister_update:__motoko_async_helper
+canister_query:__get_candid_interface_tmp_hack
+canister_query:__motoko_stable_var_info
+canister_global_timer
+canister_init
+canister_post_upgrade
+canister_pre_upgrade
+```
+
 ### Instrument (experimental)
 
 Instrument canister method to emit execution trace to stable memory.

@@ -455,13 +455,13 @@ fn check_endpoints() {
         .arg("check-endpoints")
         .assert()
         .stderr(
-        "ERROR: The following endpoint is unexpected in the WASM exports section: canister_init\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: canister_pre_upgrade\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: canister_post_upgrade\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: canister_global_timer\n\
-        ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:__motoko_async_helper\n\
+        "ERROR: The following endpoint is unexpected in the WASM exports section: canister_update:__motoko_async_helper\n\
         ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__get_candid_interface_tmp_hack\n\
         ERROR: The following endpoint is unexpected in the WASM exports section: canister_query:__motoko_stable_var_info\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_global_timer\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_init\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_post_upgrade\n\
+        ERROR: The following endpoint is unexpected in the WASM exports section: canister_pre_upgrade\n\
         Error: Canister WASM and Candid interface do not match!\n",
         )
         .failure();

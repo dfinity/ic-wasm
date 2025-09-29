@@ -11,28 +11,14 @@ use walrus::Module;
 
 #[derive(Clone, Eq, Debug, Ord, PartialEq, PartialOrd, Display, FromStr)]
 pub enum CanisterEndpoint {
-    #[display("canister_init")]
-    Init,
-    #[display("canister_pre_upgrade")]
-    PreUpgrade,
-    #[display("canister_post_upgrade")]
-    PostUpgrade,
-    #[display("canister_inspect_message")]
-    InspectMessage,
-    #[display("canister_heartbeat")]
-    Heartbeat,
-    #[display("canister_global_timer")]
-    GlobalTimer,
     #[display("canister_update:{0}")]
     Update(String),
     #[display("canister_query:{0}")]
     Query(String),
     #[display("canister_composite_query:{0}")]
     CompositeQuery(String),
-    #[display("canister_on_low_wasm_memory")]
-    OnLowWasmMemory,
-    #[display("custom:{0}")]
-    Custom(String),
+    #[display("{0}")]
+    Entrypoint(String),
 }
 
 impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
@@ -40,15 +26,7 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
         type EndpointConstructor = fn(&str) -> CanisterEndpoint;
-        let mappings: &[(&str, EndpointConstructor)] = &[
-            ("canister_init", |_| CanisterEndpoint::Init),
-            ("canister_pre_upgrade", |_| CanisterEndpoint::PreUpgrade),
-            ("canister_post_upgrade", |_| CanisterEndpoint::PostUpgrade),
-            ("canister_inspect_message", |_| {
-                CanisterEndpoint::InspectMessage
-            }),
-            ("canister_heartbeat", |_| CanisterEndpoint::Heartbeat),
-            ("canister_global_timer", |_| CanisterEndpoint::GlobalTimer),
+        const MAPPINGS: &[(&str, EndpointConstructor)] = &[
             ("canister_update", |s| {
                 CanisterEndpoint::Update(s.to_string())
             }),
@@ -56,12 +34,9 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
             ("canister_composite_query", |s| {
                 CanisterEndpoint::CompositeQuery(s.to_string())
             }),
-            ("canister_on_low_wasm_memory", |_| {
-                CanisterEndpoint::OnLowWasmMemory
-            }),
         ];
 
-        for (candid_prefix, constructor) in mappings {
+        for (candid_prefix, constructor) in MAPPINGS {
             if let Some(rest) = method.name.strip_prefix(candid_prefix) {
                 return Ok(constructor(rest.trim()));
             }
@@ -69,9 +44,9 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
         let trimmed = method.name.trim();
         if !trimmed.is_empty() {
-            Ok(CanisterEndpoint::Custom(trimmed.to_string()))
+            Ok(CanisterEndpoint::Entrypoint(trimmed.to_string()))
         } else {
-            Err(anyhow!("Exported method in canister WASM with empty name"))
+            Err(anyhow!("Exported method in canister WASM has empty name"))
         }
     }
 }

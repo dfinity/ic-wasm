@@ -31,8 +31,8 @@ pub enum CanisterEndpoint {
     CompositeQuery(String),
     #[display("canister_on_low_wasm_memory")]
     OnLowWasmMemory,
-    #[display("callback:{0}")]
-    Callback(String),
+    #[display("custom:{0}")]
+    Custom(String),
 }
 
 impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
@@ -69,9 +69,9 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
         let trimmed = method.name.trim();
         if !trimmed.is_empty() {
-            Ok(CanisterEndpoint::Callback(trimmed.to_string()))
+            Ok(CanisterEndpoint::Custom(trimmed.to_string()))
         } else {
-            Err(anyhow!("Exported method in canister WASM has empty name"))
+            Err(anyhow!("Exported method in canister WASM with empty name"))
         }
     }
 }

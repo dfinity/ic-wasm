@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+* Add support for more endpoint types to `check-endpoints` command.
+
 ## [0.9.7] - 2025-09-26
 
 * Add `check-endpoints` command to `ic-wasm`.

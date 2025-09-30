@@ -17,16 +17,8 @@ pub enum CanisterEndpoint {
     Query(String),
     #[display("canister_composite_query:{0}")]
     CompositeQuery(String),
-    #[display("canister_heartbeat")]
-    Heartbeat,
-    #[display("canister_global_timer")]
-    GlobalTimer,
-    #[display("canister_init")]
-    Init,
-    #[display("canister_post_upgrade")]
-    PostUpgrade,
-    #[display("canister_pre_upgrade")]
-    PreUpgrade,
+    #[display("{0}")]
+    Entrypoint(String),
 }
 
 impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
@@ -34,31 +26,28 @@ impl TryFrom<&ExportedMethodInfo> for CanisterEndpoint {
 
     fn try_from(method: &ExportedMethodInfo) -> Result<Self, Self::Error> {
         type EndpointConstructor = fn(&str) -> CanisterEndpoint;
-        let mappings: &[(&str, EndpointConstructor)] = &[
-            ("canister_query", |s| CanisterEndpoint::Query(s.to_string())),
+        const MAPPINGS: &[(&str, EndpointConstructor)] = &[
             ("canister_update", |s| {
                 CanisterEndpoint::Update(s.to_string())
             }),
+            ("canister_query", |s| CanisterEndpoint::Query(s.to_string())),
             ("canister_composite_query", |s| {
                 CanisterEndpoint::CompositeQuery(s.to_string())
             }),
-            ("canister_heartbeat", |_| CanisterEndpoint::Heartbeat),
-            ("canister_global_timer", |_| CanisterEndpoint::GlobalTimer),
-            ("canister_init", |_| CanisterEndpoint::Init),
-            ("canister_post_upgrade", |_| CanisterEndpoint::PostUpgrade),
-            ("canister_pre_upgrade", |_| CanisterEndpoint::PreUpgrade),
         ];
 
-        for (candid_prefix, constructor) in mappings {
+        for (candid_prefix, constructor) in MAPPINGS {
             if let Some(rest) = method.name.strip_prefix(candid_prefix) {
                 return Ok(constructor(rest.trim()));
             }
         }
 
-        Err(anyhow!(
-            "Invalid exported method in canister WASM: '{}'",
-            method.name
-        ))
+        let trimmed = method.name.trim();
+        if !trimmed.is_empty() {
+            Ok(CanisterEndpoint::Entrypoint(trimmed.to_string()))
+        } else {
+            Err(anyhow!("Exported method in canister WASM has empty name"))
+        }
     }
 }
 

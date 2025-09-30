@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+* Fix: `check-endpoints` now correctly handles all exported functions, not just those prefixed with `canister_`.
+
 ## [0.9.7] - 2025-09-26
 
 * Add `check-endpoints` command to `ic-wasm`.

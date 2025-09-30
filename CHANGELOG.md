@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-* Add support for more endpoint types to `check-endpoints` command.
+* Fix: `check-endpoints` now correctly handles all exported functions, not just those prefixed with `canister_`.
 
 ## [0.9.7] - 2025-09-26
 

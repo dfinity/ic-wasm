@@ -47,7 +47,7 @@ runs:
         fi
         CMD="$CMD ${{ inputs.command }}"
         if [ -n "${{ inputs.args }}" ]; then
-          CMD="$CMD --hidden ${{ inputs.args }}"
+          CMD="$CMD ${{ inputs.args }}"
         fi
         echo "Running: $CMD"
         $CMD

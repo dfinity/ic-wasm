@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+* Add GitHub action wrapping the `ic-wasm` CLI.
+
 ## [0.9.8] - 2025-10-01
 
 * Fix: `check-endpoints` now correctly handles all exported functions, not just those prefixed with `canister_`.

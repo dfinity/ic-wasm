@@ -101,11 +101,7 @@ Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]
     - `canister_update:<endpoint name>`
     - `canister_query:<endpoint name>`
     - `canister_composite_query:<endpoint name>`
-    - `canister_heartbeat`
-    - `canister_global_timer`
-    - `canister_init`
-    - `canister_post_upgrade`
-    - `canister_pre_upgrade`
+    - `<endpoint name>`
 
 **Example `hidden.txt`:**
 ```text
@@ -204,6 +200,22 @@ To use `ic-wasm` as a library, add this to your `Cargo.toml`:
 ```toml
 [dependencies.ic-wasm]
 default-features = false
+```
+
+## GitHub action
+
+To use `ic-wasm` in a GitHub workflow, use the `dfinity/ic-wasm` action.
+Currently, the GitHub action only supports the `check-endpoints` command.
+
+**Example: scanning a canister's endpoints**
+
+```yaml
+- name: "Check canister endpoints"
+  uses: dfinity/ic-wasm
+  with:
+    command: check-endpoints
+    wasm: ${{ github.workspace }}/canister.wasm.gz
+    args: --hidden hidden_endpoints.txt
 ```
 
 ## Contribution

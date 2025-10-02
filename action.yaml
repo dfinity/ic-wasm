@@ -3,20 +3,20 @@ description: "Runs ic-wasm CLI inside Docker"
 
 inputs:
   version:
-    description: "ic-wasm release version (e.g. v0.6.1)"
+    description: "`ic-wasm` release version (e.g. 0.9.8)"
     required: false
     default: latest
-  command:
-    description: "The ic-wasm command to run (e.g., check-endpoints)"
-    required: true
   wasm:
     description: "Path to the input WASM file"
     required: true
-  candid:
-    description: "Optional Candid file (only for check-endpoints)"
+  output:
+    description: "Optional path to the output WASM file"
     required: false
-  hidden:
-    description: "Optional hidden endpoints file (only for check-endpoints)"
+  command:
+    description: "The `ic-wasm` command to run (e.g., `info`, `check-endpoints`)"
+    required: true
+  args:
+    description: "Optional arguments for the `ic-wasm` command (e.g. `--hidden <path>` for `check-endpoints`)"
     required: false
 
 runs:
@@ -41,12 +41,13 @@ runs:
     - name: Run ic-wasm
       shell: bash
       run: |
-        CMD="ic-wasm-linux64 ${{ inputs.wasm }} ${{ inputs.command }}"
-        if [ -n "${{ inputs.candid }}" ]; then
-          CMD="$CMD --candid ${{ inputs.candid }}"
+        CMD="ic-wasm-linux64 ${{ inputs.wasm }}"
+        if [ -n "${{ inputs.output }}" ]; then
+          CMD="$CMD --output ${{ inputs.output }}"
         fi
-        if [ -n "${{ inputs.hidden }}" ]; then
-          CMD="$CMD --hidden ${{ inputs.hidden }}"
+        CMD="$CMD ${{ inputs.command }}"
+        if [ -n "${{ inputs.args }}" ]; then
+          CMD="$CMD --hidden ${{ inputs.args }}"
         fi
         echo "Running: $CMD"
         $CMD

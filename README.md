@@ -101,11 +101,7 @@ Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]
     - `canister_update:<endpoint name>`
     - `canister_query:<endpoint name>`
     - `canister_composite_query:<endpoint name>`
-    - `canister_heartbeat`
-    - `canister_global_timer`
-    - `canister_init`
-    - `canister_post_upgrade`
-    - `canister_pre_upgrade`
+    - `<endpoint name>`
 
 **Example `hidden.txt`:**
 ```text

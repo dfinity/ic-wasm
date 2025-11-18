@@ -422,7 +422,9 @@ fn check_endpoints() {
         )
         .failure();
     const HIDDEN_1: &str = r#"
+    # Canister update method (this line is a comment)
     canister_update:set
+    # Canister query method (this line is also a comment)
     canister_query:get
     "#;
     wasm_input("wat.wasm.gz", false)
@@ -472,7 +474,8 @@ fn check_endpoints() {
     canister_global_timer
     canister_init
     canister_post_upgrade
-    canister_pre_upgrade
+    # The line below is quoted, it is parsed as a JSON string (this line is a comment)
+    "canister_pre_upgrade"
     "#;
     wasm_input("motoko.wasm", false)
         .arg("check-endpoints")

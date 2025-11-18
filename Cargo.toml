@@ -22,7 +22,7 @@ path = "src/bin/main.rs"
 required-features = ["exe"]
 
 [features]
-check-endpoints = ["dep:anyhow", "dep:candid_parser", "dep:parse-display"]
+check-endpoints = ["dep:anyhow", "dep:candid_parser", "dep:parse-display", "dep:serde_json"]
 default = ["check-endpoints", "exe", "wasm-opt"]
 exe = ["dep:anyhow", "dep:clap", "dep:serde"]
 wasm-opt = ["dep:wasm-opt", "dep:tempfile"]

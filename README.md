@@ -97,22 +97,32 @@ Verify the endpoints a canister’s WASM exports against its Candid interface. T
 Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]`
 
 - `--candid <file>` (optional) specifies a Candid file containing the canister's expected interface. If omitted, the Candid interface is assumed to be embedded in the WASM file.
-- `--hidden <file>` (optional) specifies a file listing endpoints that are intentionally exported by the canister but not present in the Candid interface. Each endpoint should be on a separate line, using one of the following formats:
-    - `canister_update:<endpoint name>`
-    - `canister_query:<endpoint name>`
-    - `canister_composite_query:<endpoint name>`
-    - `<endpoint name>`
+- `--hidden <file>` (optional) specifies a file that lists endpoints which are intentionally exported by the canister but not included in the Candid interface. Each line describes a single endpoint using one of the following formats:
+  - `canister_update:<endpoint name>`
+  - `canister_query:<endpoint name>`
+  - `canister_composite_query:<endpoint name>`
+  - `<endpoint name>`
 
-**Example `hidden.txt`:**
-```text
-canister_update:__motoko_async_helper
-canister_query:__get_candid_interface_tmp_hack
-canister_query:__motoko_stable_var_info
-canister_global_timer
-canister_init
-canister_post_upgrade
-canister_pre_upgrade
-```
+  Lines beginning with `#` are treated as comments and ignored.
+
+  To include special characters (for example `#` or newlines), the entire line may be wrapped in double quotes (`"`). 
+  When quoted this way, the line is parsed using standard JSON string syntax (see [RFC 8259 section 7](https://www.rfc-editor.org/rfc/rfc8259#section-7)).
+  
+  **Example `hidden.txt`:**
+  ```text
+  # A canister update endpoint named `__motoko_async_helper`
+  canister_update:__motoko_async_helper
+  
+  # Canister query endpoints named `__get_candid_interface_tmp_hack` and `__motoko_stable_var_info`
+  canister_query:__get_candid_interface_tmp_hack
+  canister_query:__motoko_stable_var_info
+  
+  # Other canister endpoints: a timer, init method, etc.
+  canister_global_timer
+  canister_init
+  canister_post_upgrade
+  canister_pre_upgrade
+  ```
 
 ### Instrument (experimental)
 

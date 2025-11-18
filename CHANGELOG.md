@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.9.9] - 2025-11-18
+
+* Add support for comments in optional hidden endpoint file for `check-endpoints` command.
+
 ## [0.9.8] - 2025-10-01
 
 * Fix: `check-endpoints` now correctly handles all exported functions, not just those prefixed with `canister_`.

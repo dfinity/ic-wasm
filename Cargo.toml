@@ -48,3 +48,8 @@ wasmparser = "0.223.0"
 
 [dev-dependencies]
 assert_cmd = "2"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

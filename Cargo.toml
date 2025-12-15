@@ -10,11 +10,7 @@ documentation = "https://docs.rs/ic-wasm"
 repository = "https://github.com/dfinity/ic-wasm"
 categories = ["wasm"]
 keywords = ["internet-computer", "canister", "dfinity"]
-include = ["src", "Cargo.toml", "LICENSE", "README.md"]
-
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
-pkg-fmt = "tgz"                                                                          # archive-suffix = .tar.gz
+include = ["src", "Cargo.toml", "LICENSE", "README.md"]                                                                 # archive-suffix = .tar.gz
 
 [[bin]]
 name = "ic-wasm"

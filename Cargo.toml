@@ -12,17 +12,18 @@ categories = ["wasm"]
 keywords = ["internet-computer", "canister", "dfinity"]
 include = ["src", "Cargo.toml", "LICENSE", "README.md"]
 
-[package.metadata.binstall]
-pkg-url = "{ repo }/releases/download/{ version }/{ name }-{ target }{ archive-suffix }"
-pkg-fmt = "tgz"                                                                          # archive-suffix = .tar.gz
-
 [[bin]]
 name = "ic-wasm"
 path = "src/bin/main.rs"
 required-features = ["exe"]
 
 [features]
-check-endpoints = ["dep:anyhow", "dep:candid_parser", "dep:parse-display", "dep:serde_json"]
+check-endpoints = [
+    "dep:anyhow",
+    "dep:candid_parser",
+    "dep:parse-display",
+    "dep:serde_json",
+]
 default = ["check-endpoints", "exe", "wasm-opt"]
 exe = ["dep:anyhow", "dep:clap", "dep:serde"]
 wasm-opt = ["dep:wasm-opt", "dep:tempfile"]
@@ -48,3 +49,8 @@ wasmparser = "0.223.0"
 
 [dev-dependencies]
 assert_cmd = "2"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

@@ -1801,7 +1801,7 @@ dependencies = [
 [[package]]
 name = "wasm-opt"
 version = "0.121.0"
-source = "git+https://github.com/brson/wasm-opt-rs?rev=refs%2Fpull%2F167%2Fhead#6c0ab705065f825dd2299ad156a119f6cde1123c"
+source = "git+https://github.com/ggreif/wasm-opt-rs?branch=version_121#da083a536568de8b41dd082138188c60fa5ba48d"
 dependencies = [
  "anyhow",
  "libc",
@@ -1815,7 +1815,7 @@ dependencies = [
 [[package]]
 name = "wasm-opt-cxx-sys"
 version = "0.121.0"
-source = "git+https://github.com/brson/wasm-opt-rs?rev=refs%2Fpull%2F167%2Fhead#6c0ab705065f825dd2299ad156a119f6cde1123c"
+source = "git+https://github.com/ggreif/wasm-opt-rs?branch=version_121#da083a536568de8b41dd082138188c60fa5ba48d"
 dependencies = [
  "anyhow",
  "cxx",
@@ -1826,7 +1826,7 @@ dependencies = [
 [[package]]
 name = "wasm-opt-sys"
 version = "0.121.0"
-source = "git+https://github.com/brson/wasm-opt-rs?rev=refs%2Fpull%2F167%2Fhead#6c0ab705065f825dd2299ad156a119f6cde1123c"
+source = "git+https://github.com/ggreif/wasm-opt-rs?branch=version_121#da083a536568de8b41dd082138188c60fa5ba48d"
 dependencies = [
  "anyhow",
  "cc",

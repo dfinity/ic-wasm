@@ -44,7 +44,7 @@ thiserror = "1.0.35"
 # Major version bump of walrus should result in a major version bump of ic-wasm.
 # Because we expose walrus types in ic-wasm public API.
 walrus = "0.22.0"
-wasm-opt = { git = "https://github.com/brson/wasm-opt-rs", rev = "refs/pull/167/head", optional = true }
+wasm-opt = { git = "https://github.com/ggreif/wasm-opt-rs", branch = "version_121", optional = true }
 #wasm-opt = { version = "0.116.1", optional = true }
 wasmparser = "0.223.0"
 

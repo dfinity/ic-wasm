@@ -38,6 +38,7 @@ pub struct Config {
     pub trace_only_funcs: Vec<String>,
     pub start_address: Option<i64>,
     pub page_limit: Option<i32>,
+    pub stub_wasi: bool,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
@@ -61,6 +62,9 @@ impl Config {
 /// When trace_only_funcs is not empty, counting and tracing is only enabled for those listed functions per update call.
 /// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
 pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
+    if config.stub_wasi {
+        stub_wasi_imports(m);
+    }
     let mut trace_only_ids = HashSet::new();
     for name in config.trace_only_funcs.iter() {
         let id = match m.funcs.by_name(name) {
@@ -959,4 +963,224 @@ fn make_toggle_func(m: &mut Module, name: &str, var: GlobalId) {
         .call(reply);
     let id = builder.finish(vec![], &mut m.funcs);
     m.exports.add(&format!("canister_update {name}"), id);
+}
+
+/// Replace WASI imports with stub functions that return 0 (success) or trap for proc_exit
+fn stub_wasi_imports(m: &mut Module) {
+    use walrus::FunctionBuilder;
+
+    // Find all WASI imports
+    let wasi_imports: Vec<_> = m
+        .imports
+        .iter()
+        .filter(|i| i.module == "wasi_snapshot_preview1")
+        .filter_map(|i| {
+            if let ImportKind::Function(func_id) = i.kind {
+                Some((i.id(), i.name.clone(), func_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let memory = m.memories.iter().next().map(|mem| mem.id());
+
+    for (import_id, name, old_func_id) in wasi_imports {
+        // Get the function type
+        let func = m.funcs.get(old_func_id);
+        let ty_id = func.ty();
+        let ty = m.types.get(ty_id);
+        let params: Vec<_> = ty.params().to_vec();
+        let results: Vec<_> = ty.results().to_vec();
+
+        // Create stub function
+        let mut builder = FunctionBuilder::new(&mut m.types, &params, &results);
+        builder.name(format!("__wasi_{name}_stub"));
+
+        // Create locals for parameters
+        let param_locals: Vec<_> = params.iter().map(|t| m.locals.add(*t)).collect();
+
+        match name.as_str() {
+            "fd_write" => {
+                // fd_write(fd: i32, iovs: i32, iovs_len: i32, nwritten: i32) -> i32
+                // Write 0 to nwritten and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // nwritten ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_read" => {
+                // fd_read(fd: i32, iovs: i32, iovs_len: i32, nread: i32) -> i32
+                // Write 0 to nread and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // nread ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_seek" => {
+                // fd_seek(fd: i32, offset: i64, whence: i32, newoffset: i32) -> i32
+                // Write 0 to newoffset and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // newoffset ptr
+                            .i64_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I64 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 8,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_close" => {
+                // fd_close(fd: i32) -> i32
+                // Just return 0 (success)
+                builder.func_body().i32_const(0);
+            }
+            "environ_sizes_get" => {
+                // environ_sizes_get(count: i32, buf_size: i32) -> i32
+                // Write 0 to both pointers and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 2 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[0]) // count ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .local_get(param_locals[1]) // buf_size ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "environ_get" => {
+                // environ_get(environ: i32, environ_buf: i32) -> i32
+                // Just return 0 (no environment variables)
+                builder.func_body().i32_const(0);
+            }
+            "proc_exit" => {
+                // proc_exit(code: i32) -> !
+                // Trap unconditionally
+                builder.func_body().unreachable();
+            }
+            _ => {
+                // Default: just return 0 for i32 result, or appropriate zero values
+                for result in &results {
+                    match result {
+                        ValType::I32 => {
+                            builder.func_body().i32_const(0);
+                        }
+                        ValType::I64 => {
+                            builder.func_body().i64_const(0);
+                        }
+                        ValType::F32 => {
+                            builder.func_body().f32_const(0.0);
+                        }
+                        ValType::F64 => {
+                            builder.func_body().f64_const(0.0);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let stub_func_id = builder.finish(param_locals, &mut m.funcs);
+
+        // Replace all calls to old_func_id with stub_func_id
+        for (_, func) in m.funcs.iter_local_mut() {
+            replace_calls_in_func(func, old_func_id, stub_func_id);
+        }
+
+        // Remove the import
+        m.imports.delete(import_id);
+    }
+}
+
+fn replace_calls_in_func(func: &mut LocalFunction, old_id: FunctionId, new_id: FunctionId) {
+    let mut stack = vec![func.entry_block()];
+    while let Some(seq_id) = stack.pop() {
+        let mut builder = func.builder_mut().instr_seq(seq_id);
+        for (instr, _) in builder.instrs_mut().iter_mut() {
+            match instr {
+                Instr::Call(Call { func }) if *func == old_id => {
+                    *func = new_id;
+                }
+                Instr::Block(Block { seq }) | Instr::Loop(Loop { seq }) => {
+                    stack.push(*seq);
+                }
+                Instr::IfElse(IfElse {
+                    consequent,
+                    alternative,
+                }) => {
+                    stack.push(*consequent);
+                    stack.push(*alternative);
+                }
+                _ => {}
+            }
+        }
+    }
 }

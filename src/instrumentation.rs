@@ -38,6 +38,9 @@ pub struct Config {
     pub trace_only_funcs: Vec<String>,
     pub start_address: Option<i64>,
     pub page_limit: Option<i32>,
+    /// Use heap memory for profiling instead of stable memory.
+    /// Compatible with canisters that use stable memory (e.g., Emscripten, Idris2).
+    pub heap_only: bool,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
@@ -114,30 +117,42 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
             );
         }
     }
-    let writer = make_stable_writer(m, &vars, &config);
-    let printer = make_printer(m, &vars, writer);
-    for (id, func) in m.funcs.iter_local_mut() {
-        if id != printer
-            && id != writer
-            && id != dynamic_counter_func
-            && id != dynamic_counter64_func
-        {
-            let is_partial_tracing = trace_only_ids.contains(&id);
-            inject_profiling_prints(&m.types, printer, id, func, is_partial_tracing, &vars);
-        }
-    }
-    if !is_partial_tracing {
-        //inject_start(m, vars.is_init);
-        inject_init(m, vars.is_init);
-    }
-    // Persist globals
-    inject_pre_upgrade(m, &vars, &config);
-    inject_post_upgrade(m, &vars, &config);
 
-    inject_canister_methods(m, &vars);
-    let leb = make_leb128_encoder(m);
-    make_stable_getter(m, &vars, leb, &config);
-    make_getter(m, &vars);
+    if config.heap_only {
+        // Heap-only mode: skip stable memory operations, only provide cycle counts
+        if !is_partial_tracing {
+            inject_init(m, vars.is_init);
+        }
+        inject_canister_methods(m, &vars);
+        make_heap_only_getter(m, &vars);
+        make_getter(m, &vars);
+    } else {
+        // Full tracing mode: use stable memory for detailed logs
+        let writer = make_stable_writer(m, &vars, &config);
+        let printer = make_printer(m, &vars, writer);
+        for (id, func) in m.funcs.iter_local_mut() {
+            if id != printer
+                && id != writer
+                && id != dynamic_counter_func
+                && id != dynamic_counter64_func
+            {
+                let is_partial_tracing = trace_only_ids.contains(&id);
+                inject_profiling_prints(&m.types, printer, id, func, is_partial_tracing, &vars);
+            }
+        }
+        if !is_partial_tracing {
+            //inject_start(m, vars.is_init);
+            inject_init(m, vars.is_init);
+        }
+        // Persist globals
+        inject_pre_upgrade(m, &vars, &config);
+        inject_post_upgrade(m, &vars, &config);
+
+        inject_canister_methods(m, &vars);
+        let leb = make_leb128_encoder(m);
+        make_stable_getter(m, &vars, leb, &config);
+        make_getter(m, &vars);
+    }
     make_toggle_func(m, "__toggle_tracing", vars.is_init);
     make_toggle_func(m, "__toggle_entry", vars.is_entry);
     let name = make_name_section(m);
@@ -905,6 +920,51 @@ fn make_name_section(m: &Module) -> RawCustomSection {
         name: "icp:public name".to_string(),
         data,
     }
+}
+
+/// Creates a __get_profiling query that returns empty data.
+/// Used in heap-only mode where stable memory is not available.
+/// Returns: (vec { record { int32; int64 } }, opt int32) with empty vec and null opt.
+fn make_heap_only_getter(m: &mut Module, _vars: &Variables) {
+    let memory = get_memory_id(m);
+    let reply_data = get_ic_func_id(m, "msg_reply_data_append");
+    let reply = get_ic_func_id(m, "msg_reply");
+    let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
+    builder.name("__get_profiling".to_string());
+    #[rustfmt::skip]
+    builder
+        .func_body()
+        // Return empty response: (vec { record { int32; int64 } }, opt int32)
+        // Candid header for this type + empty vec (0 elements) + null opt
+        .i32_const(0)
+        .i64_const(0x6c016d034c444944) // "DIDL036d016c"
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .i64_const(0x02756e7401750002)  // "02007501746e7502"
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .i32_const(0x0200) // "0002" - type indices
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(0)
+        .i32_const(18)
+        .call(reply_data)
+        // Empty vec: 0 elements (LEB128 encoded as single byte 0x00)
+        .i32_const(0)
+        .i32_const(0x00)  // vec length = 0
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(0)
+        .i32_const(1)
+        .call(reply_data)
+        // Null opt: 0x00 means None
+        .i32_const(0)
+        .i32_const(0x00)  // opt = None
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .i32_const(0)
+        .i32_const(1)
+        .call(reply_data)
+        .call(reply);
+    let getter = builder.finish(vec![], &mut m.funcs);
+    m.exports.add("canister_query __get_profiling", getter);
 }
 
 fn make_getter(m: &mut Module, vars: &Variables) {

@@ -101,6 +101,9 @@ enum SubCommand {
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,
+        /// Use heap memory for profiling counters instead of stable memory. This mode is compatible with canisters that use stable memory (e.g., Emscripten, Idris2). Only provides per-function call counts, not detailed traces.
+        #[clap(long, conflicts_with_all = &["start_page", "page_limit"])]
+        heap_only: bool,
     },
     /// Check canister endpoints against provided Candid interface
     #[cfg(feature = "check-endpoints")]
@@ -164,12 +167,14 @@ fn main() -> anyhow::Result<()> {
             trace_only,
             start_page,
             page_limit,
+            heap_only,
         } => {
             use ic_wasm::instrumentation::{instrument, Config};
             let config = Config {
                 trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
                 start_address: start_page.map(|page| i64::from(page) * 65536),
                 page_limit: *page_limit,
+                heap_only: *heap_only,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }

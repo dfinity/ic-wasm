@@ -148,6 +148,11 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     if !is_partial_tracing {
         //inject_start(m, vars.is_init);
         if config.heap_trace {
+            // Increase memory maximum to accommodate heap trace buffer
+            let memory_id = get_memory_id(m);
+            let memory = m.memories.get_mut(memory_id);
+            let current_max = memory.maximum.unwrap_or(memory.initial);
+            memory.maximum = Some(current_max + config.heap_pages as u64);
             inject_init_heap_trace(m, &vars, &config);
         } else {
             inject_init(m, vars.is_init);

@@ -127,10 +127,12 @@ Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]
 ### Instrument (experimental)
 
 Provides instrumentation capabilities for canister WebAssembly modules:
-- **Execution tracing**: Instrument canister methods to emit execution trace to stable memory for performance profiling
+- **Execution tracing**: Instrument canister methods to emit execution trace for performance profiling
+  - Stable memory mode (default): Stores traces in stable memory, persists across upgrades
+  - Heap memory mode (`--heap-trace`): Stores traces in heap memory, for canisters that use stable memory for their own purposes
 - **WASI compatibility**: Replace WASI imports with stub functions to enable modules compiled with Emscripten or wasi-sdk to run on the Internet Computer
 
-Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument [--trace-only func1] [--start-page 16] [--page-limit 30] [--stub-wasi]`
+Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument [--trace-only func1] [--start-page 16] [--page-limit 30] [--heap-trace] [--heap-pages 64] [--stub-wasi]`
 
 #### Execution tracing
 
@@ -206,6 +208,21 @@ fn post_upgrade() {
 * If heartbeat is present, it's hard to measure any other method calls. It's also hard to measure a specific heartbeat event.
 * We cannot measure query calls.
 * No concurrent calls.
+
+#### Heap-based tracing
+
+The `--heap-trace` flag provides an alternative tracing mode that stores execution traces in heap memory instead of stable memory. This is useful for canisters that use stable memory for their own purposes (e.g., Emscripten, Idris2, or AssemblyScript-based canisters).
+
+**Usage**: `ic-wasm <input.wasm> -o <output.wasm> instrument --heap-trace [--heap-pages 64]`
+
+**Key differences from stable memory tracing**:
+- Traces are stored in WASM linear memory and **will not persist across upgrades**
+- No need to pre-allocate stable memory or specify `--start-page`
+- The `--heap-pages` flag controls buffer size (default: 64 pages = 4MB)
+- Memory maximum is automatically increased to accommodate the trace buffer
+- Cannot be used together with `--start-page` or `--page-limit`
+
+The same query endpoints (`__get_profiling`, `__get_cycles`, etc.) work with both stable and heap-based tracing.
 
 #### Stubbing WASI imports
 

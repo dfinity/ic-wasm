@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+* Add `--stub-wasi` flag to `instrument` subcommand to replace WASI imports with stub functions.
+
 ## [0.9.9] - 2025-11-18
 
 * Add support for comments in optional hidden endpoint file for `check-endpoints` command.

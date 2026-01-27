@@ -126,9 +126,13 @@ Usage: `ic-wasm <input.wasm> check-endpoints [--candid <file>] [--hidden <file>]
 
 ### Instrument (experimental)
 
-Instrument canister method to emit execution trace to stable memory.
+Provides instrumentation capabilities for canister WebAssembly modules:
+- **Execution tracing**: Instrument canister methods to emit execution trace to stable memory for performance profiling
+- **WASI compatibility**: Replace WASI imports with stub functions to enable modules compiled with Emscripten or wasi-sdk to run on the Internet Computer
 
-Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument --trace-only func1 --trace-only func2 --start-page 16 --page-limit 30`
+Usage: `ic-wasm <input.wasm> -o <output.wasm> instrument [--trace-only func1] [--start-page 16] [--page-limit 30] [--stub-wasi]`
+
+#### Execution tracing
 
 Instrumented canister has the following additional endpoints:
 
@@ -202,6 +206,30 @@ fn post_upgrade() {
 * If heartbeat is present, it's hard to measure any other method calls. It's also hard to measure a specific heartbeat event.
 * We cannot measure query calls.
 * No concurrent calls.
+
+#### Stubbing WASI imports
+
+The `--stub-wasi` flag replaces WASI imports with local stub functions, enabling WASM modules compiled with Emscripten or wasi-sdk to run on the Internet Computer. Without this flag, such modules would fail at install time with errors like:
+
+```
+Error: Wasm module has an invalid import section.
+Module imports function 'fd_close' from 'wasi_snapshot_preview1' that is not exported by the runtime.
+```
+
+The stub functions behave as follows:
+
+| WASI Function | Stub Behavior |
+|---------------|---------------|
+| `fd_close` | Returns 0 (success) |
+| `fd_write` | Writes 0 to nwritten, returns 0 |
+| `fd_read` | Writes 0 to nread, returns 0 |
+| `fd_seek` | Writes 0 to newoffset, returns 0 |
+| `environ_sizes_get` | Writes 0 to both params, returns 0 |
+| `environ_get` | Returns 0 |
+| `proc_exit` | Traps (unreachable) |
+| Others | Returns 0 |
+
+**Note**: This is a workaround for edge cases. The recommended approach is to build without WASI imports (e.g., using `wasm32-unknown-unknown` target with ic-cdk for Rust). Stub functions return success, which may hide real failures if your code depends on WASI functionality.
 
 ## Library
 

@@ -2,13 +2,39 @@
 
 A library for transforming Wasm canisters running on the Internet Computer
 
-## Executable
+## Installation
 
-To install the `ic-wasm` executable, run
+### Precompiled binaries
 
+**Linux and macOS:**
+
+```bash
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dfinity/ic-wasm/releases/latest/download/ic-wasm-installer.sh | sh
 ```
-$ cargo install ic-wasm
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://github.com/dfinity/ic-wasm/releases/latest/download/ic-wasm-installer.ps1 | iex
 ```
+
+### Using cargo-binstall
+
+If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) installed:
+
+```bash
+cargo binstall ic-wasm
+```
+
+### From source
+
+To build and install from source:
+
+```bash
+cargo install ic-wasm
+```
+
+## Usage
 
 ### Metadata
 

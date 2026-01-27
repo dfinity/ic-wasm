@@ -111,6 +111,9 @@ enum SubCommand {
         /// Only used with --heap-trace. Default: 64 (4MB total)
         #[clap(long, default_value = "64", requires = "heap_trace")]
         heap_pages: i32,
+        /// Replace WASI imports with stub functions that return 0 (success)
+        #[clap(long)]
+        stub_wasi: bool,
     },
     /// Check canister endpoints against provided Candid interface
     #[cfg(feature = "check-endpoints")]
@@ -176,6 +179,7 @@ fn main() -> anyhow::Result<()> {
             page_limit,
             heap_trace,
             heap_pages,
+            stub_wasi,
         } => {
             use ic_wasm::instrumentation::{instrument, Config};
             let config = Config {
@@ -184,6 +188,7 @@ fn main() -> anyhow::Result<()> {
                 page_limit: *page_limit,
                 heap_trace: *heap_trace,
                 heap_pages: *heap_pages,
+                stub_wasi: *stub_wasi,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;
         }

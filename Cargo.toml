@@ -1,6 +1,6 @@
 [package]
 name = "ic-wasm"
-version = "0.9.10"
+version = "0.9.11"
 authors = ["DFINITY Stiftung"]
 edition = "2021"
 description = "A library for performing Wasm transformations specific to canisters running on the Internet Computer"

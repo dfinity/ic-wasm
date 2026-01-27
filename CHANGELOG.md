@@ -6,9 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.9.11] - 2026-01-27
+
 * Enhance `instrument` subcommand with new capabilities:
   - Add `--stub-wasi` flag to replace WASI imports with stub functions, enabling modules compiled with Emscripten or wasi-sdk to run on the Internet Computer.
   - Add `--heap-trace` flag to store execution traces in heap memory instead of stable memory, enabling profiling for canisters that use stable memory for their own purposes (e.g., Emscripten, Idris2, AssemblyScript-based canisters).
+* Infrastructure: Add PowerShell installer for Windows in releases.
+
+## [0.9.10] - 2026-01-12
+
+* Infrastructure: First release using `dist` for automated binary distribution (no functional changes).
 
 ## [0.9.9] - 2025-11-18
 

@@ -101,6 +101,16 @@ enum SubCommand {
         /// The number of pages of the preallocated stable memory
         #[clap(short, long, requires("start_page"))]
         page_limit: Option<i32>,
+        /// Store profiling traces in heap memory instead of stable memory.
+        /// Use this for canisters that use stable memory for their own purposes
+        /// (e.g., Emscripten, Idris2, AssemblyScript-based canisters).
+        /// Traces are stored in WASM linear memory and will not persist across upgrades.
+        #[clap(long, conflicts_with_all = &["start_page", "page_limit"])]
+        heap_trace: bool,
+        /// Number of WASM pages (64KB each) to allocate for heap trace buffer.
+        /// Only used with --heap-trace. Default: 64 (4MB total)
+        #[clap(long, default_value = "64", requires = "heap_trace")]
+        heap_pages: i32,
         /// Replace WASI imports with stub functions that return 0 (success)
         #[clap(long)]
         stub_wasi: bool,
@@ -167,6 +177,8 @@ fn main() -> anyhow::Result<()> {
             trace_only,
             start_page,
             page_limit,
+            heap_trace,
+            heap_pages,
             stub_wasi,
         } => {
             use ic_wasm::instrumentation::{instrument, Config};
@@ -174,6 +186,8 @@ fn main() -> anyhow::Result<()> {
                 trace_only_funcs: trace_only.clone().unwrap_or(vec![]),
                 start_address: start_page.map(|page| i64::from(page) * 65536),
                 page_limit: *page_limit,
+                heap_trace: *heap_trace,
+                heap_pages: *heap_pages,
                 stub_wasi: *stub_wasi,
             };
             instrument(&mut m, config).map_err(|e| anyhow::anyhow!("{e}"))?;

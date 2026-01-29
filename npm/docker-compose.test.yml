@@ -1,0 +1,40 @@
+services:
+  # Test on Node 18 (LTS)
+  test-node18:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NODE_VERSION: 18
+    platform: linux/amd64
+    container_name: ic-wasm-test-node18
+    
+  # Test on Node 20 (Current LTS)
+  test-node20:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NODE_VERSION: 20
+    platform: linux/amd64
+    container_name: ic-wasm-test-node20
+    
+  # Test on Node 22 (Latest)
+  test-node22:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NODE_VERSION: 22
+    platform: linux/amd64
+    container_name: ic-wasm-test-node22
+
+  # Test on ARM64 architecture (if supported by your Docker setup)
+  test-arm64:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NODE_VERSION: 20
+    platform: linux/arm64
+    container_name: ic-wasm-test-arm64

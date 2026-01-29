@@ -4,6 +4,12 @@ A library for transforming Wasm canisters running on the Internet Computer
 
 ## Installation
 
+### Via npm (all platforms)
+
+```bash
+npm install -g ic-wasm
+```
+
 ### Precompiled binaries
 
 **Linux and macOS:**

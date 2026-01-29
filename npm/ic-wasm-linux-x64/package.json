@@ -1,0 +1,28 @@
+{
+  "name": "ic-wasm-linux-x64",
+  "version": "0.9.11",
+  "description": "ic-wasm binary for Linux x64",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfinity/ic-wasm.git",
+    "directory": "npm/ic-wasm-linux-x64"
+  },
+  "license": "Apache-2.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.js",
+  "files": [
+    "bin/ic-wasm"
+  ],
+  "keywords": [
+    "ic-wasm",
+    "wasm",
+    "webassembly",
+    "internet-computer",
+    "canister"
+  ]
+}

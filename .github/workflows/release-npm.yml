@@ -1,0 +1,52 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Extract version from release tag
+        id: version
+        run: |
+          # Remove 'v' prefix from tag (e.g., v0.9.11 -> 0.9.11)
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing npm packages for version: $VERSION"
+      
+      - name: Download binaries from release
+        working-directory: npm
+        run: ./scripts/download-binaries.sh "${{ github.event.release.tag_name }}"
+      
+      - name: Verify binaries
+        working-directory: npm
+        run: ./scripts/verify-binaries.sh
+      
+      - name: Update package versions
+        working-directory: npm
+        run: ./scripts/update-package-json.sh "${{ steps.version.outputs.version }}"
+      
+      - name: Test packages
+        working-directory: npm
+        run: ./scripts/test-docker.sh quick
+      
+      - name: Publish to npm
+        working-directory: npm
+        run: ./scripts/publish-all.sh "${{ steps.version.outputs.version }}"

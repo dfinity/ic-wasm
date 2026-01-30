@@ -1,8 +1,17 @@
 name: Publish to npm
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 0.9.11-beta.2)'
+        required: true
+        type: string
+      beta:
+        description: 'Beta release'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   publish-npm:
@@ -14,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.release.tag_name }}
+          ref: ${{ inputs.version }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,18 +31,9 @@ jobs:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
       
-      - name: Extract version from release tag
-        id: version
-        run: |
-          # Remove 'v' prefix from tag (e.g., v0.9.11 -> 0.9.11)
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Publishing npm packages for version: $VERSION"
-      
       - name: Download binaries from release
         working-directory: npm
-        run: ./scripts/download-binaries.sh "${{ github.event.release.tag_name }}"
+        run: ./scripts/download-binaries.sh "${{ inputs.version }}"
       
       - name: Verify binaries
         working-directory: npm
@@ -41,7 +41,7 @@ jobs:
       
       - name: Update package versions
         working-directory: npm
-        run: ./scripts/update-package-json.sh "${{ steps.version.outputs.version }}"
+        run: ./scripts/update-package-json.sh "${{ inputs.version }}"
       
       - name: Test packages
         working-directory: npm
@@ -49,4 +49,9 @@ jobs:
       
       - name: Publish to npm
         working-directory: npm
-        run: ./scripts/publish-all.sh "${{ steps.version.outputs.version }}"
+        run: |
+          if [[ "${{ inputs.beta }}" == "true" ]]; then
+            ./scripts/publish-all.sh "${{ inputs.version }}" beta
+          else
+            ./scripts/publish-all.sh "${{ inputs.version }}"
+          fi

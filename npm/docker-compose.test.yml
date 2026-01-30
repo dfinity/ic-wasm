@@ -1,5 +1,5 @@
 services:
-  # Test on Node 18 (LTS)
+  # Test on Node 18 (not LTS, but it still works)
   test-node18:
     build:
       context: .
@@ -9,7 +9,7 @@ services:
     platform: linux/amd64
     container_name: ic-wasm-test-node18
     
-  # Test on Node 20 (Current LTS)
+  # Test on Node 20 (LTS)
   test-node20:
     build:
       context: .
@@ -19,7 +19,7 @@ services:
     platform: linux/amd64
     container_name: ic-wasm-test-node20
     
-  # Test on Node 22 (Latest)
+  # Test on Node 22 (LTS)
   test-node22:
     build:
       context: .
@@ -28,6 +28,16 @@ services:
         NODE_VERSION: 22
     platform: linux/amd64
     container_name: ic-wasm-test-node22
+    
+  # Test on Node 24 (Latest LTS)
+  test-node24:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+      args:
+        NODE_VERSION: 24
+    platform: linux/amd64
+    container_name: ic-wasm-test-node24
 
   # Test on ARM64 architecture (if supported by your Docker setup)
   test-arm64:

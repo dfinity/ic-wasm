@@ -77,6 +77,15 @@ case $TEST_TYPE in
         echo ""
         echo "✓ Node 22 tests passed"
         echo ""
+        
+        echo "=========================================="
+        echo "Testing on Node 24..."
+        echo "=========================================="
+        $COMPOSE_CMD -f docker-compose.test.yml build test-node24
+        $COMPOSE_CMD -f docker-compose.test.yml run --rm test-node24
+        echo ""
+        echo "✓ Node 24 tests passed"
+        echo ""
         ;;
     
     interactive)

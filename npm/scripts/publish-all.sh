@@ -12,12 +12,14 @@ fi
 # Check if version argument is provided
 if [ -z "$1" ]; then
   echo "Error: Version argument is required"
-  echo "Usage: ./scripts/publish-all.sh <version>"
+  echo "Usage: ./scripts/publish-all.sh <version> [tag]"
   echo "Example: ./scripts/publish-all.sh 0.9.11"
+  echo "Example: ./scripts/publish-all.sh 0.9.11-beta beta"
   exit 1
 fi
 
 VERSION="$1"
+NPM_TAG="${2:-}"
 
 echo "Publishing version $VERSION"
 
@@ -61,13 +63,13 @@ check_version "ic-wasm"
 echo "All versions verified!"
 echo ""
 
-# Determine if this is a pre-release version
+# Determine npm dist-tag
 BETA_TAG=""
-if [[ "$VERSION" =~ (alpha|beta) ]]; then
-  BETA_TAG="--tag beta"
-  echo "Pre-release version detected, will publish with --tag beta"
+if [ -n "$NPM_TAG" ]; then
+  BETA_TAG="--tag $NPM_TAG"
+  echo "Publishing with tag: $NPM_TAG"
 else
-  echo "Stable version detected, will publish as latest"
+  echo "Publishing as latest"
 fi
 echo ""
 

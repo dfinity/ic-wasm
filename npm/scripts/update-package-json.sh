@@ -21,8 +21,7 @@ if ! command -v jq &> /dev/null; then
   exit 1
 fi
 
-# Strip leading 'v' if present since package.json versions don't use 'v' prefix
-NEW_VERSION="${1#v}"
+NEW_VERSION="$1"
 
 echo "Updating all packages to version $NEW_VERSION"
 

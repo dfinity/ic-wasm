@@ -17,8 +17,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
-# Strip leading 'v' if present since ic-wasm releases use version format without 'v'
-VERSION="${1#v}"
+VERSION="$1"
 
 echo "Downloading ic-wasm binaries version $VERSION"
 echo ""

@@ -7,7 +7,7 @@ A library for transforming Wasm canisters running on the Internet Computer
 ### Via npm (all platforms)
 
 ```bash
-npm install -g ic-wasm
+npm install -g @icp-sdk/ic-wasm
 ```
 
 ### Precompiled binaries

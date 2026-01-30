@@ -63,13 +63,13 @@ This will update the version in all packages and their dependencies.
 Users can install the package globally:
 
 ```bash
-npm install -g ic-wasm
+npm install -g @icp-sdk/ic-wasm
 ```
 
 Or locally in their project:
 
 ```bash
-npm install ic-wasm
+npm install @icp-sdk/ic-wasm
 ```
 
 Then use it:
@@ -81,6 +81,6 @@ ic-wasm --help
 Or programmatically:
 
 ```javascript
-const icWasm = require('ic-wasm');
+const icWasm = require('@icp-sdk/ic-wasm');
 console.log('Binary location:', icWasm.binaryPath);
 ```

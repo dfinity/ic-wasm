@@ -1,5 +1,5 @@
 {
-  "name": "ic-wasm-win32-x64",
+  "name": "@icp-sdk/ic-wasm-win32-x64",
   "version": "0.9.11",
   "description": "ic-wasm binary for Windows x64",
   "repository": {

@@ -1,5 +1,5 @@
 {
-  "name": "ic-wasm-darwin-x64",
+  "name": "@icp-sdk/ic-wasm-darwin-x64",
   "version": "0.9.11",
   "description": "ic-wasm binary for macOS x64 (Intel)",
   "repository": {

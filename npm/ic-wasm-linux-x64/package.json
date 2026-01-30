@@ -1,6 +1,6 @@
 {
   "name": "@icp-sdk/ic-wasm-linux-x64",
-  "version": "0.9.11",
+  "version": "0.9.10",
   "description": "ic-wasm binary for Linux x64",
   "repository": {
     "type": "git",

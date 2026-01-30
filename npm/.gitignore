@@ -5,8 +5,8 @@ package-lock.json
 # Build artifacts
 *.tar.gz
 *.zip
-**/ic-wasm
-**/ic-wasm.exe
+**/bin/ic-wasm
+**/bin/ic-wasm.exe
 
 # npm logs
 npm-debug.log*

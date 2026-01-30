@@ -58,7 +58,7 @@ jobs:
       
       - name: Test packages
         working-directory: npm
-        run: ./scripts/test-docker.sh quick
+        run: ./scripts/test-docker.sh full
       
       - name: Publish to npm
         working-directory: npm

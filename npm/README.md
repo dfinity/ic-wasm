@@ -13,17 +13,14 @@ This directory contains the npm package distribution system for `ic-wasm` using 
 
 ## Automated Release Process
 
-The npm packages are automatically published when a GitHub release is created:
+The npm packages can be published via the GitHub Actions workflow:
 
-1. Developer pushes a version tag (e.g., `v0.9.12`) to the main ic-wasm repository
-2. The `release.yml` workflow (managed by cargo-dist) builds and releases Rust binaries
-3. When the GitHub release is published, the `release-npm.yml` workflow automatically:
-   - Downloads the newly released binaries from the GitHub release
-   - Updates package.json versions to match
-   - Runs Docker tests
-   - Publishes all 6 packages to npm
-
-See [`.github/workflows/release-npm.yml`](../.github/workflows/release-npm.yml) for the complete workflow.
+1. Go to the repository's Actions tab
+2. Select the "Publish to npm" workflow
+3. Click "Run workflow" and provide:
+   - **version**: Release version to download binaries from (e.g., `0.9.12`)
+   - **npm_package_version** (optional): NPM package version if it should differ from the release version (e.g., `0.9.13`)
+   - **beta**: Whether to publish as a beta release (tags packages with `beta` on npm)
 
 ## Manual Testing (for Development)
 
@@ -50,7 +47,7 @@ Or manually download from [ic-wasm releases](https://github.com/dfinity/ic-wasm/
 
 ```bash
 ./scripts/test-docker.sh quick  # Quick test on Node 20
-./scripts/test-docker.sh full   # Full test on Node 18, 20, 22
+./scripts/test-docker.sh full   # Full test on Node 18, 20, 22, 24
 ```
 
 ### 4. Update Version

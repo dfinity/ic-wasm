@@ -8,7 +8,7 @@ set -e
 # Ensure script is run from npm directory
 if [ ! -d "ic-wasm" ] || [ ! -f "ic-wasm/package.json" ]; then
   echo "Error: This script must be run from the npm directory"
-  echo "Usage: cd npm && ./scripts/test-docker.sh [quick|full|interactive|clean]"
+  echo "Usage: cd npm && ./scripts/test-docker.sh [quick|full]"
   exit 1
 fi
 
@@ -88,41 +88,17 @@ case $TEST_TYPE in
         echo ""
         ;;
     
-    interactive)
-        echo "Starting interactive testing environment..."
-        echo ""
-        docker build -f Dockerfile.test -t ic-wasm-test:latest .
-        docker run --rm -it ic-wasm-test:latest /bin/bash
-        ;;
-    
-    clean)
-        echo "Cleaning up Docker images..."
-        docker rmi ic-wasm-test:latest 2>/dev/null || true
-        if command -v docker-compose &> /dev/null || docker compose version &> /dev/null 2>&1; then
-            if docker compose version &> /dev/null 2>&1; then
-                docker compose -f docker-compose.test.yml down --rmi all 2>/dev/null || true
-            else
-                docker-compose -f docker-compose.test.yml down --rmi all 2>/dev/null || true
-            fi
-        fi
-        echo "Cleanup complete!"
-        ;;
-    
     *)
-        echo "Usage: $0 [quick|full|interactive|clean]"
+        echo "Usage: $0 [quick|full]"
         echo ""
         echo "Options:"
-        echo "  quick       - Quick test on Node 20 (default)"
-        echo "  full        - Test on multiple Node versions"
-        echo "  interactive - Start an interactive bash shell for manual testing"
-        echo "  clean       - Remove all test Docker images"
+        echo "  quick - Quick test on Node 20 (default)"
+        echo "  full  - Test on multiple Node versions"
         echo ""
         echo "Examples:"
-        echo "  $0                    # Run quick test"
-        echo "  $0 quick              # Run quick test"
-        echo "  $0 full               # Run full test suite"
-        echo "  $0 interactive        # Interactive testing"
-        echo "  $0 clean              # Clean up"
+        echo "  $0        # Run quick test"
+        echo "  $0 quick  # Run quick test"
+        echo "  $0 full   # Run full test suite"
         exit 1
         ;;
 esac

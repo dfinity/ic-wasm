@@ -5,7 +5,7 @@ set -e
 # Ensure script is run from npm directory
 if [ ! -d "ic-wasm" ] || [ ! -f "ic-wasm/package.json" ]; then
   echo "Error: This script must be run from the npm directory"
-  echo "Usage: cd npm && ./scripts/publish-all.sh <version>"
+  echo "Usage: cd npm && ./scripts/publish-all.sh <version> [tag]"
   exit 1
 fi
 

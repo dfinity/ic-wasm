@@ -1,0 +1,28 @@
+# Node modules
+node_modules/
+package-lock.json
+
+# Build artifacts
+*.tar.gz
+*.zip
+**/bin/ic-wasm
+**/bin/ic-wasm.exe
+
+# npm logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test artifacts
+test-output/

@@ -1,0 +1,70 @@
+name: Publish to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version to download binaries from (e.g., 0.9.11-beta.2)'
+        required: true
+        type: string
+      npm_package_version:
+        description: 'NPM package version (e.g., 0.9.11-beta.2). If not specified, will use the release version. Use this if the npm package version should differ from the release version.'
+        required: false
+        type: string
+      beta:
+        description: 'Beta release'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  publish-npm:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.version }}
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Download binaries from release
+        working-directory: npm
+        run: ./scripts/download-binaries.sh "${{ inputs.version }}"
+      
+      - name: Verify binaries
+        working-directory: npm
+        run: ./scripts/verify-binaries.sh
+      
+      - name: Determine NPM version
+        id: npm_version
+        run: |
+          if [[ -n "${{ inputs.npm_package_version }}" ]]; then
+            echo "version=${{ inputs.npm_package_version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Update package versions
+        working-directory: npm
+        run: ./scripts/update-package-json.sh "${{ steps.npm_version.outputs.version }}"
+      
+      - name: Test packages
+        working-directory: npm
+        run: ./scripts/test-docker.sh full
+      
+      - name: Publish to npm
+        working-directory: npm
+        run: |
+          if [[ "${{ inputs.beta }}" == "true" ]]; then
+            ./scripts/publish-all.sh "${{ steps.npm_version.outputs.version }}" beta
+          else
+            ./scripts/publish-all.sh "${{ steps.npm_version.outputs.version }}"
+          fi

@@ -1,0 +1,29 @@
+{
+  "name": "@icp-sdk/ic-wasm-darwin-arm64",
+  "version": "0.9.10",
+  "description": "ic-wasm binary for macOS ARM64 (Apple Silicon)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfinity/ic-wasm.git",
+    "directory": "npm/ic-wasm-darwin-arm64"
+  },
+  "license": "Apache-2.0",
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin/ic-wasm"
+  ],
+  "keywords": [
+    "ic-wasm",
+    "wasm",
+    "webassembly",
+    "internet-computer",
+    "canister"
+  ]
+}

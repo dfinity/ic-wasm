@@ -17,11 +17,12 @@ pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 // https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
 // Since we use both wasm_opt::Feature and wasmparse::WasmFeature, we have to define the config/features for both.
 #[cfg(feature = "wasm-opt")]
-pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
+pub const IC_ENABLED_WASM_FEATURES: [Feature; 8] = [
     Feature::MutableGlobals,
     Feature::TruncSat,
     Feature::Simd,
     Feature::BulkMemory,
+    Feature::BulkMemoryOpt,
     Feature::SignExt,
     Feature::ReferenceTypes,
     Feature::Memory64,

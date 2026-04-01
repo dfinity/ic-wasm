@@ -32,12 +32,19 @@ struct Variables {
     is_entry: GlobalId,
     dynamic_counter_func: FunctionId,
     dynamic_counter64_func: FunctionId,
+    /// Base address of heap trace buffer (only used when heap_trace is enabled)
+    heap_base: GlobalId,
 }
 
 pub struct Config {
     pub trace_only_funcs: Vec<String>,
     pub start_address: Option<i64>,
     pub page_limit: Option<i32>,
+    /// Store traces in heap memory instead of stable memory
+    pub heap_trace: bool,
+    /// Number of WASM pages (64KB each) for heap trace buffer
+    pub heap_pages: i32,
+    pub stub_wasi: bool,
 }
 impl Config {
     pub fn is_preallocated(&self) -> bool {
@@ -56,11 +63,18 @@ impl Config {
                 .unwrap_or(DEFAULT_PAGE_LIMIT - 1),
         ) // minus 1 because of metadata
     }
+    /// Size limit for heap trace buffer in bytes
+    pub fn heap_trace_size_limit(&self) -> i32 {
+        self.heap_pages * 65536 - METADATA_SIZE
+    }
 }
 
 /// When trace_only_funcs is not empty, counting and tracing is only enabled for those listed functions per update call.
 /// TODO: doesn't handle recursive entry functions. Need to create a wrapper for the recursive entry function.
 pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
+    if config.stub_wasi {
+        stub_wasi_imports(m);
+    }
     let mut trace_only_ids = HashSet::new();
     for name in config.trace_only_funcs.iter() {
         let id = match m.funcs.by_name(name) {
@@ -86,6 +100,10 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     let is_entry = m
         .globals
         .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
+    // heap_base is initialized to 0 here, will be set at runtime in canister_init
+    let heap_base = m
+        .globals
+        .add_local(ValType::I32, true, false, ConstExpr::Value(Value::I32(0)));
     let opt_init = if is_partial_tracing {
         Some(is_init)
     } else {
@@ -101,6 +119,7 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
         dynamic_counter_func,
         dynamic_counter64_func,
         page_size,
+        heap_base,
     };
 
     for (id, func) in m.funcs.iter_local_mut() {
@@ -114,7 +133,11 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
             );
         }
     }
-    let writer = make_stable_writer(m, &vars, &config);
+    let writer = if config.heap_trace {
+        make_heap_writer(m, &vars, &config)
+    } else {
+        make_stable_writer(m, &vars, &config)
+    };
     let printer = make_printer(m, &vars, writer);
     for (id, func) in m.funcs.iter_local_mut() {
         if id != printer
@@ -128,15 +151,30 @@ pub fn instrument(m: &mut Module, config: Config) -> Result<(), String> {
     }
     if !is_partial_tracing {
         //inject_start(m, vars.is_init);
-        inject_init(m, vars.is_init);
+        if config.heap_trace {
+            // Increase memory maximum to accommodate heap trace buffer
+            let memory_id = get_memory_id(m);
+            let memory = m.memories.get_mut(memory_id);
+            let current_max = memory.maximum.unwrap_or(memory.initial);
+            memory.maximum = Some(current_max + config.heap_pages as u64);
+            inject_init_heap_trace(m, &vars, &config);
+        } else {
+            inject_init(m, vars.is_init);
+        }
     }
-    // Persist globals
-    inject_pre_upgrade(m, &vars, &config);
-    inject_post_upgrade(m, &vars, &config);
+    // Persist globals (skip for heap_trace since heap doesn't persist across upgrades)
+    if !config.heap_trace {
+        inject_pre_upgrade(m, &vars, &config);
+        inject_post_upgrade(m, &vars, &config);
+    }
 
     inject_canister_methods(m, &vars);
     let leb = make_leb128_encoder(m);
-    make_stable_getter(m, &vars, leb, &config);
+    if config.heap_trace {
+        make_heap_getter(m, &vars, leb, &config);
+    } else {
+        make_stable_getter(m, &vars, leb, &config);
+    }
     make_getter(m, &vars);
     make_toggle_func(m, "__toggle_tracing", vars.is_init);
     make_toggle_func(m, "__toggle_entry", vars.is_entry);
@@ -959,4 +997,440 @@ fn make_toggle_func(m: &mut Module, name: &str, var: GlobalId) {
         .call(reply);
     let id = builder.finish(vec![], &mut m.funcs);
     m.exports.add(&format!("canister_update {name}"), id);
+}
+
+// ============================================================================
+// Heap-based tracing (for canisters that use stable memory)
+// ============================================================================
+
+/// Initialize heap trace buffer in canister_init
+/// Grows memory and sets heap_base to the start of the trace buffer
+fn inject_init_heap_trace(m: &mut Module, vars: &Variables, config: &Config) {
+    let memory = get_memory_id(m);
+    let mut builder = get_or_create_export_func(m, "canister_init");
+    #[rustfmt::skip]
+    builder
+        // heap_base = memory.size * 65536
+        .memory_size(memory)
+        .i32_const(65536)
+        .binop(BinaryOp::I32Mul)
+        .global_set(vars.heap_base)
+        // memory.grow(heap_pages)
+        .i32_const(config.heap_pages)
+        .memory_grow(memory)
+        .drop()
+        // Enable profiling (is_init = 0)
+        .i32_const(0)
+        .global_set(vars.is_init);
+}
+
+/// Write log entry to heap memory instead of stable memory
+fn make_heap_writer(m: &mut Module, vars: &Variables, config: &Config) -> FunctionId {
+    let memory = get_memory_id(m);
+    let size_limit = config.heap_trace_size_limit();
+    let mut builder = FunctionBuilder::new(
+        &mut m.types,
+        &[ValType::I64, ValType::I64, ValType::I64],
+        &[],
+    );
+    let offset = m.locals.add(ValType::I64);
+    let src = m.locals.add(ValType::I64);
+    let size = m.locals.add(ValType::I64);
+    let dest_addr = m.locals.add(ValType::I32);
+    let tmp_i32 = m.locals.add(ValType::I32);
+    let tmp_i64 = m.locals.add(ValType::I64);
+
+    // Check if we have space: offset + size <= size_limit
+    #[rustfmt::skip]
+    builder
+        .func_body()
+        .local_get(offset)
+        .local_get(size)
+        .binop(BinaryOp::I64Add)
+        .i64_const(size_limit as i64)
+        .binop(BinaryOp::I64GtS)
+        .if_else(
+            None,
+            |then| {
+                // Out of space, just return without writing
+                then.return_();
+            },
+            |_| {},
+        )
+        // Calculate destination address: heap_base + METADATA_SIZE + offset
+        .global_get(vars.heap_base)
+        .i32_const(METADATA_SIZE)
+        .binop(BinaryOp::I32Add)
+        .local_get(offset)
+        .unop(UnaryOp::I32WrapI64)
+        .binop(BinaryOp::I32Add)
+        .local_set(dest_addr)
+        // Load the 4-byte func_id from src (address 0) and store it
+        .i32_const(0)
+        .load(memory, LoadKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        .local_set(tmp_i32)
+        .local_get(dest_addr)
+        .local_get(tmp_i32)
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4 })
+        // Load the 8-byte counter from src+4 (address 4) and store it
+        .i32_const(4)
+        .load(memory, LoadKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .local_set(tmp_i64)
+        .local_get(dest_addr)
+        .i32_const(4)
+        .binop(BinaryOp::I32Add)
+        .local_get(tmp_i64)
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        // Increment log_size
+        .global_get(vars.log_size)
+        .i32_const(1)
+        .binop(BinaryOp::I32Add)
+        .global_set(vars.log_size);
+
+    builder.finish(vec![offset, src, size], &mut m.funcs)
+}
+
+/// Create __get_profiling that reads from heap memory instead of stable memory
+fn make_heap_getter(m: &mut Module, vars: &Variables, leb: FunctionId, _config: &Config) {
+    let memory = get_memory_id(m);
+    let arg_size = get_ic_func_id(m, "msg_arg_data_size");
+    let arg_copy = get_ic_func_id(m, "msg_arg_data_copy");
+    let reply_data = get_ic_func_id(m, "msg_reply_data_append");
+    let reply = get_ic_func_id(m, "msg_reply");
+    let trap = get_ic_func_id(m, "trap");
+    let idx = m.locals.add(ValType::I32);
+    let len = m.locals.add(ValType::I32);
+    let next_idx = m.locals.add(ValType::I32);
+    let log_addr = m.locals.add(ValType::I32);
+    let mut builder = FunctionBuilder::new(&mut m.types, &[], &[]);
+    builder.name("__get_profiling".to_string());
+    #[rustfmt::skip]
+    builder.func_body()
+        // parse input idx
+        .call(arg_size)
+        .i32_const(11)
+        .binop(BinaryOp::I32Ne)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .call(trap);
+            },
+            |_| {},
+        )
+        .i32_const(0)
+        .i32_const(7)
+        .i32_const(4)
+        .call(arg_copy)
+        .i32_const(0)
+        .load(memory, LoadKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+        .local_set(idx)
+        // write header (vec { record { int32; int64 } }, opt int32)
+        .i32_const(0)
+        .i64_const(0x6c016d034c444944) // "DIDL036d016c"
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(8)
+        .i64_const(0x02756e7401750002)  // "02007501746e7502"
+        .store(memory, StoreKind::I64 { atomic: false }, MemArg { offset: 0, align: 8 })
+        .i32_const(16)
+        .i32_const(0x0200) // "0002"
+        .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+        .i32_const(0)
+        .i32_const(18)
+        .call(reply_data)
+        // if log_size - idx > MAX_ITEMS_PER_QUERY
+        .global_get(vars.log_size)
+        .local_get(idx)
+        .binop(BinaryOp::I32Sub)
+        .local_tee(len)
+        .i32_const(MAX_ITEMS_PER_QUERY)
+        .binop(BinaryOp::I32GtU)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(MAX_ITEMS_PER_QUERY)
+                    .local_set(len)
+                    .local_get(idx)
+                    .i32_const(MAX_ITEMS_PER_QUERY)
+                    .binop(BinaryOp::I32Add)
+                    .local_set(next_idx);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .local_set(next_idx);
+            },
+        )
+        .local_get(len)
+        .call(leb)
+        .i32_const(0)
+        .i32_const(5)
+        .call(reply_data)
+        // Calculate log address: heap_base + METADATA_SIZE + idx * LOG_ITEM_SIZE
+        .global_get(vars.heap_base)
+        .i32_const(METADATA_SIZE)
+        .binop(BinaryOp::I32Add)
+        .local_get(idx)
+        .i32_const(LOG_ITEM_SIZE)
+        .binop(BinaryOp::I32Mul)
+        .binop(BinaryOp::I32Add)
+        .local_set(log_addr)
+        // Reply with log data directly from heap
+        .local_get(log_addr)
+        .local_get(len)
+        .i32_const(LOG_ITEM_SIZE)
+        .binop(BinaryOp::I32Mul)
+        .call(reply_data)
+        // opt next idx
+        .local_get(next_idx)
+        .unop(UnaryOp::I32Eqz)
+        .if_else(
+            None,
+            |then| {
+                then.i32_const(0)
+                    .i32_const(0)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(1)
+                    .call(reply_data);
+            },
+            |else_| {
+                else_.i32_const(0)
+                    .i32_const(1)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 1})
+                    .i32_const(1)
+                    .local_get(next_idx)
+                    .store(memory, StoreKind::I32 { atomic: false }, MemArg { offset: 0, align: 4})
+                    .i32_const(0)
+                    .i32_const(5)
+                    .call(reply_data);
+            },
+        )
+        .call(reply);
+    let getter = builder.finish(vec![], &mut m.funcs);
+    m.exports.add("canister_query __get_profiling", getter);
+}
+
+// ============================================================================
+// WASI import stubbing (for modules compiled with Emscripten/wasi-sdk)
+// ============================================================================
+
+/// Replace WASI imports with stub functions that return 0 (success) or trap for proc_exit
+fn stub_wasi_imports(m: &mut Module) {
+    use walrus::FunctionBuilder;
+
+    // Find all WASI imports
+    let wasi_imports: Vec<_> = m
+        .imports
+        .iter()
+        .filter(|i| i.module == "wasi_snapshot_preview1")
+        .filter_map(|i| {
+            if let ImportKind::Function(func_id) = i.kind {
+                Some((i.id(), i.name.clone(), func_id))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let memory = m.memories.iter().next().map(|mem| mem.id());
+
+    for (import_id, name, old_func_id) in wasi_imports {
+        // Get the function type
+        let func = m.funcs.get(old_func_id);
+        let ty_id = func.ty();
+        let ty = m.types.get(ty_id);
+        let params: Vec<_> = ty.params().to_vec();
+        let results: Vec<_> = ty.results().to_vec();
+
+        // Create stub function
+        let mut builder = FunctionBuilder::new(&mut m.types, &params, &results);
+        builder.name(format!("__wasi_{name}_stub"));
+
+        // Create locals for parameters
+        let param_locals: Vec<_> = params.iter().map(|t| m.locals.add(*t)).collect();
+
+        match name.as_str() {
+            "fd_write" => {
+                // fd_write(fd: i32, iovs: i32, iovs_len: i32, nwritten: i32) -> i32
+                // Write 0 to nwritten and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // nwritten ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_read" => {
+                // fd_read(fd: i32, iovs: i32, iovs_len: i32, nread: i32) -> i32
+                // Write 0 to nread and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // nread ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_seek" => {
+                // fd_seek(fd: i32, offset: i64, whence: i32, newoffset: i32) -> i32
+                // Write 0 to newoffset and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 4 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[3]) // newoffset ptr
+                            .i64_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I64 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 8,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "fd_close" => {
+                // fd_close(fd: i32) -> i32
+                // Just return 0 (success)
+                builder.func_body().i32_const(0);
+            }
+            "environ_sizes_get" => {
+                // environ_sizes_get(count: i32, buf_size: i32) -> i32
+                // Write 0 to both pointers and return 0
+                if let Some(mem) = memory {
+                    if param_locals.len() >= 2 {
+                        builder
+                            .func_body()
+                            .local_get(param_locals[0]) // count ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .local_get(param_locals[1]) // buf_size ptr
+                            .i32_const(0)
+                            .store(
+                                mem,
+                                StoreKind::I32 { atomic: false },
+                                MemArg {
+                                    offset: 0,
+                                    align: 4,
+                                },
+                            )
+                            .i32_const(0);
+                    } else {
+                        builder.func_body().i32_const(0);
+                    }
+                } else {
+                    builder.func_body().i32_const(0);
+                }
+            }
+            "environ_get" => {
+                // environ_get(environ: i32, environ_buf: i32) -> i32
+                // Just return 0 (no environment variables)
+                builder.func_body().i32_const(0);
+            }
+            "proc_exit" => {
+                // proc_exit(code: i32) -> !
+                // Trap unconditionally
+                builder.func_body().unreachable();
+            }
+            _ => {
+                // Default: just return 0 for i32 result, or appropriate zero values
+                for result in &results {
+                    match result {
+                        ValType::I32 => {
+                            builder.func_body().i32_const(0);
+                        }
+                        ValType::I64 => {
+                            builder.func_body().i64_const(0);
+                        }
+                        ValType::F32 => {
+                            builder.func_body().f32_const(0.0);
+                        }
+                        ValType::F64 => {
+                            builder.func_body().f64_const(0.0);
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let stub_func_id = builder.finish(param_locals, &mut m.funcs);
+
+        // Replace all calls to old_func_id with stub_func_id
+        for (_, func) in m.funcs.iter_local_mut() {
+            replace_calls_in_func(func, old_func_id, stub_func_id);
+        }
+
+        // Remove the import
+        m.imports.delete(import_id);
+    }
+}
+
+fn replace_calls_in_func(func: &mut LocalFunction, old_id: FunctionId, new_id: FunctionId) {
+    let mut stack = vec![func.entry_block()];
+    while let Some(seq_id) = stack.pop() {
+        let mut builder = func.builder_mut().instr_seq(seq_id);
+        for (instr, _) in builder.instrs_mut().iter_mut() {
+            match instr {
+                Instr::Call(Call { func }) if *func == old_id => {
+                    *func = new_id;
+                }
+                Instr::Block(Block { seq }) | Instr::Loop(Loop { seq }) => {
+                    stack.push(*seq);
+                }
+                Instr::IfElse(IfElse {
+                    consequent,
+                    alternative,
+                }) => {
+                    stack.push(*consequent);
+                    stack.push(*alternative);
+                }
+                _ => {}
+            }
+        }
+    }
 }

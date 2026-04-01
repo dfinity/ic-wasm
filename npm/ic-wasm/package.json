@@ -1,0 +1,40 @@
+{
+  "name": "@icp-sdk/ic-wasm",
+  "version": "0.9.10",
+  "description": "npm wrapper for ic-wasm - WebAssembly optimization and instrumentation tool for Internet Computer canisters",
+  "main": "index.js",
+  "bin": {
+    "ic-wasm": "./bin/ic-wasm.js"
+  },
+  "scripts": {
+    "test": "node test.js",
+    "postinstall": "node postinstall.js"
+  },
+  "keywords": [
+    "ic-wasm",
+    "wasm",
+    "webassembly",
+    "internet-computer"
+  ],
+  "author": "",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfinity/ic-wasm.git",
+    "directory": "npm/ic-wasm"
+  },
+  "bugs": {
+    "url": "https://github.com/dfinity/ic-wasm/issues"
+  },
+  "homepage": "https://github.com/dfinity/ic-wasm#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "optionalDependencies": {
+    "@icp-sdk/ic-wasm-darwin-arm64": "0.9.10",
+    "@icp-sdk/ic-wasm-darwin-x64": "0.9.10",
+    "@icp-sdk/ic-wasm-linux-arm64": "0.9.10",
+    "@icp-sdk/ic-wasm-linux-x64": "0.9.10",
+    "@icp-sdk/ic-wasm-win32-x64": "0.9.10"
+  }
+}

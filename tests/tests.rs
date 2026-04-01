@@ -491,3 +491,47 @@ fn create_tempfile(content: &str) -> NamedTempFile {
     write!(temp_file, "{content}").expect("Failed to write temp file content");
     temp_file
 }
+
+#[test]
+fn stub_wasi() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
+    let out_path = path.join("out-wasi.wasm");
+
+    // First verify input has WASI imports
+    let input_module = walrus::Module::from_file(path.join("wasi-test.wasm")).unwrap();
+    let input_wasi_imports: Vec<_> = input_module
+        .imports
+        .iter()
+        .filter(|i| i.module == "wasi_snapshot_preview1")
+        .collect();
+    assert!(
+        !input_wasi_imports.is_empty(),
+        "Input should have WASI imports"
+    );
+
+    // Test that --stub-wasi removes WASI imports
+    wasm_input("wasi-test.wasm", false)
+        .arg("-o")
+        .arg(&out_path)
+        .arg("instrument")
+        .arg("--stub-wasi")
+        .assert()
+        .success();
+
+    // Verify the output WASM has no WASI imports
+    let module = walrus::Module::from_file(&out_path).unwrap();
+    let wasi_imports: Vec<_> = module
+        .imports
+        .iter()
+        .filter(|i| i.module == "wasi_snapshot_preview1")
+        .collect();
+
+    assert!(
+        wasi_imports.is_empty(),
+        "WASI imports should be removed, but found: {:?}",
+        wasi_imports.iter().map(|i| &i.name).collect::<Vec<_>>()
+    );
+
+    // Clean up
+    fs::remove_file(&out_path).ok();
+}

@@ -1,0 +1,34 @@
+# Files to ignore when publishing to npm (root level)
+
+# Scripts
+scripts/
+*.sh
+
+# Documentation (keep only essential README)
+CONTRIBUTING.md
+CHECKLIST.md
+BUNDLED_BINARIES_APPROACH.md
+
+# Build artifacts
+*.tar.gz
+*.zip
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+node_modules/
+package-lock.json
+test-output/

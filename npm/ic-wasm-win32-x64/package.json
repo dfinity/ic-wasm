@@ -1,0 +1,29 @@
+{
+  "name": "@icp-sdk/ic-wasm-win32-x64",
+  "version": "0.9.10",
+  "description": "ic-wasm binary for Windows x64",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dfinity/ic-wasm.git",
+    "directory": "npm/ic-wasm-win32-x64"
+  },
+  "license": "Apache-2.0",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "bin/ic-wasm.exe"
+  ],
+  "keywords": [
+    "ic-wasm",
+    "wasm",
+    "webassembly",
+    "internet-computer",
+    "canister"
+  ]
+}

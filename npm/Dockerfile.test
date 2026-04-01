@@ -1,0 +1,98 @@
+# Dockerfile for testing ic-wasm npm package installation
+# Usage: docker build -f Dockerfile.test -t ic-wasm-test .
+
+ARG NODE_VERSION=18
+FROM node:${NODE_VERSION}-slim
+
+WORKDIR /test
+
+# Install basic utilities
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy all package directories
+COPY ic-wasm/ ./ic-wasm/
+COPY ic-wasm-darwin-arm64/ ./ic-wasm-darwin-arm64/
+COPY ic-wasm-darwin-x64/ ./ic-wasm-darwin-x64/
+COPY ic-wasm-linux-arm64/ ./ic-wasm-linux-arm64/
+COPY ic-wasm-linux-x64/ ./ic-wasm-linux-x64/
+COPY ic-wasm-win32-x64/ ./ic-wasm-win32-x64/
+
+# Ensure binaries have execute permissions
+RUN chmod +x ic-wasm-darwin-arm64/bin/ic-wasm || true && \
+    chmod +x ic-wasm-darwin-x64/bin/ic-wasm || true && \
+    chmod +x ic-wasm-linux-arm64/bin/ic-wasm || true && \
+    chmod +x ic-wasm-linux-x64/bin/ic-wasm || true && \
+    chmod +x ic-wasm-win32-x64/bin/ic-wasm.exe || true
+
+# Create a test script
+RUN echo '#!/bin/bash\n\
+set -e\n\
+echo "================================================="\n\
+echo "Testing ic-wasm npm package installation"\n\
+echo "================================================="\n\
+echo ""\n\
+echo "Node version: $(node --version)"\n\
+echo "npm version: $(npm --version)"\n\
+echo "Platform: $(node -p process.platform)"\n\
+echo "Architecture: $(node -p process.arch)"\n\
+echo ""\n\
+echo "Installing platform-specific package first..."\n\
+PLATFORM=$(node -p process.platform)\n\
+ARCH=$(node -p process.arch)\n\
+PLATFORM_KEY="${PLATFORM}-${ARCH}"\n\
+case $PLATFORM_KEY in\n\
+  linux-x64)\n\
+    npm install ./ic-wasm-linux-x64\n\
+    ;;\n\
+  linux-arm64)\n\
+    npm install ./ic-wasm-linux-arm64\n\
+    ;;\n\
+  darwin-arm64)\n\
+    npm install ./ic-wasm-darwin-arm64\n\
+    ;;\n\
+  darwin-x64)\n\
+    npm install ./ic-wasm-darwin-x64\n\
+    ;;\n\
+  win32-x64)\n\
+    npm install ./ic-wasm-win32-x64\n\
+    ;;\n\
+  *)\n\
+    echo "Warning: Unknown platform $PLATFORM_KEY"\n\
+    ;;\n\
+esac\n\
+echo ""\n\
+echo "Installing ic-wasm wrapper..."\n\
+npm install ./ic-wasm\n\
+echo ""\n\
+echo "Installation complete!"\n\
+echo ""\n\
+echo "Testing binary execution..."\n\
+if [ ! -f "./node_modules/.bin/ic-wasm" ]; then\n\
+  echo "✗ Binary wrapper not found at node_modules/.bin/ic-wasm"\n\
+  echo ""\n\
+  echo "ERROR: Binaries must be downloaded before running tests"\n\
+  echo "Run: ./scripts/download-binaries.sh <version>"\n\
+  exit 1\n\
+fi\n\
+\n\
+if ! ./node_modules/.bin/ic-wasm --version 2>&1; then\n\
+  echo ""\n\
+  echo "✗ Binary execution failed"\n\
+  echo ""\n\
+  echo "ERROR: Binary exists but cannot be executed"\n\
+  exit 1\n\
+fi\n\
+echo "✓ Binary executed successfully"\n\
+echo ""\n\
+echo "Testing programmatic API..."\n\
+node -e "try { const icWasm = require('\''./ic-wasm'\''); console.log('\''✓ Module loaded'\''); console.log('\''  Version:'\'', icWasm.version); if (!icWasm.binaryPath) { console.error('\''✗ Binary path not found'\''); process.exit(1); } console.log('\''  Binary path:'\'', icWasm.binaryPath); } catch(err) { console.error('\''✗ Error:'\'', err.message); process.exit(1); }"\n\
+echo ""\n\
+echo "================================================="\n\
+echo "All tests passed!"\n\
+echo "================================================="' > /test/run-test.sh \
+    && chmod +x /test/run-test.sh
+
+CMD ["/test/run-test.sh"]

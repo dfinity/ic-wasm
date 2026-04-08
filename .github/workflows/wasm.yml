@@ -12,9 +12,9 @@ jobs:
       DFX_VERSION: 0.23.0
       IC_REPL_VERSION: 0.7.5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Install dfx
-        uses: dfinity/setup-dfx@main
+        uses: dfinity/setup-dfx@e50c04f104ee4285ec010f10609483cf41e4d365 # main
         with:
           dfx-version: "${{ env.DFX_VERSION }}"
       - name: Install dependencies

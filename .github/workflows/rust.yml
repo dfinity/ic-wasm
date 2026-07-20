@@ -34,9 +34,11 @@ jobs:
       - name: cargo sort
         run: cargo sort --check
       - name: Build
-        run: cargo build --features serde
-      - name: Run tests
-        run: cargo test --features serde -- --test-threads=1
+        run: cargo build --all-features
+      - name: Run tests (default features)
+        run: cargo test
+      - name: Run tests (all features)
+        run: cargo test --all-features
       - name: fmt
         run: cargo fmt -v -- --check
       - name: lint

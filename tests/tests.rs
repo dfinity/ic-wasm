@@ -2,45 +2,58 @@ use assert_cmd::Command;
 
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
-fn wasm_input(wasm: &str, output: bool) -> Command {
+fn tests_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests")
+}
+
+/// Path to a fixture file in the `tests` directory.
+fn input(wasm: &str) -> PathBuf {
+    tests_dir().join(wasm)
+}
+
+/// An `ic-wasm` command reading the given input path.
+fn ic_wasm(input: impl AsRef<Path>) -> Command {
     let mut cmd = Command::cargo_bin("ic-wasm").unwrap();
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
-    cmd.arg(path.join(wasm));
-    if output {
-        cmd.arg("-o").arg(path.join("out.wasm"));
-    }
+    cmd.arg(input.as_ref());
     cmd
 }
 
-fn assert_wasm(expected: &str) {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
-    let expected = path.join("ok").join(expected);
-    let out = path.join("out.wasm");
+/// A fresh, unique temp file to receive `-o` output. Using a distinct file per
+/// test lets the suite run concurrently without clobbering shared state.
+fn out_wasm() -> NamedTempFile {
+    NamedTempFile::new().expect("Failed to create temp output file")
+}
+
+/// An `ic-wasm` command reading fixture `wasm` and writing its result to `out`.
+fn wasm_input(wasm: &str, out: &NamedTempFile) -> Command {
+    let mut cmd = ic_wasm(input(wasm));
+    cmd.arg("-o").arg(out.path());
+    cmd
+}
+
+fn assert_wasm(actual: &Path, expected: &str) {
+    let expected = tests_dir().join("ok").join(expected);
     let ok = fs::read(&expected).unwrap();
-    let actual = fs::read(&out).unwrap();
-    if ok != actual {
+    let actual_bytes = fs::read(actual).unwrap();
+    if ok != actual_bytes {
         use std::env;
-        use std::io::Write;
         if env::var("REGENERATE_GOLDENFILES").is_ok() {
             let mut f = fs::File::create(&expected).unwrap();
-            f.write_all(&actual).unwrap();
+            f.write_all(&actual_bytes).unwrap();
         } else {
             panic!(
                 "ic_wasm did not result in expected wasm file: {} != {}. Run \"REGENERATE_GOLDENFILES=1 cargo test\" to update the wasm files",
                 expected.display(),
-                out.display()
+                actual.display()
             );
         }
     }
 }
 
-fn assert_functions_are_named() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
-    let out = path.join("out.wasm");
-
+fn assert_functions_are_named(out: &Path) {
     let module = walrus::Module::from_file(out).unwrap();
     let name_count = module.funcs.iter().filter(|f| f.name.is_some()).count();
     let total = module.funcs.iter().count();
@@ -54,78 +67,82 @@ fn assert_functions_are_named() {
 
 #[test]
 fn instrumentation() {
-    wasm_input("motoko.wasm", true)
+    let out = out_wasm();
+    wasm_input("motoko.wasm", &out)
         .arg("instrument")
         .assert()
         .success();
-    assert_wasm("motoko-instrument.wasm");
-    wasm_input("motoko.wasm", true)
+    assert_wasm(out.path(), "motoko-instrument.wasm");
+    wasm_input("motoko.wasm", &out)
         .arg("instrument")
         .arg("-t")
         .arg("schedule_copying_gc")
         .assert()
         .success();
-    assert_wasm("motoko-gc-instrument.wasm");
-    wasm_input("motoko-region.wasm", true)
+    assert_wasm(out.path(), "motoko-gc-instrument.wasm");
+    wasm_input("motoko-region.wasm", &out)
         .arg("instrument")
         .arg("-s")
         .arg("16")
         .assert()
         .success();
-    assert_wasm("motoko-region-instrument.wasm");
-    wasm_input("wat.wasm", true)
+    assert_wasm(out.path(), "motoko-region-instrument.wasm");
+    wasm_input("wat.wasm", &out)
         .arg("instrument")
         .assert()
         .success();
-    assert_wasm("wat-instrument.wasm");
-    wasm_input("wat.wasm.gz", true)
+    assert_wasm(out.path(), "wat-instrument.wasm");
+    wasm_input("wat.wasm.gz", &out)
         .arg("instrument")
         .assert()
         .success();
-    assert_wasm("wat-instrument.wasm");
-    wasm_input("rust.wasm", true)
+    assert_wasm(out.path(), "wat-instrument.wasm");
+    wasm_input("rust.wasm", &out)
         .arg("instrument")
         .assert()
         .success();
-    assert_wasm("rust-instrument.wasm");
-    wasm_input("rust-region.wasm", true)
+    assert_wasm(out.path(), "rust-instrument.wasm");
+    wasm_input("rust-region.wasm", &out)
         .arg("instrument")
         .arg("-s")
         .arg("1")
         .assert()
         .success();
-    assert_wasm("rust-region-instrument.wasm");
+    assert_wasm(out.path(), "rust-region-instrument.wasm");
 }
 
 #[test]
 fn shrink() {
-    wasm_input("motoko.wasm", true)
+    let out = out_wasm();
+    wasm_input("motoko.wasm", &out)
         .arg("shrink")
         .assert()
         .success();
-    assert_wasm("motoko-shrink.wasm");
-    wasm_input("wat.wasm", true)
+    assert_wasm(out.path(), "motoko-shrink.wasm");
+    wasm_input("wat.wasm", &out)
         .arg("shrink")
         .assert()
         .success();
-    assert_wasm("wat-shrink.wasm");
-    wasm_input("wat.wasm.gz", true)
+    assert_wasm(out.path(), "wat-shrink.wasm");
+    wasm_input("wat.wasm.gz", &out)
         .arg("shrink")
         .assert()
         .success();
-    assert_wasm("wat-shrink.wasm");
-    wasm_input("rust.wasm", true)
+    assert_wasm(out.path(), "wat-shrink.wasm");
+    wasm_input("rust.wasm", &out)
         .arg("shrink")
         .assert()
         .success();
-    assert_wasm("rust-shrink.wasm");
-    wasm_input("classes.wasm", true)
+    assert_wasm(out.path(), "rust-shrink.wasm");
+    wasm_input("classes.wasm", &out)
         .arg("shrink")
         .assert()
         .success();
-    assert_wasm("classes-shrink.wasm");
+    assert_wasm(out.path(), "classes-shrink.wasm");
 }
+
 #[test]
+#[cfg(feature = "wasm-opt")]
 fn optimize() {
     let expected_metadata = r#"icp:public candid:service
 icp:private candid:args
@@ -133,7 +150,8 @@ icp:private motoko:stable-types
 icp:private motoko:compiler
 "#;
 
-    wasm_input("classes.wasm", true)
+    let out = out_wasm();
+    wasm_input("classes.wasm", &out)
         .arg("optimize")
         .arg("O3")
         .arg("--inline-functions-with-loops")
@@ -141,86 +159,87 @@ icp:private motoko:compiler
         .arg("100")
         .assert()
         .success();
-    assert_wasm("classes-optimize.wasm");
-    wasm_input("ok/classes-optimize.wasm", false)
+    assert_wasm(out.path(), "classes-optimize.wasm");
+    ic_wasm(input("ok/classes-optimize.wasm"))
         .arg("metadata")
         .assert()
         .stdout(expected_metadata)
         .success();
-    wasm_input("classes.wasm", true)
+    wasm_input("classes.wasm", &out)
         .arg("optimize")
         .arg("O3")
         .arg("--keep-name-section")
         .assert()
         .success();
-    assert_wasm("classes-optimize-names.wasm");
+    assert_wasm(out.path(), "classes-optimize-names.wasm");
 }
 
 #[test]
 fn resource() {
-    wasm_input("motoko.wasm", true)
+    let out = out_wasm();
+    wasm_input("motoko.wasm", &out)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
         .arg("32")
         .assert()
         .success();
-    assert_wasm("motoko-limit.wasm");
-    wasm_input("wat.wasm", true)
+    assert_wasm(out.path(), "motoko-limit.wasm");
+    wasm_input("wat.wasm", &out)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
         .arg("32")
         .assert()
         .success();
-    assert_wasm("wat-limit.wasm");
-    wasm_input("wat.wasm.gz", true)
+    assert_wasm(out.path(), "wat-limit.wasm");
+    wasm_input("wat.wasm.gz", &out)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
         .arg("32")
         .assert()
         .success();
-    assert_wasm("wat-limit.wasm");
-    wasm_input("rust.wasm", true)
+    assert_wasm(out.path(), "wat-limit.wasm");
+    wasm_input("rust.wasm", &out)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
         .arg("32")
         .assert()
         .success();
-    assert_wasm("rust-limit.wasm");
-    wasm_input("classes.wasm", true)
+    assert_wasm(out.path(), "rust-limit.wasm");
+    wasm_input("classes.wasm", &out)
         .arg("resource")
         .arg("--remove-cycles-transfer")
         .arg("--limit-stable-memory-page")
         .arg("32")
         .assert()
         .success();
-    assert_wasm("classes-limit.wasm");
+    assert_wasm(out.path(), "classes-limit.wasm");
     let test_canister_id = "zz73r-nyaaa-aabbb-aaaca-cai";
     let management_canister_id = "aaaaa-aa";
-    wasm_input("classes.wasm", true)
+    wasm_input("classes.wasm", &out)
         .arg("resource")
         .arg("--playground-backend-redirect")
         .arg(test_canister_id)
         .assert()
         .success();
-    assert_wasm("classes-redirect.wasm");
-    wasm_input("classes.wasm", true)
+    assert_wasm(out.path(), "classes-redirect.wasm");
+    wasm_input("classes.wasm", &out)
         .arg("resource")
         .arg("--playground-backend-redirect")
         .arg(management_canister_id)
         .assert()
         .success();
-    assert_wasm("classes-nop-redirect.wasm");
-    wasm_input("evm.wasm", true)
+    assert_wasm(out.path(), "classes-nop-redirect.wasm");
+    wasm_input("evm.wasm", &out)
         .arg("resource")
         .arg("--playground-backend-redirect")
         .arg(test_canister_id)
         .assert()
         .success();
-    assert_wasm("evm-redirect.wasm");
+    assert_wasm(out.path(), "evm-redirect.wasm");
 }
 
 #[test]
@@ -250,12 +269,12 @@ Imported IC0 System API: [
 
 Custom sections with size: []
 "#;
-    wasm_input("wat.wasm", false)
+    ic_wasm(input("wat.wasm"))
         .arg("info")
         .assert()
         .stdout(expected)
         .success();
-    wasm_input("wat.wasm.gz", false)
+    ic_wasm(input("wat.wasm.gz"))
         .arg("info")
         .assert()
         .stdout(expected)
@@ -263,6 +282,7 @@ Custom sections with size: []
 }
 
 #[test]
+#[cfg(feature = "serde")]
 fn json_info() {
     let expected = r#"{
   "language": "Unknown",
@@ -297,13 +317,13 @@ fn json_info() {
   "custom_sections": []
 }
 "#;
-    wasm_input("wat.wasm", false)
+    ic_wasm(input("wat.wasm"))
         .arg("info")
         .arg("--json")
         .assert()
         .stdout(expected)
         .success();
-    wasm_input("wat.wasm.gz", false)
+    ic_wasm(input("wat.wasm.gz"))
         .arg("info")
         .arg("--json")
         .assert()
@@ -314,7 +334,7 @@ fn json_info() {
 #[test]
 fn metadata() {
     // List metadata
-    wasm_input("motoko.wasm", false)
+    ic_wasm(input("motoko.wasm"))
         .arg("metadata")
         .assert()
         .stdout(
@@ -326,35 +346,36 @@ icp:public candid:args
         )
         .success();
     // Get motoko:compiler content
-    wasm_input("motoko.wasm", false)
+    ic_wasm(input("motoko.wasm"))
         .arg("metadata")
         .arg("motoko:compiler")
         .assert()
         .stdout("0.10.0\n")
         .success();
     // Get a non-existed metadata
-    wasm_input("motoko.wasm", false)
+    ic_wasm(input("motoko.wasm"))
         .arg("metadata")
         .arg("whatever")
         .assert()
         .stdout("Cannot find metadata whatever\n")
         .success();
     // Overwrite motoko:compiler
-    wasm_input("motoko.wasm", true)
+    let out = out_wasm();
+    wasm_input("motoko.wasm", &out)
         .arg("metadata")
         .arg("motoko:compiler")
         .arg("-d")
         .arg("hello")
         .assert()
         .success();
-    wasm_input("out.wasm", false)
+    ic_wasm(out.path())
         .arg("metadata")
         .arg("motoko:compiler")
         .assert()
         .stdout("hello\n")
         .success();
     // Add a new metadata
-    wasm_input("motoko.wasm", true)
+    wasm_input("motoko.wasm", &out)
         .arg("metadata")
         .arg("whatever")
         .arg("-d")
@@ -363,7 +384,7 @@ icp:public candid:args
         .arg("public")
         .assert()
         .success();
-    wasm_input("out.wasm", false)
+    ic_wasm(out.path())
         .arg("metadata")
         .assert()
         .stdout(
@@ -379,13 +400,14 @@ icp:public whatever
 
 #[test]
 fn metadata_keep_name_section() {
+    let out = out_wasm();
     for file in [
         "motoko.wasm",
         "classes.wasm",
         "motoko-region.wasm",
         "rust.wasm",
     ] {
-        wasm_input(file, true)
+        wasm_input(file, &out)
             .arg("metadata")
             .arg("foo")
             .arg("-d")
@@ -393,11 +415,12 @@ fn metadata_keep_name_section() {
             .arg("--keep-name-section")
             .assert()
             .success();
-        assert_functions_are_named();
+        assert_functions_are_named(out.path());
     }
 }
 
 #[test]
+#[cfg(feature = "check-endpoints")]
 fn check_endpoints() {
     // Candid interface is NOT embedded in wat.wasm
     const CANDID_WITH_MISSING_ENDPOINTS: &str = r#"
@@ -405,12 +428,12 @@ fn check_endpoints() {
         inc : (owner: opt principal) -> (nat);
     }
     "#;
-    wasm_input("wat.wasm.gz", false)
+    ic_wasm(input("wat.wasm.gz"))
         .arg("check-endpoints")
         .assert()
         .stderr("Error: Candid interface not specified in WASM file and Candid file not provided\n")
         .failure();
-    wasm_input("wat.wasm.gz", false)
+    ic_wasm(input("wat.wasm.gz"))
         .arg("check-endpoints")
         .arg("--candid")
         .arg(create_tempfile(CANDID_WITH_MISSING_ENDPOINTS).path())
@@ -427,7 +450,7 @@ fn check_endpoints() {
     # Canister query method (this line is also a comment)
     canister_query:get
     "#;
-    wasm_input("wat.wasm.gz", false)
+    ic_wasm(input("wat.wasm.gz"))
         .arg("check-endpoints")
         .arg("--hidden")
         .arg(create_tempfile(HIDDEN_1).path())
@@ -437,7 +460,7 @@ fn check_endpoints() {
         .stdout("Canister WASM and Candid interface match!\n")
         .success();
     // Candid interface is embedded in rust.wasm and motoko.wasm
-    wasm_input("rust.wasm", false)
+    ic_wasm(input("rust.wasm"))
         .arg("check-endpoints")
         .assert()
         .stdout("Canister WASM and Candid interface match!\n")
@@ -445,7 +468,7 @@ fn check_endpoints() {
     const HIDDEN_2: &str = r#"
     canister_update:dec
     "#;
-    wasm_input("rust.wasm", false)
+    ic_wasm(input("rust.wasm"))
         .arg("check-endpoints")
         .arg("--hidden")
         .arg(create_tempfile(HIDDEN_2).path())
@@ -453,7 +476,7 @@ fn check_endpoints() {
         .stderr("ERROR: The following hidden endpoint is missing from the WASM exports section: canister_update:dec\n\
         Error: Canister WASM and Candid interface do not match!\n")
         .failure();
-    wasm_input("motoko.wasm", false)
+    ic_wasm(input("motoko.wasm"))
         .arg("check-endpoints")
         .assert()
         .stderr(
@@ -477,7 +500,7 @@ fn check_endpoints() {
     # The line below is quoted, it is parsed as a JSON string (this line is a comment)
     "canister_pre_upgrade"
     "#;
-    wasm_input("motoko.wasm", false)
+    ic_wasm(input("motoko.wasm"))
         .arg("check-endpoints")
         .arg("--hidden")
         .arg(create_tempfile(HIDDEN_3).path())
@@ -486,6 +509,7 @@ fn check_endpoints() {
         .success();
 }
 
+#[cfg(feature = "check-endpoints")]
 fn create_tempfile(content: &str) -> NamedTempFile {
     let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
     write!(temp_file, "{content}").expect("Failed to write temp file content");
@@ -494,11 +518,10 @@ fn create_tempfile(content: &str) -> NamedTempFile {
 
 #[test]
 fn stub_wasi() {
-    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests");
-    let out_path = path.join("out-wasi.wasm");
+    let out = out_wasm();
 
     // First verify input has WASI imports
-    let input_module = walrus::Module::from_file(path.join("wasi-test.wasm")).unwrap();
+    let input_module = walrus::Module::from_file(input("wasi-test.wasm")).unwrap();
     let input_wasi_imports: Vec<_> = input_module
         .imports
         .iter()
@@ -510,16 +533,14 @@ fn stub_wasi() {
     );
 
     // Test that --stub-wasi removes WASI imports
-    wasm_input("wasi-test.wasm", false)
-        .arg("-o")
-        .arg(&out_path)
+    wasm_input("wasi-test.wasm", &out)
         .arg("instrument")
         .arg("--stub-wasi")
         .assert()
         .success();
 
     // Verify the output WASM has no WASI imports
-    let module = walrus::Module::from_file(&out_path).unwrap();
+    let module = walrus::Module::from_file(out.path()).unwrap();
     let wasi_imports: Vec<_> = module
         .imports
         .iter()
@@ -531,7 +552,4 @@ fn stub_wasi() {
         "WASI imports should be removed, but found: {:?}",
         wasi_imports.iter().map(|i| &i.name).collect::<Vec<_>>()
     );
-
-    // Clean up
-    fs::remove_file(&out_path).ok();
 }

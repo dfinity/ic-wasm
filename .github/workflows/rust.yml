@@ -10,27 +10,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Cache cargo build
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+
+      # rust-cache keys on the installed toolchain's version; the runner image's
+      # bundled `stable` drifts on every image update, moving the key and causing
+      # cache misses. Remove it so the toolchain comes from rust-toolchain.toml via
+      # rustup instead, which tracks upstream stable (~6-week release cadence).
+      - name: Remove the runner's bundled Rust toolchain
+        run: rustup toolchain remove stable 2>/dev/null || true
+
+      - uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock', '**/*.rs', '**/Cargo.toml') }}
-      - name: Cache cargo binaries
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+          cache-bin: false
+
+      - name: Install cargo-sort
+        uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # v2.70.2
         with:
-          path: ~/.cargo/bin
-          key: cargo-bin-${{ runner.os }}-v1
-      - name: Install cargo-sort if needed
-        run: |
-          if ! command -v cargo-sort &> /dev/null; then
-            echo "Installing cargo-sort..."
-            cargo install cargo-sort
-          else
-            echo "cargo-sort already installed from cache."
-          fi
+          tool: cargo-sort
+
       - name: cargo sort
         run: cargo sort --check
       - name: Build

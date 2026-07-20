@@ -17,6 +17,10 @@ fn input(wasm: &str) -> PathBuf {
 /// An `ic-wasm` command reading the given input path.
 fn ic_wasm(input: impl AsRef<Path>) -> Command {
     let mut cmd = Command::cargo_bin("ic-wasm").unwrap();
+    // Keep error output deterministic for exact stderr assertions: CI sets
+    // `RUST_BACKTRACE=1`, which makes anyhow append a backtrace to stderr.
+    cmd.env_remove("RUST_BACKTRACE")
+        .env_remove("RUST_LIB_BACKTRACE");
     cmd.arg(input.as_ref());
     cmd
 }

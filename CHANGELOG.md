@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.10.0] - 2026-07-20
+
+* **Breaking:** Bump `walrus` to 0.26. ic-wasm re-exports `walrus` types in its public API, so this bump is breaking for library consumers and drives the 0.10 release.
+* Update other dependencies (`candid`, `candid_parser`, `wasmparser`, `thiserror`) and align the post-transform Wasm validation feature set with the current IC replica config.
+
 ## [0.9.11] - 2026-01-27
 
 * Enhance `instrument` subcommand with new capabilities:

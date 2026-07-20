@@ -7,17 +7,30 @@ use std::io::{self, Read};
 use walrus::*;
 #[cfg(feature = "wasm-opt")]
 use wasm_opt::Feature;
-use wasmparser::{Validator, WasmFeaturesInflated};
+use wasmparser::{Validator, WasmFeatures};
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
 pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 
-// The feature set should be align with IC `wasmtime` validation config:
-// https://github.com/dfinity/ic/blob/6a6470d705a0f36fb94743b12892280409f85688/rs/embedders/src/wasm_utils/validation.rs#L1385
-// Since we use both wasm_opt::Feature and wasmparse::WasmFeature, we have to define the config/features for both.
+// The feature set should align with the IC `wasmtime` validation config:
+// https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasm_utils/validation.rs
+// (function `wasmtime_validation_config`).
+//
+// Since we use both wasm_opt::Feature and wasmparser::WasmFeatures, we have to
+// define the features for both. They serve different roles, so they are not
+// identical:
+//   * `make_validator_with_features` below mirrors the *full* set the replica
+//     accepts (it only warns, so being permissive is free).
+//   * This list tells Binaryen which proposals may appear in the module it
+//     optimizes. Enabling a proposal the input does not use can pessimize the
+//     output (e.g. `exception-handling` makes Binaryen assume every call can
+//     throw), so we only enable the IC-accepted proposals that real canisters
+//     actually emit. `atomics`/`exception-handling` are accepted by the replica
+//     but unused by canisters, and `gc`/`relaxed-simd`/`extended-const`/
+//     `multi-memory`/`function-references` are disabled by the replica.
 #[cfg(feature = "wasm-opt")]
-pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
+pub const IC_ENABLED_WASM_FEATURES: [Feature; 9] = [
     Feature::MutableGlobals,
     Feature::TruncSat,
     Feature::Simd,
@@ -25,43 +38,36 @@ pub const IC_ENABLED_WASM_FEATURES: [Feature; 7] = [
     Feature::SignExt,
     Feature::ReferenceTypes,
     Feature::Memory64,
+    Feature::Multivalue,
+    Feature::TailCall,
 ];
 
-pub const IC_ENABLED_WASM_FEATURES_INFLATED: WasmFeaturesInflated = WasmFeaturesInflated {
-    mutable_global: true,
-    saturating_float_to_int: true,
-    sign_extension: true,
-    reference_types: true,
-    multi_value: true,
-    bulk_memory: true,
-    simd: true,
-    relaxed_simd: false,
-    threads: true,
-    shared_everything_threads: true,
-    tail_call: false,
-    floats: true,
-    multi_memory: true,
-    exceptions: true,
-    memory64: true,
-    extended_const: true,
-    component_model: true,
-    function_references: false,
-    memory_control: true,
-    gc: false,
-    custom_page_sizes: true,
-    component_model_values: true,
-    component_model_nested_names: true,
-    component_model_more_flags: true,
-    component_model_multiple_returns: true,
-    legacy_exceptions: true,
-    gc_types: true,
-    stack_switching: true,
-    wide_arithmetic: false,
-    component_model_async: true,
-};
-
+/// WebAssembly features accepted by the IC replica, used to sanity-check the
+/// module ic-wasm emits (a mismatch only produces a warning).
+///
+/// The replica validates canister modules with wasmtime, starting from
+/// `wasmtime::Config::default()` and disabling a handful of proposals (see
+/// `wasmtime_validation_config` linked above). wasmparser's
+/// `WasmFeatures::default()` tracks the same wasmtime-default set of enabled
+/// proposals, so we mirror the replica by starting from that default and
+/// removing exactly the proposals it turns off. New proposals then inherit the
+/// shared default, instead of an exhaustive struct literal that breaks the
+/// build every time wasmparser adds a feature flag.
 pub fn make_validator_with_features() -> Validator {
-    Validator::new_with_features(IC_ENABLED_WASM_FEATURES_INFLATED.into())
+    let mut features = WasmFeatures::default();
+    features.remove(
+        // config.wasm_function_references(false)
+        WasmFeatures::FUNCTION_REFERENCES
+        // config.wasm_gc(false)
+            | WasmFeatures::GC
+        // config.wasm_multi_memory(false) (disabled during validation)
+            | WasmFeatures::MULTI_MEMORY
+        // config.wasm_relaxed_simd(false) (disabled for determinism)
+            | WasmFeatures::RELAXED_SIMD
+        // config.wasm_extended_const(false)
+            | WasmFeatures::EXTENDED_CONST,
+    );
+    Validator::new_with_features(features)
 }
 
 fn wasm_parser_config(keep_name_section: bool) -> ModuleConfig {

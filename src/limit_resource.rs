@@ -101,16 +101,16 @@ fn limit_heap_memory(m: &mut Module, limit: u32) {
             if m.data
                 .iter()
                 .filter_map(|data| {
-                    match data.kind {
+                    match &data.kind {
                         DataKind::Passive => None,
                         DataKind::Active {
                             memory: data_memory_id,
                             offset,
                         } => {
-                            if data_memory_id == memory_id {
+                            if *data_memory_id == memory_id {
                                 match offset {
-                                    ConstExpr::Value(Value::I32(offset)) => Some(offset as u64),
-                                    ConstExpr::Value(Value::I64(offset)) => Some(offset as u64),
+                                    ConstExpr::Value(Value::I32(offset)) => Some(*offset as u64),
+                                    ConstExpr::Value(Value::I64(offset)) => Some(*offset as u64),
                                     _ => {
                                         // It wouldn't pass IC wasm validation
                                         None
@@ -346,7 +346,7 @@ fn check_list(
                         },
                     },
                     MemArg {
-                        offset: i as u32,
+                        offset: i as u64,
                         align: 1,
                     },
                 );

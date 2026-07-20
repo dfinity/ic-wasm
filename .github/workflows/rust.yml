@@ -22,13 +22,6 @@ jobs:
         with:
           cache-bin: false
 
-      - name: Install cargo-sort
-        uses: taiki-e/install-action@e9e8e031bcd90cdbe8ac6bb1d376f8596e587fbf # v2.70.2
-        with:
-          tool: cargo-sort
-
-      - name: cargo sort
-        run: cargo sort --check
       - name: Build
         run: cargo build --all-features
       - name: Run tests (default features)

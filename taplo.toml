@@ -1,0 +1,13 @@
+[formatting]
+allowed_blank_lines = 1
+column_width = 120
+compact_arrays = true
+reorder_arrays = true
+reorder_keys = true
+
+# Keep [package] in its conventional name/version-first order; sort everything else.
+[[rule]]
+keys = ["package"]
+
+[rule.formatting]
+reorder_keys = false

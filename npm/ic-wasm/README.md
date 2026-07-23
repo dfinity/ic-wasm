@@ -24,7 +24,7 @@ ic-wasm --version
 ### Common Commands
 
 ```bash
-# Optimize a Wasm file
+# Shrink a Wasm file
 ic-wasm input.wasm -o output.wasm shrink
 
 # Metadata operations

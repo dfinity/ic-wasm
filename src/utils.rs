@@ -5,45 +5,18 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::io::{self, Read};
 use walrus::*;
-#[cfg(feature = "wasm-opt")]
-use wasm_opt::Feature;
 use wasmparser::{Validator, WasmFeatures};
 
 pub const WASM_MAGIC_BYTES: &[u8] = &[0, 97, 115, 109];
 
 pub const GZIPPED_WASM_MAGIC_BYTES: &[u8] = &[31, 139, 8];
 
-// The feature set should align with the IC `wasmtime` validation config:
-// https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasm_utils/validation.rs
-// (function `wasmtime_validation_config`).
-//
-// Since we use both wasm_opt::Feature and wasmparser::WasmFeatures, we have to
-// define the features for both. They serve different roles, so they are not
-// identical:
-//   * `make_validator_with_features` below mirrors the *full* set the replica
-//     accepts (it only warns, so being permissive is free).
-//   * This list tells Binaryen which proposals may appear in the module it
-//     optimizes. Enabling a proposal the input does not use can pessimize the
-//     output (e.g. `exception-handling` makes Binaryen assume every call can
-//     throw), so we only enable the IC-accepted proposals that real canisters
-//     actually emit. `atomics`/`exception-handling` are accepted by the replica
-//     but unused by canisters, and `gc`/`relaxed-simd`/`extended-const`/
-//     `multi-memory`/`function-references` are disabled by the replica.
-#[cfg(feature = "wasm-opt")]
-pub const IC_ENABLED_WASM_FEATURES: [Feature; 9] = [
-    Feature::MutableGlobals,
-    Feature::TruncSat,
-    Feature::Simd,
-    Feature::BulkMemory,
-    Feature::SignExt,
-    Feature::ReferenceTypes,
-    Feature::Memory64,
-    Feature::Multivalue,
-    Feature::TailCall,
-];
-
 /// WebAssembly features accepted by the IC replica, used to sanity-check the
 /// module ic-wasm emits (a mismatch only produces a warning).
+///
+/// The feature set mirrors the IC `wasmtime` validation config:
+/// <https://github.com/dfinity/ic/blob/master/rs/embedders/src/wasm_utils/validation.rs>
+/// (function `wasmtime_validation_config`).
 ///
 /// The replica validates canister modules with wasmtime, starting from
 /// `wasmtime::Config::default()` and disabling a handful of proposals (see

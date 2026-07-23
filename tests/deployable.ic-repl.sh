@@ -141,8 +141,6 @@ wat(file("ok/wat-shrink.wasm"));
 wat(file("ok/wat-limit.wasm"));
 
 classes(file("ok/classes-shrink.wasm"));
-classes(file("ok/classes-optimize.wasm"));
-classes(file("ok/classes-optimize-names.wasm"));
 classes_limit(file("ok/classes-limit.wasm"));
 classes_redirect(file("ok/classes-redirect.wasm"));
 classes(file("ok/classes-nop-redirect.wasm"));

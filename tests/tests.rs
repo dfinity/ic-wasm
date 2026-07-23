@@ -16,7 +16,11 @@ fn input(wasm: &str) -> PathBuf {
 
 /// An `ic-wasm` command reading the given input path.
 fn ic_wasm(input: impl AsRef<Path>) -> Command {
-    let mut cmd = Command::cargo_bin("ic-wasm").unwrap();
+    // `cargo_bin_cmd!` resolves the built binary via the `CARGO_BIN_EXE_ic-wasm`
+    // env var Cargo sets at compile time. The older `Command::cargo_bin` guessed
+    // the path from the test executable's location, which breaks under Cargo's
+    // custom `build-dir` (rust-lang/cargo#16147, rust-lang/cargo#15010).
+    let mut cmd = assert_cmd::cargo_bin_cmd!("ic-wasm");
     // Keep error output deterministic for exact stderr assertions: CI sets
     // `RUST_BACKTRACE=1`, which makes anyhow append a backtrace to stderr.
     cmd.env_remove("RUST_BACKTRACE")

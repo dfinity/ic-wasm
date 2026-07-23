@@ -146,39 +146,6 @@ fn shrink() {
 }
 
 #[test]
-#[cfg(feature = "wasm-opt")]
-fn optimize() {
-    let expected_metadata = r#"icp:public candid:service
-icp:private candid:args
-icp:private motoko:stable-types
-icp:private motoko:compiler
-"#;
-
-    let out = out_wasm();
-    wasm_input("classes.wasm", &out)
-        .arg("optimize")
-        .arg("O3")
-        .arg("--inline-functions-with-loops")
-        .arg("--always-inline-max-function-size")
-        .arg("100")
-        .assert()
-        .success();
-    assert_wasm(out.path(), "classes-optimize.wasm");
-    ic_wasm(input("ok/classes-optimize.wasm"))
-        .arg("metadata")
-        .assert()
-        .stdout(expected_metadata)
-        .success();
-    wasm_input("classes.wasm", &out)
-        .arg("optimize")
-        .arg("O3")
-        .arg("--keep-name-section")
-        .assert()
-        .success();
-    assert_wasm(out.path(), "classes-optimize-names.wasm");
-}
-
-#[test]
 fn resource() {
     let out = out_wasm();
     wasm_input("motoko.wasm", &out)

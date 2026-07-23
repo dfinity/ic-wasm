@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.11.0] - 2026-07-23
+
+* **Breaking:** Remove the `optimize` subcommand and the `optimize` library module, along with the `wasm-opt` crate dependency and the `wasm-opt` Cargo feature. The `wasm-opt` binding was unmaintained and did not support newer Wasm features (e.g. 64-bit tables), and bundling it slowed ic-wasm builds. To optimize a canister Wasm, call the [`wasm-opt`](https://github.com/WebAssembly/binaryen) CLI from Binaryen directly. Recent Binaryen preserves the `icp:*` metadata custom sections through optimization, so no extra handling is needed.
+
 ## [0.10.0] - 2026-07-20
 
 * **Breaking:** Bump `walrus` to 0.26. ic-wasm re-exports `walrus` types in its public API, so this bump is breaking for library consumers and drives the 0.10 release.

@@ -84,37 +84,11 @@ Note: The `icp` metadata sections are preserved through the shrink.
 
 Usage: `ic-wasm <input.wasm> -o <output.wasm> shrink`
 
-### Optimize
+### Optimize (removed)
 
-Invoke wasm optimizations from [`wasm-opt`](https://github.com/WebAssembly/binaryen).
+Since 0.11.0, ic-wasm no longer provides the `optimize` module/command. Please use [`wasm-opt`](https://github.com/WebAssembly/binaryen) from Binaryen instead, e.g. `wasm-opt -O3 input.wasm -o output.wasm`.
 
-The optimizer exposes different optimization levels to choose from.
-
-Performance levels (optimizes for runtime):
-- O4
-- O3 (default setting: best for minimizing cycle usage)
-- O2
-- O1
-- O0 (no optimizations)
-
-Code size levels (optimizes for binary size):
-- Oz (best for minimizing code size)
-- Os
-
-The recommended setting (O3) reduces cycle usage for Motoko programs by ~10% and  Rust programs by ~4%. The code size for both languages is reduced by ~16%.
-
-Note: The `icp` metadata sections are preserved through the optimizations.
-
-Usage: `ic-wasm <input.wasm> -o <output.wasm> optimize <level>`
-
-There are two further flags exposed from `wasm-opt`:
-- `--inline-functions-with-loops`
-- `--always-inline-max-function-size <FUNCTION_SIZE>`
-
-These were exposed to aggressively inline functions, which are common in Motoko programs. With the new cost model, there is a large performance gain from inlining functions with loops, but also a large blowup in binary size. Due to the binary size increase, we may not be able to apply this inlining for actor classes inside a Wasm module.
-
-E.g.
-`ic-wasm <input.wasm> -o <output.wasm> optimize O3 --inline-functions-with-loops --always-inline-max-function-size 100`
+The `optimize` command was a thin wrapper around the unmaintained [`wasm-opt`](https://crates.io/crates/wasm-opt) binding crate, which did not support newer Wasm features (e.g. 64-bit tables). Recent Binaryen releases preserve the `icp:*` metadata custom sections through optimization, so calling `wasm-opt` directly is safe with no extra handling.
 
 ### Resource
 

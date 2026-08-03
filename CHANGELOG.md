@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [0.11.1] - 2026-08-03
+
+* Relax the `thiserror` requirement from `2.0.19` to `2` (`>=2.0.0, <3`). `thiserror 2.0.19` bumped its proc-macro dependency to `syn 3`, and the old floor forced that on every ic-wasm consumer; the relaxed bound lets dependency graphs still on `syn 2` resolve to an earlier `2.0.x` instead of pulling in a second `syn` major. No API or behavior changes.
+
 ## [0.11.0] - 2026-07-23
 
 * **Breaking:** Remove the `optimize` subcommand and the `optimize` library module, along with the `wasm-opt` crate dependency and the `wasm-opt` Cargo feature. The `wasm-opt` binding was unmaintained and did not support newer Wasm features (e.g. 64-bit tables), and bundling it slowed ic-wasm builds. To optimize a canister Wasm, call the [`wasm-opt`](https://github.com/WebAssembly/binaryen) CLI from Binaryen directly. Recent Binaryen preserves the `icp:*` metadata custom sections through optimization, so no extra handling is needed.

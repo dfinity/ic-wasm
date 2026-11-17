@@ -14,10 +14,11 @@ pub struct Config {
 struct Replacer(HashMap<FunctionId, FunctionId>);
 impl VisitorMut for Replacer {
     fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
-        if let Instr::Call(walrus::ir::Call { func }) = instr {
-            if let Some(new_id) = self.0.get(func) {
-                *instr = Call { func: *new_id }.into();
-            }
+        match instr {
+            Instr::Call(Call { func })
+            | Instr::ReturnCall(ReturnCall { func })
+            | Instr::RefFunc(RefFunc { func }) => self.replace(func),
+            _ => {}
         }
     }
 }
@@ -27,6 +28,55 @@ impl Replacer {
     }
     fn add(&mut self, old: FunctionId, new: FunctionId) {
         self.0.insert(old, new);
+    }
+    fn replace(&self, func: &mut FunctionId) {
+        if let Some(new_id) = self.0.get(func) {
+            *func = *new_id;
+        }
+    }
+    fn replace_const_expr(&self, expr: &mut ConstExpr) {
+        match expr {
+            ConstExpr::RefFunc(func) => self.replace(func),
+            ConstExpr::Extended(ops) => {
+                for op in ops {
+                    if let ConstOp::RefFunc(func) = op {
+                        self.replace(func);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    /// Redirects every function reference outside function bodies, so that a replaced
+    /// import cannot be reached through a table, a funcref global, an export or the start function.
+    fn replace_module_refs(&self, m: &mut Module) {
+        for elem in m.elements.iter_mut() {
+            match &mut elem.items {
+                ElementItems::Functions(funcs) => funcs.iter_mut().for_each(|f| self.replace(f)),
+                ElementItems::Expressions(_, exprs) => {
+                    exprs.iter_mut().for_each(|e| self.replace_const_expr(e))
+                }
+            }
+        }
+        let global_ids: Vec<_> = m.globals.iter().map(|g| g.id()).collect();
+        for id in global_ids {
+            if let GlobalKind::Local(init) = &mut m.globals.get_mut(id).kind {
+                self.replace_const_expr(init);
+            }
+        }
+        for table in m.tables.iter_mut() {
+            if let Some(init) = &mut table.init {
+                self.replace_const_expr(init);
+            }
+        }
+        for export in m.exports.iter_mut() {
+            if let ExportItem::Function(func) = &mut export.item {
+                self.replace(func);
+            }
+        }
+        if let Some(start) = &mut m.start {
+            self.replace(start);
+        }
     }
 }
 
@@ -84,6 +134,7 @@ pub fn limit_resource(m: &mut Module, config: &Config) {
         }
         dfs_pre_order_mut(&mut replacer, func, func.entry_block());
     });
+    replacer.replace_module_refs(m);
 }
 
 fn limit_heap_memory(m: &mut Module, limit: u32) {
@@ -808,6 +859,14 @@ fn make_filter_call_new(
 ///
 /// If stable_size or stable64_size is not imported, add them to the module.
 fn get_ic_func_id(m: &mut Module, method: &str) -> Option<FunctionId> {
+    let import_count = m
+        .imports
+        .iter()
+        .filter(|i| i.module == "ic0" && i.name == method)
+        .count();
+    if import_count > 1 {
+        panic!("The Canister Wasm module should import `ic0.{method}` at most once");
+    }
     match m.imports.find("ic0", method) {
         Some(id) => match m.imports.get(id).kind {
             ImportKind::Function(func_id) => Some(func_id),

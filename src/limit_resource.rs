@@ -13,13 +13,8 @@ pub struct Config {
 
 struct Replacer(HashMap<FunctionId, FunctionId>);
 impl VisitorMut for Replacer {
-    fn visit_instr_mut(&mut self, instr: &mut Instr, _: &mut InstrLocId) {
-        match instr {
-            Instr::Call(Call { func })
-            | Instr::ReturnCall(ReturnCall { func })
-            | Instr::RefFunc(RefFunc { func }) => self.replace(func),
-            _ => {}
-        }
+    fn visit_function_id_mut(&mut self, func: &mut FunctionId) {
+        self.replace(func);
     }
 }
 impl Replacer {

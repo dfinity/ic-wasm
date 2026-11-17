@@ -1,8 +1,9 @@
 use ic_wasm::limit_resource::{limit_resource, Config};
 use ic_wasm::utils::make_validator_with_features;
 use std::collections::HashSet;
-use walrus::ir::{dfs_in_order, Call, RefFunc, ReturnCall, Value, Visitor};
+use walrus::ir::{dfs_in_order, Value, Visitor};
 use walrus::*;
+use wasmparser::Validator;
 
 const CYCLES: (i64, i64) = (0, 1_000_000_000_000);
 
@@ -60,10 +61,18 @@ fn call_table_slot(body: &mut InstrSeqBuilder, ty: TypeId, table: TableId) {
 /// Applies the filter and returns every reference to `ic0.<name>` that does not come from
 /// one of the wrapper functions `limit_resource` added.
 fn unwrapped_refs_after_filter(m: &mut Module, name: &str) -> Vec<String> {
+    unwrapped_refs_after_filter_with(m, name, make_validator_with_features())
+}
+
+fn unwrapped_refs_after_filter_with(
+    m: &mut Module,
+    name: &str,
+    mut validator: Validator,
+) -> Vec<String> {
     let original_funcs: HashSet<_> = m.funcs.iter_local().map(|(id, _)| id).collect();
     limit_resource(m, &filter_config());
     let wasm = m.emit_wasm();
-    make_validator_with_features()
+    validator
         .validate_all(&wasm)
         .expect("filtered module should be valid");
     let import = m
@@ -79,17 +88,20 @@ fn unwrapped_refs_after_filter(m: &mut Module, name: &str) -> Vec<String> {
     for elem in m.elements.iter() {
         let hit = match &elem.items {
             ElementItems::Functions(funcs) => funcs.contains(&import),
-            ElementItems::Expressions(_, exprs) => exprs
-                .iter()
-                .any(|e| matches!(e, ConstExpr::RefFunc(f) if *f == import)),
+            ElementItems::Expressions(_, exprs) => exprs.iter().any(|e| references(e, import)),
         };
         if hit {
             refs.push("element segment".to_string());
         }
     }
     for global in m.globals.iter() {
-        if matches!(global.kind, GlobalKind::Local(ConstExpr::RefFunc(f)) if f == import) {
+        if matches!(&global.kind, GlobalKind::Local(init) if references(init, import)) {
             refs.push("global initializer".to_string());
+        }
+    }
+    for table in m.tables.iter() {
+        if matches!(&table.init, Some(init) if references(init, import)) {
+            refs.push("table initializer".to_string());
         }
     }
     for export in m.exports.iter() {
@@ -103,14 +115,8 @@ fn unwrapped_refs_after_filter(m: &mut Module, name: &str) -> Vec<String> {
 
     struct FindRefs(FunctionId, usize);
     impl<'i> Visitor<'i> for FindRefs {
-        fn visit_call(&mut self, i: &Call) {
-            self.1 += usize::from(i.func == self.0);
-        }
-        fn visit_return_call(&mut self, i: &ReturnCall) {
-            self.1 += usize::from(i.func == self.0);
-        }
-        fn visit_ref_func(&mut self, i: &RefFunc) {
-            self.1 += usize::from(i.func == self.0);
+        fn visit_function_id(&mut self, func: &FunctionId) {
+            self.1 += usize::from(*func == self.0);
         }
     }
     for (id, func) in m.funcs.iter_local() {
@@ -124,6 +130,16 @@ fn unwrapped_refs_after_filter(m: &mut Module, name: &str) -> Vec<String> {
         }
     }
     refs
+}
+
+fn references(expr: &ConstExpr, func: FunctionId) -> bool {
+    match expr {
+        ConstExpr::RefFunc(f) => *f == func,
+        ConstExpr::Extended(ops) => ops
+            .iter()
+            .any(|op| matches!(op, ConstOp::RefFunc(f) if *f == func)),
+        _ => false,
+    }
 }
 
 #[test]
@@ -220,6 +236,34 @@ fn filters_cycles_add_in_funcref_global() {
 
     assert_eq!(
         unwrapped_refs_after_filter(&mut module, "call_cycles_add128"),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn filters_cycles_add_in_table_initializer() {
+    let Canister {
+        mut module,
+        cycles_add128,
+        ..
+    } = canister();
+    let table = module.tables.add_local_with_init(
+        false,
+        1,
+        Some(1),
+        RefType::FUNCREF,
+        Some(ConstExpr::RefFunc(cycles_add128)),
+    );
+    module.elements.add(
+        ElementKind::Declared,
+        ElementItems::Functions(vec![cycles_add128]),
+    );
+    let ty = cycles_add128_ty(&module);
+    export_update(&mut module, |body| call_table_slot(body, ty, table));
+
+    // The IC disables function references, which table initializers need.
+    assert_eq!(
+        unwrapped_refs_after_filter_with(&mut module, "call_cycles_add128", Validator::new()),
         Vec::<String>::new()
     );
 }

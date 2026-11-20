@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
+## [1.0.0] - 2026-11-20
+
+* First stable release. No API or behavior changes since 0.11.1.
+* Infrastructure: Bump the pinned GitHub Actions used by CI and the release workflows to their current releases (no functional changes).
+
 ## [0.11.1] - 2026-08-03
 
 * Relax the `thiserror` requirement from `2.0.19` to `2` (`>=2.0.0, <3`). `thiserror 2.0.19` bumped its proc-macro dependency to `syn 3`, and the old floor forced that on every ic-wasm consumer; the relaxed bound lets dependency graphs still on `syn 2` resolve to an earlier `2.0.x` instead of pulling in a second `syn` major. No API or behavior changes.

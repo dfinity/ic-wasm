@@ -6,10 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [unreleased]
 
-## [1.0.0] - 2026-11-20
+## [1.0.0] - 2026-11-23
 
 * First stable release. No API or behavior changes since 0.11.1.
-* Infrastructure: Bump the pinned GitHub Actions used by CI and the release workflows to their current releases (no functional changes).
 
 ## [0.11.1] - 2026-08-03
 
